@@ -1,0 +1,825 @@
+/* Public homepage: photographic layout with CUHK-inspired purple. */
+.patient-home {
+  --clinic-purple: #750f6d;
+  --clinic-dark: #4e154f;
+  --clinic-peach: #f4c8b6;
+  --clinic-cream: #faf8f6;
+  --clinic-copy: #625567;
+  background: var(--clinic-cream);
+}
+
+.patient-home .patient-container,
+.patient-home .patient-header-inner {
+  width: 100%;
+  max-width: 1280px;
+  padding-left: 36px;
+  padding-right: 36px;
+}
+
+.patient-home .patient-top-strip {
+  min-height: 40px;
+  background: #390f3d;
+  color: #f1e8f1;
+  padding: 9px max(36px, calc((100vw - 1208px) / 2));
+  font-size: 0.875rem;
+}
+
+.patient-home .patient-top-strip > button {
+  color: #f1e8f1;
+  font-size: 0.875rem;
+}
+
+.patient-home .patient-header {
+  background: var(--clinic-dark);
+  border-bottom: 1px solid #ffffff1c;
+}
+
+.patient-home .patient-header-inner {
+  min-height: 98px;
+  padding-top: 22px;
+  padding-bottom: 22px;
+  gap: 28px;
+}
+
+.patient-home .patient-brand-button .brand {
+  color: #fff;
+  font-size: 1.8125rem;
+  letter-spacing: -1.1px;
+}
+
+.patient-home .patient-brand-button .brand-care {
+  color: #fff;
+}
+
+.patient-home .patient-brand-button .brand-dot,
+.patient-home .patient-brand-button .brand-mark {
+  color: var(--clinic-peach);
+}
+
+.patient-home .patient-brand-button .brand-mark path:last-child {
+  stroke: var(--clinic-dark);
+}
+
+.patient-home .patient-nav {
+  gap: 25px;
+}
+
+.patient-home .patient-nav > button {
+  color: #f7edf7;
+  font-size: 1rem;
+}
+
+.patient-home .patient-nav > button:hover,
+.patient-home .patient-nav > button.active {
+  color: var(--clinic-peach);
+}
+
+.patient-home .patient-nav > button.active::after {
+  background: var(--clinic-peach);
+}
+
+.patient-home .patient-nav-count {
+  background: #ffffff20;
+  color: #fff;
+  min-width: 22px;
+  height: 22px;
+  font-size: 0.8125rem;
+}
+
+.patient-home .patient-header-actions > .button.primary,
+.patient-home .button.clinic-peach-button {
+  min-height: 50px;
+  padding: 13px 25px;
+  background: var(--clinic-peach);
+  border: 1px solid var(--clinic-peach);
+  border-radius: 4px;
+  color: #471640;
+  font-size: 1rem;
+  font-weight: 650;
+  gap: 13px;
+  box-shadow: none;
+}
+
+.patient-home .patient-header-actions > .button.primary:hover,
+.patient-home .button.clinic-peach-button:hover {
+  background: #f9d9cb;
+  border-color: #f9d9cb;
+  color: #471640;
+}
+
+.clinic-hero {
+  position: relative;
+  background-color: var(--clinic-dark);
+  background-image:
+    linear-gradient(100deg, #4e154fe0, #5c155ec2 50%, #401344db),
+    url("/images/hero-care.jpg");
+  background-size: cover;
+  background-position:
+    center,
+    center 53%;
+  color: #fff;
+}
+
+.clinic-hero-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  min-height: 560px;
+  padding-top: 65px;
+  padding-bottom: 60px;
+}
+
+.clinic-eyebrow {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  line-height: 1.7;
+  color: var(--clinic-purple);
+}
+
+.clinic-hero .clinic-eyebrow {
+  color: #f4cfbe;
+  margin-bottom: 21px;
+}
+
+.patient-home .clinic-hero h1 {
+  max-width: 1000px;
+  margin: 0;
+  color: #fff;
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(2.75rem, 4.4vw, 4rem);
+  line-height: 1.22;
+  font-weight: 650;
+  letter-spacing: -2px;
+}
+
+.clinic-hero p {
+  max-width: 670px;
+  font-size: 1.25rem;
+  line-height: 1.8;
+  color: #f1e9f1;
+  margin: 25px 0 29px;
+}
+
+.clinic-hero-location {
+  color: #ede1ee;
+  font-size: 0.8125rem;
+  letter-spacing: 1.2px;
+  margin-top: 28px;
+  line-height: 1.7;
+}
+
+.clinic-welcome {
+  padding: 90px 0;
+  background: var(--clinic-cream);
+}
+
+.clinic-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 80px;
+}
+
+.patient-home .clinic-welcome h2,
+.patient-home .clinic-provider h2,
+.patient-home .clinic-centered-heading h2 {
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(2rem, 2.65vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -1.2px;
+  margin: 14px 0 20px;
+  color: #421c49;
+}
+
+.clinic-welcome-copy > p,
+.clinic-provider-copy > p {
+  margin: 14px 0;
+  font-size: 1.125rem;
+  line-height: 1.85;
+  color: var(--clinic-copy);
+}
+
+.patient-home .button.clinic-purple-button {
+  background: var(--clinic-purple);
+  border: 1px solid var(--clinic-purple);
+  color: #fff;
+  border-radius: 4px;
+  padding: 13px 23px;
+  min-height: 50px;
+  font-size: 1rem;
+  font-weight: 550;
+  gap: 15px;
+  box-shadow: none;
+}
+
+.patient-home .button.clinic-purple-button:hover {
+  background: #5c0b56;
+  border-color: #5c0b56;
+}
+
+.clinic-welcome-copy > .button {
+  margin-top: 15px;
+}
+
+.clinic-welcome-image {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.clinic-welcome-image > img {
+  width: 100%;
+  height: 415px;
+  object-fit: cover;
+  object-position: 42% center;
+  border-radius: 3px;
+  display: block;
+}
+
+.clinic-image-caption {
+  position: absolute;
+  left: -25px;
+  bottom: 0;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding: 20px 28px;
+  background: #fff;
+  box-shadow: 0 8px 35px #3214320c;
+  color: var(--clinic-purple);
+}
+
+.clinic-image-caption > svg {
+  flex-shrink: 0;
+}
+
+.clinic-image-caption > span {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--clinic-copy);
+}
+
+.clinic-image-caption strong {
+  display: block;
+  color: #421c49;
+  font-weight: 600;
+}
+
+.clinic-services {
+  padding: 76px 0 70px;
+  background: #fff;
+  scroll-margin-top: 110px;
+}
+
+.clinic-centered-heading {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.patient-home .clinic-centered-heading h2 {
+  margin-bottom: 13px;
+}
+
+.clinic-centered-heading > p {
+  font-size: 1.125rem;
+  color: var(--clinic-copy);
+  line-height: 1.8;
+}
+
+.clinic-service-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 23px;
+}
+
+.clinic-service-button {
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  display: block;
+  border-radius: 3px;
+}
+
+.clinic-service-image {
+  display: block;
+  width: 100%;
+  height: 235px;
+  position: relative;
+  overflow: hidden;
+  background: #f1e7f5;
+  border-radius: 3px;
+}
+
+.clinic-service-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 250ms ease;
+}
+
+.clinic-service:nth-child(2) img {
+  object-position: 38% center;
+}
+
+.clinic-service:nth-child(4) img {
+  object-position: 44% center;
+}
+
+.clinic-service-button:hover .clinic-service-image > img {
+  transform: scale(1.04);
+}
+
+.clinic-service-arrow {
+  position: absolute;
+  bottom: 13px;
+  right: 13px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--clinic-purple);
+}
+
+.clinic-service-button:hover .clinic-service-arrow,
+.clinic-service-button[aria-expanded="true"] .clinic-service-arrow {
+  background: var(--clinic-purple);
+  color: #fff;
+}
+
+.clinic-service h3 {
+  color: #421c49;
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.35px;
+  margin: 18px 0 6px;
+}
+
+.clinic-service-chinese {
+  display: block;
+  font-size: 0.9375rem;
+  color: var(--clinic-copy);
+  line-height: 1.7;
+}
+
+.clinic-service-actions {
+  text-align: center;
+  margin-top: 35px;
+}
+
+.clinic-service-note {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.875rem;
+  line-height: 1.8;
+  color: var(--clinic-copy);
+  margin-top: 24px;
+}
+
+.clinic-service-note > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--clinic-purple);
+}
+
+.clinic-service-details:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 25px;
+  padding: 30px;
+  margin-top: 30px;
+  background: #faf7fc;
+  border: 1px solid #e9ddec;
+  border-radius: 4px;
+  text-align: left;
+  scroll-margin-top: 120px;
+}
+
+.clinic-service-details h4 {
+  color: #421c49;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.clinic-service-details p {
+  color: var(--clinic-copy);
+  font-size: 1rem;
+  line-height: 1.85;
+  margin-bottom: 14px;
+}
+
+.clinic-provider {
+  padding: 80px 0;
+  background: var(--clinic-dark);
+  color: #fff;
+}
+
+.clinic-provider .clinic-split {
+  gap: 75px;
+}
+
+.clinic-provider-image {
+  position: relative;
+  align-self: stretch;
+  min-height: 540px;
+}
+
+.clinic-provider-image > img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  object-position: 34% center;
+  border-radius: 3px;
+}
+
+.clinic-photo-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  color: #fff;
+  background: #321234cf;
+  padding: 5px 9px;
+  border-radius: 2px;
+  font-size: 0.75rem;
+}
+
+.clinic-provider .clinic-eyebrow {
+  color: var(--clinic-peach);
+}
+
+.patient-home .clinic-provider h2 {
+  color: #fff;
+}
+
+.clinic-provider-copy > p {
+  color: #e8dce9;
+}
+
+.clinic-provider h3 {
+  font-size: 1.1875rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 25px 0 17px;
+  line-height: 1.6;
+}
+
+.clinic-provider ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 29px;
+  display: grid;
+  gap: 13px;
+}
+
+.clinic-provider li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 1rem;
+  color: #f0e6f0;
+  line-height: 1.75;
+}
+
+.clinic-provider li > svg {
+  color: var(--clinic-peach);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.patient-home .patient-process-section {
+  background: var(--clinic-cream);
+  border: 0;
+  padding: 80px 0;
+}
+
+.patient-home .patient-centered-heading h2,
+.patient-home .patient-faq-section h2,
+.patient-home .patient-demo-card h2 {
+  font-weight: 600;
+  font-family: "Manrope", sans-serif;
+}
+
+.patient-home .patient-demo-section {
+  padding-top: 35px;
+  padding-bottom: 40px;
+}
+
+.patient-home .patient-demo-card {
+  background: #f2e9f4;
+  border-radius: 4px;
+  border-color: #e8dceb;
+}
+
+.patient-home .patient-bottom-cta {
+  background: #f0e6f2;
+  padding: 65px 0;
+}
+
+.patient-home .patient-footer {
+  background: #fff;
+}
+
+@media (max-width: 1100px) {
+  .patient-home .patient-header-inner {
+    gap: 20px;
+  }
+  .patient-home .patient-nav {
+    gap: 18px;
+  }
+  .patient-home .patient-brand-button .brand {
+    font-size: 1.625rem;
+  }
+  .patient-home .patient-header-actions > .button.primary {
+    padding: 12px 16px;
+  }
+  .clinic-split,
+  .clinic-provider .clinic-split {
+    gap: 45px;
+  }
+  .clinic-service-grid {
+    gap: 18px;
+  }
+  .clinic-service-image {
+    height: 210px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .patient-home .patient-header-inner {
+    min-height: 85px;
+    gap: 15px;
+  }
+  .patient-home .patient-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 0;
+    background: #4e154f;
+    border-bottom: 1px solid #ffffff30;
+    box-shadow: 0 15px 30px #2e0c3b20;
+    padding: 16px 36px 22px;
+    gap: 0;
+  }
+  .patient-home .patient-nav.is-open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .patient-home .patient-nav > button {
+    padding: 13px 2px;
+    font-size: 1.0625rem;
+  }
+  .patient-home .patient-nav > button.active::after {
+    display: none;
+  }
+  .patient-home .patient-nav-count {
+    margin-left: auto;
+  }
+  .patient-home .patient-header-actions {
+    margin-left: auto;
+  }
+  .patient-home .patient-header .patient-mobile-menu {
+    display: flex;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+  }
+  .clinic-hero-content {
+    min-height: 525px;
+  }
+  .clinic-welcome {
+    padding: 70px 0;
+  }
+  .clinic-service-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 24px;
+  }
+  .clinic-service-image {
+    height: 245px;
+  }
+  .clinic-provider-image {
+    min-height: 600px;
+  }
+}
+
+@media (max-width: 760px) {
+  .patient-home .patient-container,
+  .patient-home .patient-header-inner {
+    padding-left: 25px;
+    padding-right: 25px;
+  }
+  .patient-home .patient-top-strip {
+    padding-left: 25px;
+    padding-right: 25px;
+  }
+  .clinic-split {
+    grid-template-columns: 1fr;
+    gap: 35px;
+  }
+  .clinic-welcome-copy {
+    max-width: 600px;
+  }
+  .clinic-welcome-image {
+    margin-left: 15px;
+  }
+  .clinic-welcome-image > img {
+    height: 390px;
+  }
+  .clinic-image-caption {
+    left: -15px;
+  }
+  .clinic-service-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinic-provider {
+    padding: 60px 0;
+  }
+  .clinic-provider .clinic-split {
+    gap: 35px;
+  }
+  .clinic-provider-image {
+    min-height: 400px;
+  }
+  .clinic-provider-image > img {
+    object-position: 35% 35%;
+  }
+  .patient-home .clinic-welcome h2,
+  .patient-home .clinic-provider h2,
+  .patient-home .clinic-centered-heading h2 {
+    font-size: 2.125rem;
+    letter-spacing: -1px;
+  }
+}
+
+@media (max-width: 520px) {
+  .patient-home .patient-container,
+  .patient-home .patient-header-inner {
+    padding-left: 21px;
+    padding-right: 21px;
+  }
+  .patient-home .patient-top-strip {
+    justify-content: flex-end;
+    padding: 7px 21px;
+    min-height: 33px;
+  }
+  .patient-home .patient-top-strip > span {
+    display: none;
+  }
+  .patient-home .patient-top-strip > button {
+    font-size: 0.8125rem;
+  }
+  .patient-home .patient-header-inner {
+    gap: 8px;
+    min-height: 80px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+  .patient-home .patient-brand-button .brand {
+    font-size: 1.375rem;
+    letter-spacing: -0.9px;
+    gap: 3px;
+  }
+  .patient-home .patient-brand-button .brand-mark,
+  .patient-home .patient-brand-button .brand-mark svg {
+    width: 26px;
+    height: 29px;
+  }
+  .patient-home .patient-header-actions {
+    gap: 7px;
+  }
+  .patient-home .patient-header-actions > .button.primary {
+    padding: 10px 12px;
+    font-size: 0.875rem;
+    min-height: 43px;
+  }
+  .patient-home .patient-header-actions > .button > svg {
+    display: none;
+  }
+  .patient-home .patient-header .patient-mobile-menu {
+    width: 35px;
+    min-width: 35px;
+    padding: 4px;
+  }
+  .patient-home .patient-nav {
+    padding-left: 21px;
+    padding-right: 21px;
+  }
+  .clinic-hero {
+    background-position:
+      center,
+      65% center;
+  }
+  .clinic-hero-content {
+    min-height: 550px;
+    padding-top: 60px;
+    padding-bottom: 45px;
+  }
+  .clinic-eyebrow {
+    font-size: 0.8125rem;
+    letter-spacing: 1.1px;
+  }
+  .clinic-hero .clinic-eyebrow {
+    max-width: 260px;
+    margin-bottom: 20px;
+  }
+  .patient-home .clinic-hero h1 {
+    font-size: clamp(2.125rem, 8.6vw, 2.65rem);
+    letter-spacing: -1.3px;
+    line-height: 1.3;
+  }
+  .clinic-hero p {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin: 22px 0 27px;
+  }
+  .clinic-hero-location {
+    font-size: 0.75rem;
+    letter-spacing: 0.8px;
+    max-width: 270px;
+    margin-top: 24px;
+  }
+  .clinic-welcome {
+    padding: 55px 0;
+  }
+  .patient-home .clinic-welcome h2,
+  .patient-home .clinic-provider h2,
+  .patient-home .clinic-centered-heading h2 {
+    font-size: 1.9375rem;
+    letter-spacing: -0.9px;
+  }
+  .clinic-welcome-copy > p,
+  .clinic-provider-copy > p,
+  .clinic-centered-heading > p {
+    font-size: 1.0625rem;
+  }
+  .clinic-welcome-image > img {
+    height: 295px;
+  }
+  .clinic-image-caption {
+    padding: 15px 20px;
+  }
+  .clinic-services {
+    padding: 55px 0;
+  }
+  .clinic-centered-heading {
+    margin-bottom: 28px;
+  }
+  .clinic-service-grid {
+    gap: 28px 17px;
+  }
+  .clinic-service-image {
+    height: 190px;
+  }
+  .clinic-service h3 {
+    font-size: 1.0625rem;
+    letter-spacing: -0.2px;
+    margin-top: 13px;
+  }
+  .clinic-service-chinese {
+    font-size: 0.875rem;
+  }
+  .clinic-service-arrow {
+    width: 32px;
+    height: 32px;
+    bottom: 10px;
+    right: 10px;
+  }
+  .clinic-service-details:not([hidden]) {
+    padding: 23px;
+  }
+  .clinic-service-note {
+    font-size: 0.875rem;
+  }
+  .clinic-provider-image {
+    min-height: 355px;
+  }
+  .patient-home .patient-process-section {
+    padding: 55px 0;
+  }
+  .patient-home .patient-bottom-cta {
+    padding: 50px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-service-image > img {
+    transition: none;
+  }
+  .clinic-service-button:hover .clinic-service-image > img {
+    transform: none;
+  }
+}

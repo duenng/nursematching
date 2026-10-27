@@ -1,0 +1,1965 @@
+/* Shared purple palette and readable type for patients, families and staff. */
+:root {
+  --brand: #750f6d;
+  --brand-hover: #5c0b56;
+  --brand-accent: #9661a6;
+  --brand-soft: #f1e7f5;
+  --heading: #44214e;
+  --text: #473c4c;
+  --text-muted: #6f6177;
+  --line: #e4d9ea;
+  --on-brand: #fff;
+  --surface: #fff;
+  --page: #faf7fc;
+  --border: var(--line);
+  --muted: var(--text-muted);
+  --sidebar: 270px;
+  color: var(--text);
+  background: var(--page);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+body {
+  color: var(--text);
+}
+h1,
+h2,
+h3,
+h4 {
+  color: var(--heading);
+}
+p,
+li {
+  line-height: 1.8;
+}
+input,
+textarea,
+select {
+  accent-color: var(--brand);
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline-color: var(--brand);
+}
+input:focus,
+textarea:focus {
+  border-color: #af82bf;
+  box-shadow: 0 0 0 3px #750f6d0d;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #81708a;
+}
+.brand {
+  color: var(--brand);
+}
+.brand-mark {
+  color: #d9bee6;
+}
+.brand-dot {
+  color: var(--brand);
+}
+.button.primary,
+.patient-app .button.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+.button.primary:hover,
+.patient-app .button.primary:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+.button.secondary,
+.patient-app .button.secondary {
+  color: var(--brand);
+  background: #fff;
+  border-color: #d9c6e2;
+}
+.button.secondary:hover,
+.patient-app .button.secondary:hover {
+  background: var(--brand-soft);
+  border-color: #bd99cb;
+}
+.button,
+.patient-app .button {
+  min-height: 44px;
+  font-size: 0.9375rem;
+  padding: 10px 16px;
+  white-space: normal;
+}
+.text-button,
+.patient-link {
+  color: var(--brand);
+}
+.badge {
+  font-size: 0.8125rem;
+}
+.badge.amber {
+  color: #805819;
+  background: #fbf2df;
+}
+.badge.blue {
+  color: #3f607f;
+  background: #edf3fa;
+}
+.badge.red {
+  color: #a14138;
+  background: #fbece9;
+}
+.badge.green {
+  color: #35644e;
+  background: #edf5ef;
+}
+.badge.purple {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.badge.demo {
+  color: var(--text-muted);
+  background: #f6f0fa;
+  border-color: var(--line);
+}
+.icon-button {
+  min-width: 34px;
+  min-height: 34px;
+}
+.toast {
+  color: var(--heading);
+  line-height: 1.7;
+}
+
+/* Give growing text room instead of shrinking it at smaller widths. */
+.page-title {
+  flex-wrap: wrap;
+}
+.page-title p {
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.page-actions {
+  flex-wrap: wrap;
+}
+.nav-item {
+  font-size: 1rem;
+  min-height: 46px;
+}
+.nav-item.active {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.nav-item.active svg {
+  color: var(--brand);
+}
+.workspace-switch {
+  flex-shrink: 0;
+}
+.workspace-switch strong {
+  font-size: 0.9375rem;
+}
+.workspace-switch small {
+  font-size: 0.8125rem;
+}
+.sidebar-bottom {
+  padding-top: 26px;
+}
+.sidebar-footer {
+  white-space: normal;
+}
+.topbar {
+  gap: 16px;
+}
+.topbar-actions {
+  gap: 14px;
+}
+.global-search {
+  width: 205px;
+}
+.global-search input {
+  font-size: 0.875rem;
+}
+.welcome-banner {
+  height: auto;
+  min-height: 310px;
+}
+.welcome-copy {
+  width: 56%;
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+.welcome-copy p {
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.welcome-copy h2 {
+  line-height: 1.3;
+}
+.welcome-art {
+  height: 280px;
+}
+.stat-card {
+  padding: 20px 17px;
+}
+.stat-top {
+  align-items: flex-start;
+  gap: 8px;
+}
+.stat-top > span:first-child {
+  white-space: normal;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.stat-card > p {
+  font-size: 0.875rem;
+  min-height: 46px;
+  white-space: normal;
+  line-height: 1.7;
+}
+.stat-bottom {
+  height: auto;
+  min-height: 38px;
+}
+.stat-number {
+  font-size: 2.5rem;
+}
+.trend,
+.stat-attention,
+.provider-stat-avatars > span:last-child {
+  font-size: 0.8125rem;
+}
+.stat-attention {
+  line-height: 1.6;
+}
+.provider-stat-avatars {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.provider-stat-avatars .avatar.sm {
+  width: 24px;
+  height: 24px;
+  font-size: 0.5625rem;
+}
+.dashboard-columns {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.panel-header {
+  flex-wrap: wrap;
+}
+.panel-header h2 {
+  white-space: normal;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+.panel-header p {
+  font-size: 0.875rem;
+}
+.panel-header .text-button {
+  font-size: 0.875rem;
+}
+.segmented-tabs {
+  flex-wrap: wrap;
+}
+.segmented-tabs button {
+  min-height: 35px;
+  font-size: 0.8125rem;
+}
+.care-table {
+  min-width: 700px;
+}
+.care-table th {
+  font-size: 0.75rem;
+}
+.care-table td,
+.care-type,
+.client-cell strong,
+.district-cell {
+  font-size: 0.9375rem;
+}
+.client-cell small,
+.cell-subtitle {
+  font-size: 0.8125rem;
+}
+.care-table .badge {
+  font-size: 0.75rem;
+}
+.panel-table-footer {
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.navigator-banner {
+  flex-wrap: wrap;
+}
+.navigator-banner h3 {
+  font-size: 1.25rem;
+}
+.navigator-banner p {
+  font-size: 0.9375rem;
+  line-height: 1.8;
+}
+.navigator-banner .button {
+  font-size: 0.875rem;
+}
+.pipeline-stages {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.pipeline-stages button > span:nth-child(2) {
+  font-size: 0.875rem;
+  white-space: normal;
+}
+.today-visit {
+  gap: 14px;
+  padding: 16px 12px;
+}
+.visit-content {
+  min-width: 0;
+}
+.visit-time,
+.visit-content > strong {
+  font-size: 1rem;
+}
+.visit-time > span,
+.visit-content > span,
+.visit-content small {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+.today-date {
+  font-size: 0.8125rem;
+  flex-wrap: wrap;
+}
+.activity-panel .panel-header h2 {
+  font-size: 1rem;
+}
+.activity-item strong {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.activity-item p {
+  font-size: 0.8125rem;
+}
+.activity-item small,
+.activity-footnote {
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.activity-item {
+  padding: 14px 0;
+}
+.human-note h3 {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.human-note p {
+  font-size: 0.8125rem;
+  max-width: none;
+}
+.mini-stats {
+  gap: 20px 0;
+}
+.mini-stats small {
+  white-space: normal;
+  line-height: 1.7;
+}
+.mini-stats > div {
+  min-width: 0;
+  gap: 12px;
+  padding: 0 18px;
+}
+.filter-bar {
+  flex-wrap: wrap;
+}
+.filter-bar > div {
+  flex-wrap: wrap;
+}
+.table-search {
+  max-width: 400px;
+}
+.table-search input {
+  font-size: 0.9375rem;
+}
+.provider-intro {
+  flex-wrap: wrap;
+}
+.provider-card-top {
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.provider-card h3 {
+  font-size: 1.375rem;
+}
+.provider-card-footer {
+  align-items: flex-start;
+}
+.provider-card-footer > span {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+.provider-districts {
+  align-items: flex-start;
+  line-height: 1.8;
+}
+.provider-districts > svg {
+  margin-top: 4px;
+}
+.enquiry-card blockquote {
+  min-height: 0;
+  max-height: none;
+  -webkit-line-clamp: 4;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.enquiry-card-footer {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.enquiry-card-footer > span:last-child {
+  font-size: 0.8125rem;
+}
+.message-header {
+  flex-wrap: wrap;
+}
+.message-header strong {
+  font-size: 1rem;
+}
+.message-header small {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+.message-bubble pre {
+  font-size: 0.9375rem;
+}
+.message-card-footer {
+  flex-wrap: wrap;
+}
+.message-card-footer > span {
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.message-card-footer .text-button {
+  font-size: 0.875rem;
+}
+.settings-row,
+.integration-row {
+  flex-wrap: wrap;
+}
+.settings-row strong,
+.integration-row strong {
+  font-size: 1rem;
+}
+.settings-row small,
+.integration-row p {
+  font-size: 0.875rem;
+}
+.settings-row > span:last-child {
+  font-size: 0.9375rem;
+}
+.content-footer {
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+}
+.empty-state p {
+  font-size: 1rem;
+  max-width: 460px;
+}
+.empty-state h3 {
+  font-size: 1.25rem;
+}
+.inline-note,
+.inline-note p {
+  font-size: 0.875rem;
+}
+
+/* Calendar rows share a scale with the event positions in Schedule.tsx. */
+.week-calendar {
+  grid-template-columns: 70px repeat(7, minmax(150px, 1fr));
+  min-width: 1120px;
+}
+.calendar-hours,
+.calendar-day {
+  height: 1120px;
+}
+.calendar-hours > span,
+.hour-slot {
+  height: 112px;
+}
+.hour-slot:after {
+  height: 56px;
+}
+.calendar-hours {
+  font-size: 0.75rem;
+}
+.calendar-event {
+  padding: 7px 8px;
+}
+.calendar-event strong {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.calendar-event small {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.event-time {
+  font-size: 0.75rem;
+}
+.event-time > span {
+  font-size: 0.6875rem;
+}
+.calendar-toolbar,
+.calendar-nav,
+.calendar-controls {
+  flex-wrap: wrap;
+}
+.calendar-nav h2 {
+  font-size: 1.125rem;
+}
+.calendar-client-filter {
+  flex-wrap: wrap;
+}
+.calendar-day-header.is-today > strong {
+  background: var(--brand);
+  color: white;
+}
+.calendar-day-header > strong {
+  font-size: 1.5rem;
+}
+.schedule-summary {
+  flex-wrap: wrap;
+}
+.schedule-summary > span {
+  font-size: 0.875rem;
+}
+.schedule-list-item {
+  flex-wrap: wrap;
+}
+.list-visit-provider {
+  min-width: 0;
+}
+
+/* Forms remain comfortably readable at every viewport size. */
+.modal {
+  width: 720px;
+}
+.modal.wide {
+  width: 1000px;
+}
+.modal-header h2 {
+  font-size: 1.75rem;
+}
+.modal-body,
+.patient-app .modal-body {
+  line-height: 1.75;
+}
+.modal-body .field > span:first-child:not(.select-wrap),
+.patient-app .modal-body .field > span:first-child:not(.select-wrap) {
+  font-size: 0.9375rem;
+}
+.modal-body input,
+.modal-body textarea,
+.modal-body select,
+.modal-body .field input,
+.modal-body .field textarea,
+.modal-body .field .select-wrap select,
+.patient-app .modal-body .field input,
+.patient-app .modal-body .field textarea,
+.patient-app .modal-body .field .select-wrap select {
+  font-size: 1rem;
+  min-height: 44px;
+}
+.modal-body input[type="checkbox"] {
+  min-height: 0;
+  width: 17px;
+  height: 17px;
+  margin-top: 5px;
+}
+.modal-body .field input::placeholder,
+.modal-body .field textarea::placeholder {
+  font-size: 0.9375rem;
+}
+.enquiry-textarea {
+  font-size: 1rem !important;
+}
+.modal-body .checkbox-row,
+.modal-body .approval-checklist .checkbox-row,
+.patient-app .patient-modal-body .checkbox-row {
+  font-size: 0.9375rem;
+  line-height: 1.8;
+}
+.modal-body .form-hint,
+.modal-body .info-callout.small p,
+.patient-app .modal-body .info-callout.small p,
+.modal-body .navigator-greeting p,
+.modal-body .followup-box > p {
+  font-size: 0.875rem !important;
+}
+.modal-body .detail > strong,
+.modal-body .readable-summary p,
+.modal-body .original-message p {
+  font-size: 1rem;
+}
+.modal-body .detail > span,
+.modal-footer-note {
+  font-size: 0.8125rem;
+}
+.modal-body .detail .unknown {
+  font-size: 0.9375rem;
+}
+.modal-body .case-section-heading h3,
+.modal-body .approval-checklist h3 {
+  font-size: 1.125rem;
+}
+.modal-body .case-section-heading .text-button {
+  font-size: 0.875rem;
+}
+.modal-footer .button,
+.patient-app .modal-footer .button {
+  font-size: 0.9375rem;
+  min-height: 44px;
+}
+.modal-footer-note {
+  max-width: 420px;
+}
+.review-layout {
+  grid-template-columns: minmax(0, 1fr) 245px;
+}
+.modal-body .pathway-note p,
+.modal-body .missing-panel > span {
+  font-size: 0.875rem;
+}
+.day-picker button {
+  min-width: 42px;
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+.modal-tabs {
+  gap: 22px;
+}
+.modal-tabs button {
+  font-size: 0.9375rem;
+}
+.modal-steps > span {
+  font-size: 0.875rem;
+}
+.modal-steps i {
+  min-width: 23px;
+  height: 23px;
+  font-size: 0.8125rem;
+}
+.modal-body .button-row .button {
+  font-size: 0.875rem;
+  min-height: 42px;
+}
+.modal-body .patient-dialog-details dd,
+.modal-body .patient-dialog-intro {
+  font-size: 1rem !important;
+}
+.modal-body .patient-dialog-details dt {
+  font-size: 0.875rem;
+}
+.patient-dialog-date h3 {
+  font-size: 1.5rem;
+}
+.patient-dialog-date p {
+  font-size: 1rem;
+}
+.patient-app .patient-approve-box p,
+.patient-app .patient-change-form > p {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-approve-box h3,
+.patient-app .patient-change-form h3 {
+  font-size: 1.125rem;
+}
+.modal-body .patient-dialog-status > span:last-child {
+  font-size: 0.8125rem;
+}
+.modal-body .patient-pending-change p,
+.modal-body .patient-pending-change strong {
+  font-size: 0.9375rem;
+}
+.modal-body .patient-pending-change small {
+  font-size: 0.8125rem;
+}
+
+/* Public patient pages use larger body type and a calmer reading width. */
+.patient-app {
+  --patient-ink: var(--heading);
+  --patient-copy: var(--text);
+  --patient-soft: var(--text-muted);
+  --patient-line: var(--line);
+  color: var(--text);
+  background: #fff;
+}
+.patient-container,
+.patient-header-inner {
+  max-width: 1280px;
+}
+.patient-header-inner {
+  gap: 28px;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+.patient-brand-button .brand {
+  font-size: 1.8125rem;
+}
+.patient-top-strip {
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.8125rem;
+  padding: 9px max(36px, calc((100vw - 1208px) / 2));
+}
+.patient-top-strip > button {
+  color: #f2e5f7;
+  font-size: 0.8125rem;
+}
+.patient-top-strip > button:hover {
+  color: #fff;
+}
+.patient-nav {
+  gap: 24px;
+}
+.patient-nav > button {
+  font-size: 1rem;
+}
+.patient-nav > button.active {
+  color: var(--brand);
+}
+.patient-nav > button.active:after {
+  background: var(--brand);
+}
+.patient-app .patient-eyebrow {
+  font-size: 0.8125rem;
+  letter-spacing: 1.2px;
+}
+.patient-hero {
+  background: #f6eff9;
+}
+.patient-hero-grid {
+  min-height: 540px;
+  grid-template-columns: 1.15fr 1fr;
+}
+.patient-app .patient-hero h1 {
+  font-size: clamp(2.4rem, 3.6vw, 3.5rem);
+  letter-spacing: -1.8px;
+  line-height: 1.25;
+}
+.patient-hero h1 em {
+  color: var(--brand);
+}
+.patient-app .patient-hero-copy > p {
+  font-size: 1.125rem;
+  line-height: 1.9;
+  max-width: 520px;
+}
+.patient-hero-buttons {
+  gap: 18px;
+}
+.patient-app .patient-hero-buttons .button {
+  font-size: 1rem;
+  min-height: 48px;
+  padding: 12px 18px;
+}
+.patient-app .patient-link,
+.patient-app .patient-hero-buttons .patient-link {
+  font-size: 1rem;
+}
+.patient-hero-assurance {
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.patient-hero-assurance > span {
+  font-size: 0.8125rem;
+}
+.patient-art-note {
+  right: 0;
+}
+.patient-art-note > div {
+  font-size: 0.8125rem;
+}
+.patient-art-note strong {
+  font-size: 0.875rem;
+}
+.patient-trust-bar {
+  gap: 20px;
+}
+.patient-trust-bar > span {
+  align-items: flex-start;
+}
+.patient-trust-bar > span > svg {
+  margin-top: 4px;
+}
+.patient-trust-bar strong {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.patient-app .patient-trust-bar small {
+  font-size: 0.875rem;
+}
+.patient-app h2 {
+  font-size: 2rem;
+  line-height: 1.4;
+}
+.patient-app .patient-section-heading > p {
+  font-size: 1rem;
+  max-width: 400px;
+}
+.patient-service-grid {
+  gap: 24px;
+}
+.patient-service-card {
+  padding: 30px 27px;
+}
+.patient-service-tag {
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.patient-service-card h3 {
+  font-size: 1.5rem;
+  min-height: 0;
+  line-height: 1.45;
+}
+.patient-service-cn {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-service-card > p {
+  font-size: 1rem;
+  line-height: 1.85;
+  min-height: 0;
+}
+.patient-app .patient-service-card li {
+  font-size: 0.9375rem;
+  align-items: flex-start;
+  gap: 8px;
+}
+.patient-service-card li > svg {
+  width: 15px;
+  height: 15px;
+  margin-top: 6px;
+}
+.patient-service-card > .patient-link {
+  font-size: 0.9375rem;
+  align-items: flex-start;
+}
+.patient-service-card > .patient-link > svg {
+  margin-top: 5px;
+}
+.patient-service-note {
+  font-size: 0.875rem;
+  align-items: flex-start;
+}
+.patient-service-note > svg {
+  margin-top: 5px;
+}
+.patient-process-step h3 {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+.patient-app .patient-process-step p {
+  font-size: 1rem;
+  max-width: 260px;
+}
+.patient-centered-heading p {
+  font-size: 1rem;
+}
+.patient-demo-card {
+  gap: 55px;
+}
+.patient-demo-card > div:last-child h2 {
+  font-size: 1.875rem;
+}
+.patient-app .patient-demo-card > div:last-child p {
+  font-size: 1rem;
+  max-width: none;
+}
+.patient-demo-card > div:last-child .button {
+  font-size: 0.9375rem;
+  min-height: 44px;
+}
+.patient-demo-calendar > div:first-child {
+  font-size: 0.75rem;
+  letter-spacing: 0.7px;
+}
+.patient-demo-calendar > div:nth-child(2) {
+  flex-wrap: wrap;
+}
+.patient-demo-calendar > div:nth-child(2) > span:nth-child(2) > strong {
+  font-size: 1rem;
+}
+.patient-demo-calendar small,
+.patient-demo-calendar-footer {
+  font-size: 0.8125rem;
+}
+.patient-demo-date {
+  font-size: 0.75rem;
+}
+.patient-demo-date strong {
+  font-size: 1.125rem;
+}
+.patient-demo-calendar .badge {
+  font-size: 0.75rem;
+}
+.patient-faq-section {
+  gap: 65px;
+}
+.patient-faq-section > div:first-child > p {
+  font-size: 1rem;
+}
+.patient-faq-section > div:first-child > .patient-link {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-faq-list summary {
+  font-size: 1.0625rem;
+}
+.patient-app .patient-faq-list details > p {
+  font-size: 1rem;
+}
+.patient-bottom-cta .patient-eyebrow {
+  font-size: 0.75rem;
+}
+.patient-bottom-cta h2 {
+  font-size: 2rem;
+}
+.patient-bottom-cta p {
+  font-size: 1.0625rem;
+}
+.patient-bottom-cta .button {
+  font-size: 1rem;
+}
+.patient-app .patient-footer-main > div:first-child p {
+  font-size: 0.9375rem;
+  max-width: 400px;
+}
+.patient-footer-main > div:not(:first-child) > strong {
+  font-size: 1rem;
+}
+.patient-footer-main button {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-footer-bottom {
+  font-size: 0.8125rem;
+}
+.patient-care-heading h1 {
+  font-size: 2.125rem;
+}
+.patient-app .patient-care-heading p {
+  font-size: 1.0625rem;
+}
+.patient-demo-notice {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.patient-app .patient-demo-notice p > strong {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-demo-notice p > span {
+  font-size: 0.8125rem;
+}
+.patient-demo-notice > .badge {
+  font-size: 0.75rem;
+}
+.patient-care-grid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+.patient-app .patient-card-header h2 {
+  font-size: 1.25rem;
+}
+.patient-app .patient-request-person h3 {
+  font-size: 1.625rem;
+}
+.patient-request-person p {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-request-status strong {
+  font-size: 1rem;
+}
+.patient-app .patient-request-status p {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-request-details dt {
+  font-size: 0.875rem;
+}
+.patient-app .patient-request-details dd {
+  font-size: 1rem;
+}
+.patient-app .patient-request-card > .patient-link {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-next-step h2 {
+  font-size: 1.75rem;
+}
+.patient-app .patient-next-step p {
+  font-size: 1rem;
+}
+.patient-next-step .button {
+  font-size: 0.9375rem !important;
+  min-height: 44px !important;
+  padding: 11px 13px !important;
+  white-space: normal;
+}
+.patient-app .patient-provider-panel > h2 {
+  font-size: 1.125rem;
+}
+.patient-app .patient-provider-panel > h3 {
+  font-size: 1.0625rem;
+  max-width: 260px;
+}
+.patient-app .patient-provider-panel > p {
+  font-size: 0.9375rem;
+}
+.patient-app .patient-question-card h3 {
+  font-size: 1.0625rem;
+}
+.patient-app .patient-question-card p {
+  font-size: 0.9375rem;
+}
+.patient-card-header > span:not(.badge),
+.patient-card-header p {
+  font-size: 0.8125rem;
+}
+.patient-card-header .badge {
+  font-size: 0.75rem;
+}
+.patient-app .patient-visit-info > strong {
+  font-size: 1.0625rem;
+}
+.patient-app .patient-visit-info > span {
+  font-size: 0.875rem;
+}
+.patient-app .patient-care-page .patient-visit-row .badge {
+  font-size: 0.75rem;
+}
+.patient-app
+  .patient-care-page
+  .patient-visit-row
+  .patient-visit-action
+  > span:last-child {
+  font-size: 0.8125rem;
+}
+.patient-visit-row {
+  gap: 17px;
+  padding: 23px;
+  flex-wrap: wrap;
+}
+.patient-visit-date {
+  min-width: 55px;
+  width: 55px;
+}
+.patient-visit-date > strong {
+  font-size: 1.75rem;
+}
+.patient-visit-date > small,
+.patient-visit-date > span {
+  font-size: 0.75rem;
+}
+.patient-visit-info {
+  min-width: 180px;
+}
+.patient-change-pending {
+  font-size: 0.8125rem;
+}
+.patient-visit-action {
+  gap: 9px;
+}
+.patient-provider-person strong {
+  font-size: 1.0625rem;
+}
+.patient-provider-person small {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 1350px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-rail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .human-note {
+    grid-column: 1/-1;
+  }
+  .stat-card > p {
+    min-height: 52px;
+  }
+  .topbar-actions {
+    gap: 10px;
+  }
+  .global-search {
+    width: 170px;
+  }
+  .date-display {
+    display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .patient-header-inner {
+    gap: 20px;
+  }
+  .patient-nav {
+    gap: 17px;
+  }
+  .patient-nav > button {
+    font-size: 0.875rem;
+  }
+  .patient-brand-button .brand {
+    font-size: 1.625rem;
+  }
+  .patient-header-actions > .button {
+    font-size: 0.875rem;
+  }
+  .patient-hero-art > svg {
+    width: 570px;
+  }
+  .patient-care-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+  .patient-service-card {
+    padding: 25px 22px;
+  }
+  .mini-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1000px) {
+  :root {
+    --sidebar: 240px;
+  }
+  .topbar .breadcrumb {
+    display: none;
+  }
+  .topbar-left {
+    gap: 0;
+  }
+  .topbar-actions {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat-card > p {
+    min-height: 0;
+  }
+  .welcome-copy {
+    width: 70%;
+  }
+  .welcome-art {
+    opacity: 0.5;
+  }
+  .page-title p {
+    max-width: none;
+  }
+}
+@media (max-width: 850px) {
+  .patient-header-inner {
+    flex-wrap: wrap;
+  }
+  .patient-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    margin: 0;
+    gap: 25px;
+  }
+  .patient-nav > button {
+    font-size: 0.9375rem;
+  }
+  .patient-header-actions {
+    margin-left: auto;
+  }
+  .patient-hero-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .patient-app .patient-hero h1 {
+    font-size: 2.5rem;
+  }
+  .patient-app .patient-hero-copy > p {
+    font-size: 1.0625rem;
+  }
+  .patient-service-grid {
+    grid-template-columns: 1fr;
+  }
+  .patient-service-card {
+    padding: 28px;
+  }
+  .patient-app .patient-section-heading > p {
+    max-width: 320px;
+  }
+  .patient-care-grid {
+    grid-template-columns: 1fr;
+  }
+  .patient-process-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .patient-process-step:not(:last-child):after {
+    display: none;
+  }
+  .patient-demo-card {
+    gap: 35px;
+    padding: 30px;
+  }
+  .review-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .review-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 20px 0 0;
+  }
+  .missing-panel {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+@media (max-width: 800px) {
+  :root {
+    --sidebar: 0px;
+  }
+  .sidebar {
+    width: 270px;
+  }
+  .topbar .breadcrumb {
+    display: flex;
+    font-size: 0.875rem;
+  }
+  .topbar-left {
+    gap: 10px;
+  }
+  .global-search {
+    width: 180px;
+  }
+  .staff-patient-preview {
+    font-size: 0.8125rem;
+  }
+  .welcome-copy {
+    width: 65%;
+  }
+  .welcome-art {
+    opacity: 0.7;
+  }
+  .provider-card-footer {
+    flex-wrap: wrap;
+  }
+  .modal-header h2 {
+    font-size: 1.5rem;
+  }
+}
+@media (max-width: 650px) {
+  .patient-header-inner {
+    flex-wrap: nowrap;
+    padding: 16px 21px;
+  }
+  .patient-nav {
+    width: auto;
+    justify-content: flex-start;
+  }
+  .patient-nav.is-open {
+    gap: 0;
+  }
+  .patient-nav > button {
+    font-size: 1rem;
+    padding: 13px 3px;
+  }
+  .patient-brand-button .brand {
+    font-size: 1.5rem;
+  }
+  .patient-header-actions > .button {
+    font-size: 0.8125rem;
+    min-height: 40px;
+    padding: 9px 11px;
+  }
+  .patient-top-strip {
+    font-size: 0.75rem;
+    padding: 9px 21px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 15px;
+  }
+  .patient-top-strip > button {
+    font-size: 0.75rem;
+  }
+  .patient-app .patient-eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    line-height: 1.8;
+  }
+  .patient-app .patient-hero h1 {
+    font-size: 2.5rem;
+    line-height: 1.3;
+    letter-spacing: -1.5px;
+  }
+  .patient-app .patient-hero-copy > p {
+    font-size: 1.0625rem;
+    max-width: 400px;
+    line-height: 1.85;
+  }
+  .patient-hero-grid {
+    min-height: 0;
+  }
+  .patient-hero-copy {
+    padding-top: 34px;
+  }
+  .patient-hero-buttons {
+    gap: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .patient-app .patient-hero-buttons .button {
+    font-size: 0.9375rem;
+    padding: 12px 16px;
+  }
+  .patient-app .patient-hero-buttons .patient-link {
+    font-size: 0.9375rem;
+  }
+  .patient-hero-assurance > span {
+    font-size: 0.75rem;
+  }
+  .patient-hero-assurance {
+    gap: 8px 15px;
+  }
+  .patient-art-note {
+    padding: 10px 12px;
+  }
+  .patient-art-note > div {
+    font-size: 0.75rem;
+  }
+  .patient-art-note strong {
+    font-size: 0.8125rem;
+  }
+  .patient-trust-bar {
+    gap: 25px 16px;
+  }
+  .patient-trust-bar strong {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-trust-bar small {
+    font-size: 0.8125rem;
+    max-width: none;
+  }
+  .patient-trust-bar > span {
+    flex-wrap: wrap;
+  }
+  .patient-app h2 {
+    font-size: 1.875rem;
+  }
+  .patient-app .patient-section-heading > p {
+    font-size: 1rem;
+    max-width: none;
+  }
+  .patient-service-card {
+    padding: 26px 24px;
+  }
+  .patient-service-card h3 {
+    font-size: 1.5rem;
+  }
+  .patient-service-tag {
+    font-size: 0.75rem;
+  }
+  .patient-service-cn {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-service-card > p {
+    font-size: 1rem;
+  }
+  .patient-app .patient-service-card li {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-service-card > .patient-link {
+    font-size: 0.9375rem;
+  }
+  .patient-service-note {
+    font-size: 0.8125rem;
+  }
+  .patient-process-grid {
+    gap: 28px 20px;
+  }
+  .patient-process-step h3 {
+    font-size: 1rem;
+  }
+  .patient-app .patient-process-step p {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-centered-heading h2 {
+    font-size: 1.75rem;
+  }
+  .patient-centered-heading p {
+    font-size: 1rem;
+  }
+  .patient-demo-card {
+    padding: 27px 23px;
+  }
+  .patient-demo-calendar > div:first-child {
+    font-size: 0.6875rem;
+  }
+  .patient-demo-calendar > div:nth-child(2) {
+    margin: 15px;
+    padding: 15px 12px;
+    gap: 10px;
+  }
+  .patient-demo-calendar > div:nth-child(2) > span:nth-child(2) > strong {
+    font-size: 0.9375rem;
+  }
+  .patient-demo-calendar small {
+    font-size: 0.75rem;
+  }
+  .patient-demo-calendar-footer {
+    font-size: 0.75rem;
+    padding: 0 15px 17px;
+  }
+  .patient-demo-date strong {
+    font-size: 1rem;
+  }
+  .patient-demo-date {
+    font-size: 0.75rem;
+  }
+  .patient-demo-calendar .badge {
+    font-size: 0.6875rem;
+  }
+  .patient-demo-card > div:last-child h2 {
+    font-size: 1.75rem;
+  }
+  .patient-app .patient-demo-card > div:last-child p {
+    font-size: 1rem;
+  }
+  .patient-demo-card > div:last-child .button {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-faq-list summary {
+    font-size: 1rem;
+  }
+  .patient-app .patient-faq-list details > p {
+    font-size: 1rem;
+  }
+  .patient-faq-section > div:first-child > p {
+    font-size: 1rem;
+  }
+  .patient-faq-section > div:first-child > .patient-link {
+    font-size: 0.9375rem;
+  }
+  .patient-bottom-cta .patient-eyebrow {
+    font-size: 0.6875rem;
+  }
+  .patient-bottom-cta h2 {
+    font-size: 1.75rem;
+  }
+  .patient-bottom-cta p {
+    font-size: 1rem;
+    max-width: none;
+  }
+  .patient-bottom-cta .button {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-footer-main > div:first-child p {
+    font-size: 0.875rem;
+  }
+  .patient-footer-main > div:not(:first-child) > strong {
+    font-size: 0.9375rem;
+  }
+  .patient-footer-main button {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-footer-bottom {
+    font-size: 0.75rem;
+  }
+  .patient-care-heading h1 {
+    font-size: 1.875rem;
+  }
+  .patient-app .patient-care-heading p {
+    font-size: 1rem;
+  }
+  .patient-demo-notice p {
+    min-width: 0;
+  }
+  .patient-app .patient-demo-notice p > strong {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-demo-notice p > span {
+    font-size: 0.75rem;
+  }
+  .patient-demo-notice > .badge {
+    font-size: 0.75rem;
+  }
+  .patient-app .patient-card-header h2 {
+    font-size: 1.125rem;
+  }
+  .patient-app .patient-request-person h3 {
+    font-size: 1.5rem;
+  }
+  .patient-request-person p {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-request-status strong {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-request-status p {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-request-details dt {
+    font-size: 0.8125rem;
+  }
+  .patient-app .patient-request-details dd {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-request-card > .patient-link {
+    font-size: 0.875rem;
+  }
+  .patient-card-header {
+    flex-wrap: wrap;
+  }
+  .patient-card-header > span:not(.badge),
+  .patient-card-header p {
+    font-size: 0.75rem;
+  }
+  .patient-card-header .badge {
+    font-size: 0.75rem;
+  }
+  .patient-visit-row {
+    padding: 20px 17px;
+    gap: 13px;
+  }
+  .patient-visit-info {
+    min-width: 160px;
+  }
+  .patient-app .patient-visit-info > strong {
+    font-size: 1rem;
+  }
+  .patient-app .patient-visit-info > span {
+    font-size: 0.875rem;
+  }
+  .patient-visit-action {
+    margin-left: 68px;
+  }
+  .patient-app .patient-care-page .patient-visit-row .badge {
+    font-size: 0.75rem;
+  }
+  .patient-app
+    .patient-care-page
+    .patient-visit-row
+    .patient-visit-action
+    > span:last-child {
+    font-size: 0.75rem;
+  }
+  .patient-app .patient-next-step h2 {
+    font-size: 1.625rem;
+  }
+  .patient-app .patient-next-step p {
+    font-size: 1rem;
+  }
+  .patient-app .patient-provider-panel > h2 {
+    font-size: 1.125rem;
+  }
+  .patient-app .patient-provider-panel > h3 {
+    font-size: 1.0625rem;
+  }
+  .patient-app .patient-provider-panel > p {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-question-card h3 {
+    font-size: 1.0625rem;
+  }
+  .patient-app .patient-question-card p {
+    font-size: 0.9375rem;
+  }
+  .patient-question-card .patient-link {
+    font-size: 0.9375rem;
+  }
+  .patient-app .patient-modal-body .field input,
+  .patient-app .patient-modal-body .field textarea,
+  .patient-app .patient-modal-body .field select {
+    font-size: 1rem !important;
+  }
+}
+@media (max-width: 600px) {
+  .main-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .page-title h1 {
+    font-size: 1.875rem;
+  }
+  .page-title p {
+    font-size: 0.9375rem;
+    max-width: none;
+  }
+  .page-actions {
+    padding-top: 0;
+  }
+  .page-actions .button {
+    font-size: 0.875rem;
+    padding: 10px 13px;
+  }
+  .topbar {
+    height: auto;
+    min-height: 70px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    gap: 10px;
+  }
+  .topbar .breadcrumb {
+    display: none;
+  }
+  .topbar-actions {
+    gap: 10px;
+  }
+  .staff-patient-preview {
+    font-size: 0.8125rem;
+  }
+  .global-search {
+    width: 28px;
+  }
+  .global-search:focus-within > input {
+    top: 8px;
+  }
+  .global-search > input {
+    right: 92px;
+  }
+  .welcome-banner {
+    min-height: 350px;
+  }
+  .welcome-copy {
+    width: 90%;
+    padding: 25px 20px;
+  }
+  .welcome-copy h2 {
+    font-size: 2rem;
+  }
+  .welcome-copy p {
+    font-size: 0.9375rem;
+    max-width: 270px;
+  }
+  .welcome-art {
+    opacity: 0.2;
+    height: 210px;
+    right: -40%;
+  }
+  .welcome-kicker {
+    font-size: 0.75rem;
+  }
+  .welcome-copy > button {
+    font-size: 0.9375rem;
+  }
+  .section-bar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .section-bar h2 {
+    flex-wrap: wrap;
+    font-size: 1.0625rem;
+    gap: 10px;
+  }
+  .live-label {
+    font-size: 0.75rem;
+  }
+  .section-bar .select-wrap select {
+    font-size: 0.875rem;
+    min-height: 36px;
+  }
+  .stat-card {
+    padding: 17px 13px;
+  }
+  .stat-top > span:first-child {
+    font-size: 0.875rem;
+  }
+  .stat-card > p {
+    font-size: 0.8125rem;
+    min-height: 44px;
+  }
+  .stat-bottom .trend,
+  .stat-attention,
+  .provider-stat-avatars > span:last-child {
+    font-size: 0.75rem;
+  }
+  .stat-mini-line {
+    display: none;
+  }
+  .stat-number {
+    font-size: 2.25rem;
+  }
+  .provider-stat-avatars > span:last-child {
+    margin-left: 0;
+  }
+  .panel-header h2 {
+    font-size: 1.125rem;
+  }
+  .panel-header p {
+    font-size: 0.875rem;
+  }
+  .panel-header .text-button {
+    font-size: 0.8125rem;
+  }
+  .panel-header.compact h2,
+  .activity-panel .panel-header h2 {
+    font-size: 1.0625rem;
+  }
+  .dashboard-rail {
+    grid-template-columns: 1fr;
+  }
+  .table-toolbar {
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .segmented-tabs button {
+    font-size: 0.75rem;
+  }
+  .panel-table-footer {
+    font-size: 0.75rem;
+  }
+  .navigator-banner .eyebrow {
+    font-size: 0.75rem;
+  }
+  .navigator-banner h3 {
+    font-size: 1.25rem;
+  }
+  .navigator-banner p {
+    font-size: 0.9375rem;
+  }
+  .navigator-banner .button {
+    font-size: 0.875rem;
+    margin-left: 0;
+  }
+  .pipeline-stages button > span:nth-child(2) {
+    font-size: 0.8125rem;
+  }
+  .today-date {
+    font-size: 0.8125rem;
+  }
+  .visit-content > strong,
+  .visit-time {
+    font-size: 1rem;
+  }
+  .visit-content > span,
+  .visit-content small {
+    font-size: 0.8125rem;
+  }
+  .activity-item strong {
+    font-size: 0.9375rem;
+  }
+  .activity-item p {
+    font-size: 0.8125rem;
+  }
+  .activity-item small,
+  .activity-footnote {
+    font-size: 0.75rem;
+  }
+  .human-note h3 {
+    font-size: 0.9375rem;
+  }
+  .human-note p {
+    font-size: 0.8125rem;
+  }
+  .mini-stats > div {
+    padding: 15px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mini-stats small {
+    font-size: 0.8125rem;
+  }
+  .filter-bar .select-wrap select {
+    font-size: 0.875rem;
+  }
+  .table-search input {
+    font-size: 0.9375rem;
+  }
+  .enquiry-card-header strong {
+    font-size: 1.125rem;
+  }
+  .enquiry-card-header small {
+    font-size: 0.8125rem;
+  }
+  .enquiry-card-footer .badge {
+    font-size: 0.75rem;
+  }
+  .enquiry-intro p {
+    font-size: 0.9375rem;
+  }
+  .provider-intro h2 {
+    font-size: 1.25rem;
+    max-width: none;
+  }
+  .provider-intro p {
+    font-size: 0.875rem;
+    max-width: none;
+  }
+  .provider-intro > .badge {
+    margin-left: 0;
+    font-size: 0.75rem;
+  }
+  .messaging-banner {
+    flex-wrap: wrap;
+  }
+  .messaging-banner h2 {
+    font-size: 1.375rem;
+  }
+  .messaging-banner p {
+    font-size: 0.9375rem;
+  }
+  .message-card-footer > span {
+    max-width: none;
+  }
+  .settings-row strong,
+  .integration-row strong {
+    font-size: 1rem;
+  }
+  .settings-row small,
+  .integration-row p {
+    font-size: 0.875rem;
+  }
+  .integration-row > div {
+    min-width: 180px;
+  }
+  .schedule-summary > span {
+    font-size: 0.8125rem;
+  }
+  .schedule-list-item {
+    gap: 10px;
+  }
+  .list-visit-time {
+    font-size: 0.9375rem;
+  }
+  .list-visit-client strong {
+    font-size: 1rem;
+  }
+  .list-visit-client small {
+    font-size: 0.8125rem;
+  }
+  .schedule-list-item > .badge {
+    font-size: 0.75rem;
+  }
+  .calendar-nav h2 {
+    font-size: 1rem;
+  }
+  .calendar-client-filter > span {
+    font-size: 0.75rem;
+  }
+  .calendar-controls .select-wrap select,
+  .calendar-client-filter .select-wrap select {
+    font-size: 0.875rem;
+  }
+  .modal-overlay {
+    padding: 10px;
+  }
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .modal-header h2 {
+    font-size: 1.375rem;
+  }
+  .modal-header .eyebrow {
+    font-size: 0.75rem;
+  }
+  .modal-body .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-body .field > span:first-child:not(.select-wrap),
+  .patient-app .modal-body .field > span:first-child:not(.select-wrap) {
+    font-size: 0.9375rem;
+  }
+  .modal-body .checkbox-row {
+    font-size: 0.875rem;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+  .modal-footer .button,
+  .patient-app .modal-footer .button {
+    font-size: 0.875rem;
+    padding: 10px 12px;
+  }
+  .modal-footer-note {
+    font-size: 0.75rem;
+    max-width: 100%;
+  }
+  .modal-tabs {
+    gap: 19px;
+  }
+  .modal-tabs button {
+    font-size: 0.875rem;
+  }
+  .modal-steps {
+    padding-left: 18px;
+    padding-right: 18px;
+    gap: 8px;
+  }
+  .modal-steps > span {
+    font-size: 0.75rem;
+    white-space: normal;
+    line-height: 1.7;
+  }
+  .modal-steps i {
+    min-width: 21px;
+    height: 21px;
+  }
+  .review-aside {
+    grid-template-columns: 1fr;
+  }
+  .modal-body .detail > span {
+    font-size: 0.8125rem;
+  }
+  .modal-body .detail > strong,
+  .modal-body .readable-summary p,
+  .modal-body .original-message p {
+    font-size: 0.9375rem;
+  }
+  .modal-body .approval-checklist .checkbox-row {
+    font-size: 0.875rem;
+  }
+  .modal-body .case-section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .modal-body .case-section-heading .button {
+    font-size: 0.875rem;
+  }
+  .patient-dialog-date h3 {
+    font-size: 1.25rem;
+  }
+  .patient-dialog-date p {
+    font-size: 0.875rem;
+    flex-wrap: wrap;
+  }
+  .patient-app .modal-footer-note {
+    max-width: 100%;
+  }
+  .patient-app .patient-approve-box h3,
+  .patient-app .patient-change-form h3 {
+    font-size: 1.0625rem;
+  }
+  .patient-app .patient-modal-body .checkbox-row {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-modal-body .button-row .button {
+    font-size: 0.875rem;
+  }
+  .patient-app .patient-dialog-status > .badge {
+    font-size: 0.75rem;
+  }
+  .content-footer {
+    align-items: flex-start;
+    gap: 15px;
+    font-size: 0.75rem;
+  }
+  .content-footer > span:last-child {
+    max-width: none;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .toast {
+    font-size: 0.875rem;
+  }
+}
