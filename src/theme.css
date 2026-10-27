@@ -2049,3 +2049,18 @@ html[lang="zh-HK"] .eyebrow {
 html[lang="zh-HK"] .patient-nav button {
   white-space: nowrap;
 }
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .modal-header-actions {
+    gap: 4px;
+  }
+  .modal-header .language-switcher button {
+    padding: 5px;
+  }
+}

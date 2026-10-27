@@ -1,4 +1,4 @@
-import { useLocale } from "./i18n";
+import { LanguageSwitcher, useLocale } from "./i18n";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -262,13 +262,16 @@ export function ModalFrame({
             {eyebrow && <div className="eyebrow">{t(eyebrow)}</div>}
             <h2 id="modal-title">{t(title)}</h2>
           </div>
-          <button
-            className="icon-button"
-            onClick={onClose}
-            aria-label={t("Close dialog")}
-          >
-            <X size={20} />
-          </button>
+          <div className="modal-header-actions">
+            <LanguageSwitcher />
+            <button
+              className="icon-button"
+              onClick={onClose}
+              aria-label={t("Close dialog")}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </header>
         {children}
       </div>

@@ -14,7 +14,7 @@ function initialLanguage(): Language {
 export function translateText(text: string, language: Language): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (language === "en") return englishOverrides[normalized] ?? text;
-  if (zhHK[normalized]) return zhHK[normalized];
+  if (Object.hasOwn(zhHK, normalized)) return zhHK[normalized];
   const patterns: [RegExp, (...parts: string[]) => string][] = [
     [
       /^(Good morning|Good afternoon|Good evening), Alex$/,

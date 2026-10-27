@@ -511,7 +511,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
           onClick={step === 0 ? onClose : () => setStep(0)}
         >
           {step === 0 ? (
-            "Cancel"
+            t("Cancel")
           ) : (
             <>
               <ArrowLeft size={15} />

@@ -13,6 +13,8 @@ npm run dev
 
 Open the local URL printed in the terminal (normally http://localhost:5173).
 
+The interface defaults to **Traditional Chinese (Hong Kong)**. Use **繁中 / EN** in the patient header, staff toolbar or dialog header to switch languages. The browser remembers your selection across pages and reloads. Switching languages preserves active forms and stored records; original enquiries and user-entered text keep their original language.
+
 The default page is the **patient and family website**. Open [My care](http://localhost:5173/#patient/care) to explore the fictional Mr. Chan journey, or submit a new enquiry to see your own demo request. Patients can review/correct their details, approve proposed visits, request a different time, and leave a question. A requested time stays pending until the staff demo prepares a revised proposal and the patient approves it.
 
 The [staff demo](http://localhost:5173/#staff) remains available from the link above the patient navigation. Switching views demonstrates roles; it is not authentication.

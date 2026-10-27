@@ -874,6 +874,20 @@ Professional requirements|專業要求
 Visit time|到訪時間
 Browser storage is unavailable. Changes will last for this session only.|無法使用瀏覽器儲存，更改只會保留於此次使用期間。
 Schedules organise existing care instructions. They do not prescribe treatment or determine clinical frequency. Family approval confirms the schedule, while care decisions remain with qualified professionals.|日程用於整理現有護理指示，不會處方治療或決定臨床頻率。家人同意確認的是日程；護理決定仍由合資格專業人員作出。
+Families currently supported|目前支援中的家庭
+Let’s help them take the next step|協助他們安排下一步
+Verified and ready to make a difference|已核實並準備提供支援
+Daniel applied for a case|Daniel 已提交個案申請
+Care schedule confirmed|護理日程已確認
+Mrs. Wong · Sha Tin|Mrs. Wong · 沙田
+HK-0023 · Wound care|HK-0023 · 傷口護理
+Mrs. Lee · Weekday visits|Mrs. Lee · 平日到訪
+RN · demo registration|註冊護士 · 示範註冊資料
+EN · demo registration|登記護士 · 示範註冊資料
+Identity verified · demo|身分已核實 · 示範
+Demo contact on file|已記錄示範聯絡資料
+Diabetes · recent discharge|糖尿病 · 近期出院
+s|
 `;
 
 export const zhHK: Record<string, string> = Object.fromEntries(
