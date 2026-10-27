@@ -1963,3 +1963,89 @@ textarea::placeholder {
     font-size: 0.875rem;
   }
 }
+
+/* Both languages use the same controls without remounting active forms. */
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #dbcbdc;
+  border-radius: 8px;
+  background: #fff;
+  flex-shrink: 0;
+}
+.language-switcher button {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #59425c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.language-switcher button[aria-pressed="true"] {
+  background: #750f6d;
+  color: white;
+}
+.language-switcher button:focus-visible {
+  outline: 2px solid #750f6d;
+  outline-offset: 2px;
+}
+.patient-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.patient-top-strip .language-switcher button {
+  color: #59425c;
+}
+.patient-top-strip .language-switcher button[aria-pressed="true"] {
+  color: white;
+}
+html[lang="zh-HK"] body {
+  font-family: "DM Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+html[lang="zh-HK"] h1,
+html[lang="zh-HK"] h2,
+html[lang="zh-HK"] h3 {
+  line-height: 1.45;
+}
+html[lang="zh-HK"] .patient-eyebrow,
+html[lang="zh-HK"] .clinic-eyebrow,
+html[lang="zh-HK"] .eyebrow {
+  letter-spacing: 0.08em;
+}
+@media (max-width: 600px) {
+  .patient-top-strip {
+    gap: 8px;
+    padding: 8px 14px;
+  }
+  .patient-top-strip > span {
+    max-width: 40%;
+  }
+  .patient-top-actions {
+    gap: 8px;
+  }
+  .patient-top-actions > button {
+    max-width: 110px;
+    text-align: left;
+  }
+  .language-switcher button {
+    padding: 5px 7px;
+  }
+}
+.patient-top-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.8125rem;
+  padding: 0;
+}
+html[lang="zh-HK"] .patient-nav button {
+  white-space: nowrap;
+}

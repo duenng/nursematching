@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
+});
+
 test("patients land on service pages and can explore their own care without staff controls", async ({
   page,
 }) => {
@@ -30,7 +36,7 @@ test("patients land on service pages and can explore their own care without staf
   );
   await expect(page.locator("main")).not.toContainText("Mrs. Wong");
   await expect(
-    page.getByRole("button", { name: "確認並發布 Case" }),
+    page.getByRole("button", { name: "Confirm & publish case" }),
   ).toHaveCount(0);
   await expect(page.getByLabel("Search workspace")).toHaveCount(0);
   await expect(page.locator(".patient-visit-row")).toHaveCount(5);

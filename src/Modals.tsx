@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import { useState } from "react";
 import {
   AlertCircle,
@@ -92,6 +93,8 @@ export function Modals() {
 const SAMPLE =
   "我媽媽78歲，最近出院，患有糖尿病，腳部有傷口。我想搵護士幫佢處理傷口及監察血糖。屋企喺沙田，希望星期一至五下午安排服務。";
 function EnquiryModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLocale();
+
   const { data, update, toast, setModal, view, setPatientClientId } = useApp();
   const isPatient = view === "patient";
   const [step, setStep] = useState(0);
@@ -195,22 +198,24 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
   }
   return (
     <ModalFrame
-      title={
+      title={t(
         step === 0
           ? "A little about the care you need"
-          : "Let’s get the details right"
-      }
-      eyebrow="CARE NAVIGATOR"
+          : "Let’s get the details right",
+      )}
+      eyebrow={t("CARE NAVIGATOR")}
       onClose={onClose}
       wide
     >
       <div className="modal-steps">
         <span className={step === 0 ? "current" : "done"}>
-          <i>{step > 0 ? <Check size={12} /> : "1"}</i>Share the story
+          <i>{step > 0 ? <Check size={12} /> : "1"}</i>
+          {t("Share the story")}
         </span>
         <div />
         <span className={step === 1 ? "current" : ""}>
-          <i>2</i>Review the details
+          <i>2</i>
+          {t("Review the details")}
         </span>
       </div>
       {step === 0 ? (
@@ -220,37 +225,43 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
               <Sparkles size={22} />
             </span>
             <div>
-              <strong>Every care journey starts with a conversation.</strong>
+              <strong>
+                {t("Every care journey starts with a conversation.")}
+              </strong>
               <p>
-                Tell us who needs support, where they live, and what help you’re
-                looking for. English and 中文 are both welcome.
+                {t(
+                  "Tell us who needs support, where they live, and what help you’re looking for. English and 中文 are both welcome.",
+                )}
               </p>
             </div>
           </div>
-          <Field label="How can we help?" required>
+          <Field label={t("How can we help?")} required>
             <textarea
               className="enquiry-textarea"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="For example: My mum is 78 and has just come home from hospital. We live in Sha Tin and need help with her wound care on weekday afternoons…"
+              placeholder={t(
+                "For example: My mum is 78 and has just come home from hospital. We live in Sha Tin and need help with her wound care on weekday afternoons…",
+              )}
               rows={6}
             />
           </Field>
           <button className="sample-button" onClick={() => setText(SAMPLE)}>
             <MessageCircle size={14} />
-            Try a Cantonese example <ArrowRight size={13} />
+            {t("Try a Cantonese example")} <ArrowRight size={13} />
           </button>
           <div className="info-callout small">
             <Sparkles size={17} />
             <p>
-              This prototype uses a rules-based extractor, not a live AI model.
-              Unclear or missing details will stay unconfirmed.
+              {t(
+                "This prototype uses a rules-based extractor, not a live AI model. Unclear or missing details will stay unconfirmed.",
+              )}
             </p>
           </div>
           {pathway.urgent && (
             <div className="error-box">
               <AlertCircle size={18} />
-              {pathway.reason}
+              {t(pathway.reason)}
             </div>
           )}
           <label className="checkbox-row">
@@ -260,13 +271,14 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setConsent(e.target.checked)}
             />
             <span>
-              I’m using fictional information for this demo and agree to save
-              this enquiry in this browser.
+              {t(
+                "I’m using fictional information for this demo and agree to save this enquiry in this browser.",
+              )}
             </span>
           </label>
           {error && (
             <p className="form-error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
         </div>
@@ -277,22 +289,23 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
               <div>
                 <div className="subsection-label">
                   <FileText size={15} />
-                  STRUCTURED ENQUIRY{" "}
+                  {t("STRUCTURED ENQUIRY")}
+                  {t(" ")}
                   <Badge tone="amber" dot={false}>
-                    Draft
+                    {t("Draft")}
                   </Badge>
                 </div>
                 <div className="form-grid">
-                  <Field label="Patient name / alias" required>
+                  <Field label={t("Patient name / alias")} required>
                     <input
                       value={extracted.name}
                       onChange={(e) =>
                         setExtracted({ ...extracted, name: e.target.value })
                       }
-                      placeholder="Not provided — please add"
+                      placeholder={t("Not provided — please add")}
                     />
                   </Field>
-                  <Field label="Patient age">
+                  <Field label={t("Patient age")}>
                     <input
                       type="number"
                       min="0"
@@ -301,10 +314,10 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                       onChange={(e) =>
                         setExtracted({ ...extracted, age: e.target.value })
                       }
-                      placeholder="Unknown"
+                      placeholder={t("Unknown")}
                     />
                   </Field>
-                  <Field label="Service district">
+                  <Field label={t("Service district")}>
                     <Select
                       value={extracted.district}
                       onChange={(v) =>
@@ -314,28 +327,28 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                         { value: "", label: "Not yet confirmed" },
                         ...DISTRICTS,
                       ]}
-                      label="Enquiry service district"
+                      label={t("Enquiry service district")}
                     />
                   </Field>
-                  <Field label="Contact details">
+                  <Field label={t("Contact details")}>
                     <input
                       value={extracted.contact}
                       onChange={(e) =>
                         setExtracted({ ...extracted, contact: e.target.value })
                       }
-                      placeholder="Not provided"
+                      placeholder={t("Not provided")}
                     />
                   </Field>
-                  <Field label="Care requested">
+                  <Field label={t("Care requested")}>
                     <input
                       value={extracted.care}
                       onChange={(e) =>
                         setExtracted({ ...extracted, care: e.target.value })
                       }
-                      placeholder="To be confirmed"
+                      placeholder={t("To be confirmed")}
                     />
                   </Field>
-                  <Field label="Medical background">
+                  <Field label={t("Medical background")}>
                     <input
                       value={extracted.background}
                       onChange={(e) =>
@@ -344,29 +357,29 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                           background: e.target.value,
                         })
                       }
-                      placeholder="Not provided"
+                      placeholder={t("Not provided")}
                     />
                   </Field>
-                  <Field label="Preferred time">
+                  <Field label={t("Preferred time")}>
                     <input
                       value={extracted.time}
                       onChange={(e) =>
                         setExtracted({ ...extracted, time: e.target.value })
                       }
-                      placeholder="Not yet confirmed"
+                      placeholder={t("Not yet confirmed")}
                     />
                   </Field>
-                  <Field label="Service duration">
+                  <Field label={t("Service duration")}>
                     <input
                       value={extracted.duration}
                       onChange={(e) =>
                         setExtracted({ ...extracted, duration: e.target.value })
                       }
-                      placeholder="Not yet confirmed"
+                      placeholder={t("Not yet confirmed")}
                     />
                   </Field>
                 </div>
-                <Field label="Preferred service days">
+                <Field label={t("Preferred service days")}>
                   <DayPicker
                     days={extracted.days}
                     onChange={(days) => setExtracted({ ...extracted, days })}
@@ -374,13 +387,15 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                 </Field>
                 {!isPatient && (
                   <Field
-                    label="Link to an existing client"
-                    hint="Select only if you have confirmed this is the same person. No automatic name matching."
+                    label={t("Link to an existing client")}
+                    hint={t(
+                      "Select only if you have confirmed this is the same person. No automatic name matching.",
+                    )}
                   >
                     <Select
                       value={linkedClient}
                       onChange={setLinkedClient}
-                      label="Existing client"
+                      label={t("Existing client")}
                       options={[
                         { value: "", label: "Create a new client record" },
                         ...[...new Set(data.cases.map((c) => c.clientId))].map(
@@ -397,32 +412,36 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
               <aside className="review-aside">
                 <div className="pathway-note">
                   <ShieldCheck size={22} />
-                  <h3>A suggestion, with oversight.</h3>
+                  <h3>{t("A suggestion, with oversight.")}</h3>
                   <Badge
                     tone={
                       extracted.category === "Needs review" ? "amber" : "green"
                     }
                   >
-                    {extracted.category}
+                    {t(extracted.category)}
                   </Badge>
-                  <p>{pathway.reason}</p>
+                  <p>{t(pathway.reason)}</p>
                 </div>
                 <div className="missing-panel">
                   <h4>
-                    {missing.length
-                      ? "A few things to clarify"
-                      : "The key details are captured"}
+                    {t(
+                      missing.length
+                        ? "A few things to clarify"
+                        : "The key details are captured",
+                    )}
                     <span>{missing.length}</span>
                   </h4>
                   {missing.map((item) => (
                     <span key={item}>
                       <span className="tiny-dot" />
-                      {item}
+                      {t(item)}
                     </span>
                   ))}
                   {!missing.length && (
                     <p>
-                      Staff will review the details before the case progresses.
+                      {t(
+                        "Staff will review the details before the case progresses.",
+                      )}
                     </p>
                   )}
                 </div>
@@ -431,28 +450,32 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
             <div className="followup-box">
               <strong>
                 <MessageCircle size={16} />
-                Anything else to add?
+                {t("Anything else to add?")}
               </strong>
               <p>
-                {missing.includes("Service duration")
-                  ? "How long will you need the service? "
-                  : ""}
-                {missing.includes("Contact details")
-                  ? "Which contact details can the team use? "
-                  : ""}
-                You can also correct any field above.
+                {t(
+                  missing.includes("Service duration")
+                    ? "How long will you need the service? "
+                    : "",
+                )}
+                {t(
+                  missing.includes("Contact details")
+                    ? "Which contact details can the team use? "
+                    : "",
+                )}
+                {t("You can also correct any field above.")}
               </p>
               {followups.map((f, i) => (
                 <div className="followup-message" key={i}>
-                  {f}
+                  {t(f)}
                 </div>
               ))}
               <div className="followup-input">
                 <input
-                  aria-label="Follow-up information"
+                  aria-label={t("Follow-up information")}
                   value={followup}
                   onChange={(e) => setFollowup(e.target.value)}
-                  placeholder="Add another detail in English or 中文…"
+                  placeholder={t("Add another detail in English or 中文…")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -462,7 +485,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                 />
                 <button
                   className="icon-button"
-                  aria-label="Add follow-up details"
+                  aria-label={t("Add follow-up details")}
                   disabled={!followup.trim()}
                   onClick={followUp}
                 >
@@ -471,12 +494,12 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <details className="original-message">
-              <summary>View original family message</summary>
+              <summary>{t("View original family message")}</summary>
               <p>{text}</p>
             </details>
             {error && (
               <p className="form-error" role="alert">
-                {error}
+                {t(error)}
               </p>
             )}
           </div>
@@ -492,7 +515,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               <ArrowLeft size={15} />
-              Back
+              {t("Back")}
             </>
           )}
         </button>
@@ -503,12 +526,14 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
           {step === 0 ? (
             <>
               <Sparkles size={16} />
-              Organise enquiry
+              {t("Organise enquiry")}
             </>
           ) : (
             <>
               <Check size={16} />
-              {isPatient ? "Submit my care enquiry" : "Save & review enquiry"}
+              {t(
+                isPatient ? "Submit my care enquiry" : "Save & review enquiry",
+              )}
             </>
           )}
         </button>
@@ -523,6 +548,8 @@ function DayPicker({
   days: string[];
   onChange: (days: string[]) => void;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="day-picker">
       {WEEK_DAYS.map((day) => (
@@ -539,7 +566,7 @@ function DayPicker({
             )
           }
         >
-          {day}
+          {t(day)}
         </button>
       ))}
     </div>
@@ -547,6 +574,8 @@ function DayPicker({
 }
 
 function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
+  const { t, locale } = useLocale();
+
   const { data, update, patchCase, toast, setModal } = useApp();
   const c = data.cases.find((c) => c.id === id)!;
   const [tab, setTab] = useState("Overview");
@@ -725,8 +754,8 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
   }
   return (
     <ModalFrame
-      title={c.name}
-      eyebrow={`CARE REQUEST · ${c.id}`}
+      title={t(c.name)}
+      eyebrow={t(`CARE REQUEST · ${c.id}`)}
       onClose={onClose}
       wide
     >
@@ -734,29 +763,30 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
         <CaseBadge status={c.status} />
         <span>
           <MapPin size={14} />
-          {c.district || "District to confirm"}
+          {t(c.district || "District to confirm")}
         </span>
         <span>
           <UserRound size={14} />
-          {c.age ? `${c.age} years old` : "Age not provided"}
+          {t(c.age ? `${c.age} years old` : "Age not provided")}
         </span>
-        <span className="case-client-link">{c.clientId}</span>
+        <span className="case-client-link">{t(c.clientId)}</span>
       </div>
       <div className="modal-tabs">
         {["Overview", "Schedule", "Provider applications", "History"].map(
-          (t) => (
+          (tabName) => (
             <button
-              key={t}
+              key={tabName}
               onClick={() => {
-                setTab(t);
+                setTab(tabName);
                 setError("");
               }}
-              className={tab === t ? "active" : ""}
+              className={tab === tabName ? "active" : ""}
             >
-              {t}
-              {t === "Provider applications" && c.applications.length > 0 && (
-                <span>{c.applications.length}</span>
-              )}
+              {t(tabName)}
+              {tabName === "Provider applications" &&
+                c.applications.length > 0 && (
+                  <span>{c.applications.length}</span>
+                )}
             </button>
           ),
         )}
@@ -765,7 +795,7 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
         {tab === "Overview" && (
           <>
             <div className="case-section-heading">
-              <h3>Care request details</h3>
+              <h3>{t("Care request details")}</h3>
               {!alreadyPublished && (
                 <button
                   className="text-button"
@@ -775,7 +805,7 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                   }}
                 >
                   <Pencil size={13} />
-                  {editing ? "Cancel editing" : "Edit details"}
+                  {t(editing ? "Cancel editing" : "Edit details")}
                 </button>
               )}
             </div>
@@ -797,7 +827,7 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                       },
                     ] as const
                   ).map((f) => (
-                    <Field key={f.key} label={f.label}>
+                    <Field key={f.key} label={t(f.label)}>
                       <input
                         value={draft[f.key]}
                         onChange={(e) =>
@@ -806,9 +836,9 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                       />
                     </Field>
                   ))}
-                  <Field label="District">
+                  <Field label={t("District")}>
                     <Select
-                      label="Edit case district"
+                      label={t("Edit case district")}
                       value={draft.district}
                       onChange={(district) => setDraft({ ...draft, district })}
                       options={[
@@ -817,9 +847,9 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                       ]}
                     />
                   </Field>
-                  <Field label="Provider category">
+                  <Field label={t("Provider category")}>
                     <Select
-                      label="Edit provider category"
+                      label={t("Edit provider category")}
                       value={draft.category}
                       onChange={(v) =>
                         setDraft({ ...draft, category: v as Category })
@@ -828,50 +858,63 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                     />
                   </Field>
                 </div>
-                <Field label="Service days">
+                <Field label={t("Service days")}>
                   <DayPicker
                     days={draft.days}
                     onChange={(days) => setDraft({ ...draft, days })}
                   />
                 </Field>
-                <Field label="Special requirements / approved instruction reference">
+                <Field
+                  label={t(
+                    "Special requirements / approved instruction reference",
+                  )}
+                >
                   <textarea
                     rows={2}
                     value={draft.notes}
                     onChange={(e) =>
                       setDraft({ ...draft, notes: e.target.value })
                     }
-                    placeholder="Record relevant requirements without inventing clinical instructions."
+                    placeholder={t(
+                      "Record relevant requirements without inventing clinical instructions.",
+                    )}
                   />
                 </Field>
                 <div className="info-callout small">
                   <ShieldCheck size={17} />
                   <p>
-                    Editing details resets the review checks. Confirm the
-                    revised requirements with the family before publishing.
+                    {t(
+                      "Editing details resets the review checks. Confirm the revised requirements with the family before publishing.",
+                    )}
                   </p>
                 </div>
                 <button className="button primary" onClick={saveEdit}>
                   <Check size={15} />
-                  Save corrections
+                  {t("Save corrections")}
                 </button>
               </>
             ) : (
               <>
                 <div className="detail-grid">
-                  <Detail label="Care requirements" value={c.care} />
-                  <Detail label="Professional requirement" value={c.category} />
-                  <Detail label="Medical background" value={c.background} />
-                  <Detail label="Service days" value={c.days.join(", ")} />
-                  <Detail label="Preferred time" value={c.time} />
-                  <Detail label="Service duration" value={c.duration} />
-                  <Detail label="Contact details" value={c.contact} />
-                  <Detail label="Price / remuneration" value={c.budget} />
+                  <Detail label={t("Care requirements")} value={c.care} />
+                  <Detail
+                    label={t("Professional requirement")}
+                    value={c.category}
+                  />
+                  <Detail
+                    label={t("Medical background")}
+                    value={c.background}
+                  />
+                  <Detail label={t("Service days")} value={c.days.join(", ")} />
+                  <Detail label={t("Preferred time")} value={c.time} />
+                  <Detail label={t("Service duration")} value={c.duration} />
+                  <Detail label={t("Contact details")} value={c.contact} />
+                  <Detail label={t("Price / remuneration")} value={c.budget} />
                 </div>
                 {c.notes && (
                   <div className="case-notes">
                     <strong>
-                      Special requirements / instruction reference
+                      {t("Special requirements / instruction reference")}
                     </strong>
                     <p>{c.notes}</p>
                   </div>
@@ -879,21 +922,34 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                 <div className="readable-summary">
                   <Sparkles size={17} />
                   <div>
-                    <strong>Care request summary</strong>
+                    <strong>{t("Care request summary")}</strong>
                     <p>
-                      {c.age ? `A ${c.age}-year-old patient` : "The patient"}
-                      {c.district ? ` in ${c.district}` : ""} is requesting{" "}
-                      {c.care ? c.care.toLowerCase() : "care to be confirmed"}.
-                      {c.days.length
-                        ? ` Preferred visits: ${c.days.join(", ")}.`
-                        : ""}
-                      {c.time ? ` Time: ${c.time}.` : ""}{" "}
-                      {c.duration
-                        ? `Service duration: ${c.duration}.`
-                        : "Service duration remains to be confirmed."}{" "}
-                      {c.category === "Needs review"
-                        ? "Professional requirements need staff review."
-                        : ""}
+                      {t(c.age ? `A ${c.age}-year-old patient` : "The patient")}
+                      {t(c.district ? ` in ${c.district}` : "")}{" "}
+                      {t("is requesting")}
+                      {t(" ")}
+                      {t(
+                        c.care ? c.care.toLowerCase() : "care to be confirmed",
+                      )}
+                      .
+                      {t(
+                        c.days.length
+                          ? ` Preferred visits: ${c.days.join(", ")}.`
+                          : "",
+                      )}
+                      {t(c.time ? ` Time: ${c.time}.` : "")}
+                      {t(" ")}
+                      {t(
+                        c.duration
+                          ? `Service duration: ${c.duration}.`
+                          : "Service duration remains to be confirmed.",
+                      )}
+                      {t(" ")}
+                      {t(
+                        c.category === "Needs review"
+                          ? "Professional requirements need staff review."
+                          : "",
+                      )}
                     </p>
                   </div>
                 </div>
@@ -902,25 +958,28 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
             {!editing && missing.length > 0 && (
               <div className="missing-strip">
                 <AlertCircle size={16} />
-                <span>To clarify: {missing.join(" · ")}</span>
+                <span>
+                  {t("To clarify:")} {t(missing.join(" · "))}
+                </span>
               </div>
             )}
             <details className="original-message">
               <summary>
                 <MessageCircle size={14} />
-                Original family enquiry
+                {t("Original family enquiry")}
               </summary>
               <p>{c.original}</p>
             </details>
             {!alreadyPublished && !editing && (
               <section className="approval-checklist">
                 <h3>
-                  <ShieldCheck size={18} />A human check at every important
-                  step.
+                  <ShieldCheck size={18} />
+                  {t("A human check at every important step.")}
                 </h3>
                 <p>
-                  Confirm the details below before preparing a provider
-                  broadcast.
+                  {t(
+                    "Confirm the details below before preparing a provider broadcast.",
+                  )}
                 </p>
                 {(
                   [
@@ -956,13 +1015,14 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                         )
                       }
                     />
-                    <span>{check.label}</span>
+                    <span>{t(check.label)}</span>
                   </label>
                 ))}
                 {c.category === "Needs review" && (
                   <div className="form-hint">
-                    Use Edit details to confirm the required provider category
-                    after professional review.
+                    {t(
+                      "Use Edit details to confirm the required provider category after professional review.",
+                    )}
                   </div>
                 )}
               </section>
@@ -971,15 +1031,15 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
               <details className="broadcast-preview" open={showBroadcast}>
                 <summary>
                   <Send size={15} />
-                  Provider broadcast · privacy preview
+                  {t("Provider broadcast · privacy preview")}
                 </summary>
-                <pre>{broadcastText(c)}</pre>
+                <pre>{t(broadcastText(c))}</pre>
                 <button className="text-button" onClick={copyBroadcast}>
                   <Copy size={14} />
-                  Copy message
+                  {t("Copy message")}
                 </button>
                 <Badge tone="amber" dot={false}>
-                  Simulated · no WhatsApp delivery
+                  {t("Simulated · no WhatsApp delivery")}
                 </Badge>
               </details>
             )}
@@ -989,15 +1049,19 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
           <>
             <div className="case-section-heading">
               <div>
-                <h3>The care plan, at a glance.</h3>
-                <p>Proposed visits are distinct from family-approved visits.</p>
+                <h3>{t("The care plan, at a glance.")}</h3>
+                <p>
+                  {t(
+                    "Proposed visits are distinct from family-approved visits.",
+                  )}
+                </p>
               </div>
               <button
                 className="button secondary"
                 onClick={() => setModal({ type: "schedule", caseId: c.id })}
               >
                 <Plus size={15} />
-                Propose visits
+                {t("Propose visits")}
               </button>
             </div>
             {visits.length ? (
@@ -1008,22 +1072,26 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                     onClick={() => setModal({ type: "visit", id: v.id })}
                   >
                     <span className="visit-date-block">
-                      <strong>{localDate(v.date).getDate()}</strong>
+                      <strong>{t(localDate(v.date).getDate())}</strong>
                       <small>
-                        {localDate(v.date).toLocaleDateString("en-GB", {
-                          month: "short",
-                        })}
+                        {t(
+                          localDate(v.date).toLocaleDateString(locale, {
+                            month: "short",
+                          }),
+                        )}
                       </small>
                     </span>
                     <span>
                       <strong>
-                        {v.time} · {v.tasks}
+                        {t(v.time)} · {t(v.tasks)}
                       </strong>
                       <small>
-                        {v.duration} min · Version {v.version}
-                        {v.previousTime
-                          ? ` · Revised from ${v.previousTime}`
-                          : ""}
+                        {v.duration} {t("min · Version")} {t(v.version)}
+                        {t(
+                          v.previousTime
+                            ? ` · Revised from ${v.previousTime}`
+                            : "",
+                        )}
                       </small>
                     </span>
                     <Badge
@@ -1035,7 +1103,7 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                             : "green"
                       }
                     >
-                      {v.status}
+                      {t(v.status)}
                     </Badge>
                     <ChevronRight size={17} />
                   </button>
@@ -1043,15 +1111,18 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
               </div>
             ) : (
               <EmptyState
-                title="A little planning goes a long way"
-                description="Create a proposed schedule using confirmed requirements and let the family review it."
+                title={t("A little planning goes a long way")}
+                description={t(
+                  "Create a proposed schedule using confirmed requirements and let the family review it.",
+                )}
               />
             )}
             <div className="inline-note">
               <ShieldCheck size={16} />
               <p>
-                Tasks and clinical frequencies must come from confirmed
-                instructions. This tool only organises them.
+                {t(
+                  "Tasks and clinical frequencies must come from confirmed instructions. This tool only organises them.",
+                )}
               </p>
             </div>
           </>
@@ -1061,13 +1132,16 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="case-section-heading">
               <div>
                 <h3>
-                  {assigned
-                    ? "A helping hand, confirmed."
-                    : "Find the right helping hand."}
+                  {t(
+                    assigned
+                      ? "A helping hand, confirmed."
+                      : "Find the right helping hand.",
+                  )}
                 </h3>
                 <p>
-                  Providers apply voluntarily. Your team makes the final
-                  assignment.
+                  {t(
+                    "Providers apply voluntarily. Your team makes the final assignment.",
+                  )}
                 </p>
               </div>
             </div>
@@ -1076,9 +1150,9 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                 <Avatar name={assigned.name} color={assigned.color} />
                 <span>
                   <strong>{assigned.name}</strong>
-                  <small>{assigned.category}</small>
+                  <small>{t(assigned.category)}</small>
                 </span>
-                <Badge tone="green">Assigned</Badge>
+                <Badge tone="green">{t("Assigned")}</Badge>
               </div>
             )}
             {c.applications.length > 0 && (
@@ -1092,33 +1166,34 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                       <span className="application-person">
                         <strong>{p.name}</strong>
                         <small>
-                          {p.category} · {p.experience} years experience
+                          {t(p.category)} · {t(p.experience)}{" "}
+                          {t("years experience")}
                         </small>
                         <span>
                           {eligible ? (
                             <>
                               <ShieldCheck size={12} />
-                              Eligibility checks passed
+                              {t("Eligibility checks passed")}
                             </>
                           ) : (
                             <>
                               <AlertCircle size={12} />
-                              Eligibility review required
+                              {t("Eligibility review required")}
                             </>
                           )}
                         </span>
                       </span>
                       {a.status === "Assigned" ? (
-                        <Badge tone="green">Assigned</Badge>
+                        <Badge tone="green">{t("Assigned")}</Badge>
                       ) : c.providerId ? (
-                        <Badge dot={false}>{a.status}</Badge>
+                        <Badge dot={false}>{t(a.status)}</Badge>
                       ) : (
                         <button
                           className="button secondary"
                           disabled={!eligible}
                           onClick={() => assign(p.id)}
                         >
-                          Confirm assignment <Check size={14} />
+                          {t("Confirm assignment")} <Check size={14} />
                         </button>
                       )}
                     </div>
@@ -1128,23 +1203,23 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
             )}
             {!c.applications.length && (
               <EmptyState
-                title="No applications just yet"
-                description={
+                title={t("No applications just yet")}
+                description={t(
                   alreadyPublished
                     ? "Providers can review the opportunity and confirm their availability."
-                    : "Publish this request after review to open provider applications."
-                }
+                    : "Publish this request after review to open provider applications.",
+                )}
               />
             )}
             {c.status === "Awaiting providers" && (
               <div className="demo-application">
                 <Badge tone="amber" dot={false}>
-                  SIMULATE A PROVIDER APPLICATION
+                  {t("SIMULATE A PROVIDER APPLICATION")}
                 </Badge>
-                <h4>Try the voluntary application flow</h4>
-                <Field label="Provider">
+                <h4>{t("Try the voluntary application flow")}</h4>
+                <Field label={t("Provider")}>
                   <Select
-                    label="Applying provider"
+                    label={t("Applying provider")}
                     value={selectedProvider}
                     onChange={(v) => {
                       setSelectedProvider(v);
@@ -1171,12 +1246,13 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                     onChange={(e) => setAvailability(e.target.checked)}
                   />
                   <span>
-                    I confirm this provider has indicated availability for the
-                    requested visits.
+                    {t(
+                      "I confirm this provider has indicated availability for the requested visits.",
+                    )}
                   </span>
                 </label>
                 <button className="button primary" onClick={apply}>
-                  Submit demo application <ArrowRight size={15} />
+                  {t("Submit demo application")} <ArrowRight size={15} />
                 </button>
               </div>
             )}
@@ -1189,11 +1265,13 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                 <Plus size={15} />
               </span>
               <div>
-                <strong>Enquiry created</strong>
+                <strong>{t("Enquiry created")}</strong>
                 <p>
-                  {new Date(c.createdAt).toLocaleString("en-HK", {
-                    timeZone: "Asia/Hong_Kong",
-                  })}
+                  {t(
+                    new Date(c.createdAt).toLocaleString(locale, {
+                      timeZone: "Asia/Hong_Kong",
+                    }),
+                  )}
                 </p>
               </div>
             </div>
@@ -1207,12 +1285,14 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                     <Check size={15} />
                   </span>
                   <div>
-                    <strong>{a.text}</strong>
-                    <p>{a.detail}</p>
+                    <strong>{t(a.text)}</strong>
+                    <p>{t(a.detail)}</p>
                     <small>
-                      {new Date(a.time).toLocaleString("en-HK", {
-                        timeZone: "Asia/Hong_Kong",
-                      })}
+                      {t(
+                        new Date(a.time).toLocaleString(locale, {
+                          timeZone: "Asia/Hong_Kong",
+                        }),
+                      )}
                     </small>
                   </div>
                 </div>
@@ -1222,11 +1302,13 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                 <Clock3 size={15} />
               </span>
               <div>
-                <strong>Last updated</strong>
+                <strong>{t("Last updated")}</strong>
                 <p>
-                  {new Date(c.updatedAt).toLocaleString("en-HK", {
-                    timeZone: "Asia/Hong_Kong",
-                  })}
+                  {t(
+                    new Date(c.updatedAt).toLocaleString(locale, {
+                      timeZone: "Asia/Hong_Kong",
+                    }),
+                  )}
                 </p>
               </div>
             </div>
@@ -1235,14 +1317,14 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
         {error && (
           <div className="error-box" role="alert">
             <AlertCircle size={17} />
-            {error}
+            {t(error)}
           </div>
         )}
       </div>
       <div className="modal-footer">
         <span className="modal-footer-note">
           <ShieldCheck size={14} />
-          Private care-team record
+          {t("Private care-team record")}
         </span>
         {tab === "Overview" && !alreadyPublished && !editing ? (
           <button
@@ -1250,11 +1332,11 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
             disabled={!ready}
             onClick={publish}
           >
-            確認並發布 Case <Send size={15} />
+            {t("確認並發布 Case")} <Send size={15} />
           </button>
         ) : (
           <button className="button secondary" onClick={onClose}>
-            Done
+            {t("Done")}
           </button>
         )}
       </div>
@@ -1262,11 +1344,13 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 function Detail({ label, value }: { label: string; value: string }) {
+  const { t } = useLocale();
+
   return (
     <div className="detail">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <strong className={!value ? "unknown" : ""}>
-        {value || "Not yet confirmed"}
+        {t(value || "Not yet confirmed")}
       </strong>
     </div>
   );
@@ -1279,6 +1363,8 @@ function ScheduleModal({
   caseId?: string;
   onClose: () => void;
 }) {
+  const { t, locale } = useLocale();
+
   const { data, update, toast, setModal } = useApp();
   const [selected, setSelected] = useState(caseId || "");
   const c = data.cases.find((c) => c.id === selected);
@@ -1401,8 +1487,8 @@ function ScheduleModal({
   }
   return (
     <ModalFrame
-      title="A little structure. A lot of reassurance."
-      eyebrow="PROPOSE A CARE SCHEDULE"
+      title={t("A little structure. A lot of reassurance.")}
+      eyebrow={t("PROPOSE A CARE SCHEDULE")}
       onClose={onClose}
       wide
     >
@@ -1410,17 +1496,17 @@ function ScheduleModal({
         <div className="info-callout small">
           <ShieldCheck size={20} />
           <p>
-            Arrange tasks from confirmed requirements. This planner does not
-            choose clinical tasks, treatment frequency or medication
-            instructions.
+            {t(
+              "Arrange tasks from confirmed requirements. This planner does not choose clinical tasks, treatment frequency or medication instructions.",
+            )}
           </p>
         </div>
         {!preview.length ? (
           <>
             <div className="form-grid">
-              <Field label="Client / care request" required>
+              <Field label={t("Client / care request")} required>
                 <Select
-                  label="Schedule client"
+                  label={t("Schedule client")}
                   value={selected}
                   onChange={changeCase}
                   options={[
@@ -1434,21 +1520,21 @@ function ScheduleModal({
                   ]}
                 />
               </Field>
-              <Field label="Confirmed tasks" required>
+              <Field label={t("Confirmed tasks")} required>
                 <input
                   value={tasks}
                   onChange={(e) => setTasks(e.target.value)}
-                  placeholder="As confirmed in the care request"
+                  placeholder={t("As confirmed in the care request")}
                 />
               </Field>
-              <Field label="First service date" required>
+              <Field label={t("First service date")} required>
                 <input
                   type="date"
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
                 />
               </Field>
-              <Field label="Last service date" required>
+              <Field label={t("Last service date")} required>
                 <input
                   type="date"
                   min={start}
@@ -1456,7 +1542,7 @@ function ScheduleModal({
                   onChange={(e) => setEnd(e.target.value)}
                 />
               </Field>
-              <Field label="Visit start time (HKT)" required>
+              <Field label={t("Visit start time (HKT)")} required>
                 <input
                   type="time"
                   min="08:00"
@@ -1465,9 +1551,9 @@ function ScheduleModal({
                   onChange={(e) => setTime(e.target.value)}
                 />
               </Field>
-              <Field label="Visit length" required>
+              <Field label={t("Visit length")} required>
                 <Select
-                  label="Visit duration"
+                  label={t("Visit duration")}
                   value={duration}
                   onChange={setDuration}
                   options={[
@@ -1481,7 +1567,7 @@ function ScheduleModal({
                 />
               </Field>
             </div>
-            <Field label="Confirmed service days" required>
+            <Field label={t("Confirmed service days")} required>
               <DayPicker days={days} onChange={setDays} />
             </Field>
             <label className="checkbox-row">
@@ -1491,9 +1577,9 @@ function ScheduleModal({
                 onChange={(e) => setConfirmed(e.target.checked)}
               />
               <span>
-                These tasks, service days and frequency are based on confirmed
-                family requirements and, for clinical care, authorised
-                professional instructions.
+                {t(
+                  "These tasks, service days and frequency are based on confirmed family requirements and, for clinical care, authorised professional instructions.",
+                )}
               </span>
             </label>
           </>
@@ -1501,40 +1587,46 @@ function ScheduleModal({
           <>
             <div className="preview-heading">
               <div>
-                <h3>{c?.name} · Proposed care schedule</h3>
+                <h3>
+                  {c?.name} {t("· Proposed care schedule")}
+                </h3>
                 <p>
-                  {preview.length} visits · {shortDate(start)} –{" "}
-                  {shortDate(end)} · Subject to family approval
+                  {preview.length} {t("visits ·")} {t(shortDate(start, locale))}{" "}
+                  –{t(" ")}
+                  {t(shortDate(end, locale))}{" "}
+                  {t("· Subject to family approval")}
                 </p>
               </div>
-              <Badge tone="amber">Proposed</Badge>
+              <Badge tone="amber">{t("Proposed")}</Badge>
             </div>
             <div className="table-scroll">
               <table className="care-table">
                 <thead>
                   <tr>
-                    <th>DAY / DATE</th>
-                    <th>TIME</th>
-                    <th>CONFIRMED TASKS</th>
-                    <th>STATUS</th>
+                    <th>{t("DAY / DATE")}</th>
+                    <th>{t("TIME")}</th>
+                    <th>{t("CONFIRMED TASKS")}</th>
+                    <th>{t("STATUS")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.map((v) => (
                     <tr key={v.id}>
                       <td>
-                        {localDate(v.date).toLocaleDateString("en-GB", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {t(
+                          localDate(v.date).toLocaleDateString(locale, {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          }),
+                        )}
                       </td>
                       <td>
-                        {v.time} · {v.duration} min
+                        {t(v.time)} · {v.duration} {t("min")}
                       </td>
-                      <td>{v.tasks}</td>
+                      <td>{t(v.tasks)}</td>
                       <td>
-                        <Badge tone="amber">Pending approval</Badge>
+                        <Badge tone="amber">{t("Pending approval")}</Badge>
                       </td>
                     </tr>
                   ))}
@@ -1544,11 +1636,11 @@ function ScheduleModal({
             <div className="schedule-preview-note">
               <CheckCheck size={19} />
               <div>
-                <strong>No conflicts found.</strong>
+                <strong>{t("No conflicts found.")}</strong>
                 <p>
-                  Checked against existing visits for the client and any
-                  assigned provider. Provider availability still needs explicit
-                  confirmation.
+                  {t(
+                    "Checked against existing visits for the client and any assigned provider. Provider availability still needs explicit confirmation.",
+                  )}
                 </p>
               </div>
             </div>
@@ -1557,7 +1649,7 @@ function ScheduleModal({
         {error && (
           <div className="error-box" role="alert">
             <AlertCircle size={17} />
-            {error}
+            {t(error)}
           </div>
         )}
       </div>
@@ -1569,7 +1661,7 @@ function ScheduleModal({
           {preview.length ? (
             <>
               <ArrowLeft size={15} />
-              Edit proposal
+              {t("Edit proposal")}
             </>
           ) : (
             "Cancel"
@@ -1582,12 +1674,12 @@ function ScheduleModal({
           {preview.length ? (
             <>
               <Check size={16} />
-              Save proposed schedule
+              {t("Save proposed schedule")}
             </>
           ) : (
             <>
               <CalendarDays size={16} />
-              Generate proposal
+              {t("Generate proposal")}
             </>
           )}
         </button>
@@ -1597,6 +1689,8 @@ function ScheduleModal({
 }
 
 function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
+  const { t, locale } = useLocale();
+
   const { data, update, toast } = useApp();
   const visit = data.visits.find((v) => v.id === id)!;
   const c = data.cases.find((c) => c.id === visit?.caseId)!;
@@ -1782,8 +1876,8 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
   }
   return (
     <ModalFrame
-      title={`${c.name} · Care visit`}
-      eyebrow={`${c.id} · SCHEDULE VERSION ${visit.version}`}
+      title={t(`${c.name} · Care visit`)}
+      eyebrow={t(`${c.id} · SCHEDULE VERSION ${visit.version}`)}
       onClose={onClose}
     >
       <div className="modal-body">
@@ -1799,9 +1893,11 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                     : "green"
             }
           >
-            {visit.status}
+            {t(visit.status)}
           </Badge>
-          <span>{visit.date} · HKT</span>
+          <span>
+            {t(visit.date)} {t("· HKT")}
+          </span>
         </div>
         <div className="visit-details-main">
           <span className="large-calendar-icon">
@@ -1809,35 +1905,40 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
           </span>
           <div>
             <h3>
-              {localDate(visit.date).toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
+              {t(
+                localDate(visit.date).toLocaleDateString(locale, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                }),
+              )}
             </h3>
             <p>
-              {visit.time} · {visit.duration} minutes
+              {t(visit.time)} · {visit.duration} {t("minutes")}
             </p>
           </div>
         </div>
         <div className="detail-grid">
-          <Detail label="Confirmed task(s)" value={visit.tasks} />
-          <Detail label="Service district" value={c.district} />
-          <Detail label="Assigned provider" value={p?.name || ""} />
-          <Detail label="Reminder status" value={visit.reminder} />
+          <Detail label={t("Confirmed task(s)")} value={visit.tasks} />
+          <Detail label={t("Service district")} value={c.district} />
+          <Detail label={t("Assigned provider")} value={p?.name || ""} />
+          <Detail label={t("Reminder status")} value={visit.reminder} />
         </div>
         {visit.previousTime && (
           <div className="revision-diff">
             <Pencil size={15} />
             <span>
-              Changed from <s>{visit.previousTime}</s> to{" "}
+              {t("Changed from")} <s>{t(visit.previousTime)}</s> {t("to")}
+              {t(" ")}
               <strong>
-                {visit.date} {visit.time}
+                {t(visit.date)} {t(visit.time)}
               </strong>
-              .{" "}
-              {visit.status === "Proposed"
-                ? "Family reapproval required."
-                : "Revised version approved."}
+              .{t(" ")}
+              {t(
+                visit.status === "Proposed"
+                  ? "Family reapproval required."
+                  : "Revised version approved.",
+              )}
             </span>
           </div>
         )}
@@ -1845,14 +1946,16 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
           <div className="patient-pending-change">
             <MessageCircle size={18} />
             <div>
-              <strong>Patient requested another time</strong>
+              <strong>{t("Patient requested another time")}</strong>
               <p>
-                {visit.changeRequest.date} at {visit.changeRequest.time} HKT
+                {t(visit.changeRequest.date)} {t("at")}{" "}
+                {t(visit.changeRequest.time)} {t("HKT")}
               </p>
               {visit.changeRequest.note && <p>{visit.changeRequest.note}</p>}
               <small>
-                Check provider availability before preparing the revised
-                proposal. Family reapproval is required.
+                {t(
+                  "Check provider availability before preparing the revised proposal. Family reapproval is required.",
+                )}
               </small>
               <button
                 className="button secondary"
@@ -1863,7 +1966,7 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                   setError("");
                 }}
               >
-                Prepare revised proposal <ArrowRight size={14} />
+                {t("Prepare revised proposal")} <ArrowRight size={14} />
               </button>
             </div>
           </div>
@@ -1872,29 +1975,31 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
           <div className="success-box">
             <CheckCheck size={19} />
             <div>
-              <strong>Completion confirmed by the provider.</strong>
+              <strong>{t("Completion confirmed by the provider.")}</strong>
               <p>
-                {visit.completedAt
-                  ? new Date(visit.completedAt).toLocaleString("en-HK", {
-                      timeZone: "Asia/Hong_Kong",
-                    })
-                  : "Completion recorded in this prototype"}
+                {t(
+                  visit.completedAt
+                    ? new Date(visit.completedAt).toLocaleString(locale, {
+                        timeZone: "Asia/Hong_Kong",
+                      })
+                    : "Completion recorded in this prototype",
+                )}
               </p>
             </div>
           </div>
         )}
         {revising ? (
           <div className="revision-form">
-            <h3>A better time for the family?</h3>
+            <h3>{t("A better time for the family?")}</h3>
             <div className="form-grid">
-              <Field label="Revised date">
+              <Field label={t("Revised date")}>
                 <input
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                 />
               </Field>
-              <Field label="Revised start time (HKT)">
+              <Field label={t("Revised start time (HKT)")}>
                 <input
                   type="time"
                   min="08:00"
@@ -1905,25 +2010,27 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
               </Field>
             </div>
             <p className="form-hint">
-              The change is checked for overlapping visits and saved as a new
-              proposed version.
+              {t(
+                "The change is checked for overlapping visits and saved as a new proposed version.",
+              )}
             </p>
             <button className="button primary" onClick={revise}>
-              Save revision <ArrowRight size={15} />
+              {t("Save revision")} <ArrowRight size={15} />
             </button>
             <button className="button ghost" onClick={() => setRevising(false)}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         ) : visit.status === "Proposed" ? (
           <div className="family-approval">
             <div>
               <ShieldCheck size={21} />
-              <h3>Ready for the family’s review.</h3>
+              <h3>{t("Ready for the family’s review.")}</h3>
             </div>
             <p>
-              Check the date, time and confirmed care tasks together. Approval
-              is for this schedule only.
+              {t(
+                "Check the date, time and confirmed care tasks together. Approval is for this schedule only.",
+              )}
             </p>
             <label className="checkbox-row">
               <input
@@ -1932,20 +2039,22 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                 onChange={(e) => setFamilyConfirmed(e.target.checked)}
               />
               <span>
-                I’m recording the family’s approval of this proposed visit.
+                {t(
+                  "I’m recording the family’s approval of this proposed visit.",
+                )}
               </span>
             </label>
             <div className="button-row">
               <button className="button primary" onClick={approve}>
                 <Check size={15} />
-                Approve schedule
+                {t("Approve schedule")}
               </button>
               <button
                 className="button secondary"
                 onClick={() => setRevising(true)}
               >
                 <Pencil size={14} />
-                Request a change
+                {t("Request a change")}
               </button>
             </div>
           </div>
@@ -1954,11 +2063,12 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="visit-operations">
               <h3>
                 <BellIcon />
-                Provider coordination · simulation
+                {t("Provider coordination · simulation")}
               </h3>
               <p>
-                Use the demo controls to preview a reminder and record an
-                explicit provider response.
+                {t(
+                  "Use the demo controls to preview a reminder and record an explicit provider response.",
+                )}
               </p>
               <button
                 className="button secondary"
@@ -1966,9 +2076,11 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                 disabled={visit.reminder === "Simulated delivery"}
               >
                 <MessageCircle size={15} />
-                {visit.reminder === "Simulated delivery"
-                  ? "Reminder simulated"
-                  : "Simulate visit reminder"}
+                {t(
+                  visit.reminder === "Simulated delivery"
+                    ? "Reminder simulated"
+                    : "Simulate visit reminder",
+                )}
               </button>
               <label className="checkbox-row">
                 <input
@@ -1977,8 +2089,9 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                   onChange={(e) => setProviderConfirmed(e.target.checked)}
                 />
                 <span>
-                  The assigned provider has explicitly confirmed that this visit
-                  is completed.
+                  {t(
+                    "The assigned provider has explicitly confirmed that this visit is completed.",
+                  )}
                 </span>
               </label>
               <div className="button-row">
@@ -1988,40 +2101,41 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
                   disabled={!p}
                 >
                   <CheckCheck size={15} />
-                  Record completion
+                  {t("Record completion")}
                 </button>
                 <button
                   className="button secondary"
                   onClick={() => setShowIssue(!showIssue)}
                 >
-                  Report an issue
+                  {t("Report an issue")}
                 </button>
                 <button
                   className="button ghost"
                   onClick={() => setRevising(true)}
                 >
-                  Revise
+                  {t("Revise")}
                 </button>
               </div>
               {!p && (
                 <p className="form-hint">
-                  Assign a verified provider from the care request before
-                  recording completion.
+                  {t(
+                    "Assign a verified provider from the care request before recording completion.",
+                  )}
                 </p>
               )}
             </div>
             {showIssue && (
               <div className="issue-form">
-                <Field label="What needs attention?">
+                <Field label={t("What needs attention?")}>
                   <textarea
                     rows={2}
                     value={issue}
                     onChange={(e) => setIssue(e.target.value)}
-                    placeholder="Unable to attend, needs assistance…"
+                    placeholder={t("Unable to attend, needs assistance…")}
                   />
                 </Field>
                 <button className="button primary" onClick={reportIssue}>
-                  Log issue for staff
+                  {t("Log issue for staff")}
                 </button>
               </div>
             )}
@@ -2030,10 +2144,12 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
           <div className="error-box">
             <AlertCircle size={19} />
             <p>
-              Staff follow-up required. Review the activity log and contact the
-              provider.{" "}
+              {t(
+                "Staff follow-up required. Review the activity log and contact the provider.",
+              )}
+              {t(" ")}
               <button className="text-button" onClick={() => setRevising(true)}>
-                Propose a revised visit
+                {t("Propose a revised visit")}
               </button>
             </p>
           </div>
@@ -2041,17 +2157,17 @@ function VisitModal({ id, onClose }: { id: string; onClose: () => void }) {
         {error && (
           <div className="error-box" role="alert">
             <AlertCircle size={17} />
-            {error}
+            {t(error)}
           </div>
         )}
       </div>
       <div className="modal-footer">
         <span className="modal-footer-note">
           <ShieldCheck size={14} />
-          Care decisions stay with qualified people.
+          {t("Care decisions stay with qualified people.")}
         </span>
         <button className="button secondary" onClick={onClose}>
-          Done
+          {t("Done")}
         </button>
       </div>
     </ModalFrame>
@@ -2062,95 +2178,105 @@ function BellIcon() {
 }
 
 function ProviderModal({ id, onClose }: { id: string; onClose: () => void }) {
+  const { t } = useLocale();
+
   const { data } = useApp();
   const p = data.providers.find((p) => p.id === id)!;
   if (!p) return null;
   return (
     <ModalFrame
-      title={p.name}
-      eyebrow={`PROVIDER PROFILE · ${p.id}`}
+      title={t(p.name)}
+      eyebrow={t(`PROVIDER PROFILE · ${p.id}`)}
       onClose={onClose}
     >
       <div className="modal-body">
         <div className="provider-profile-hero">
           <Avatar name={p.name} color={p.color} size="lg" />
           <div>
-            <h3>{p.category}</h3>
-            <p>{p.experience} years of experience</p>
+            <h3>{t(p.category)}</h3>
+            <p>
+              {t(p.experience)} {t("years of experience")}
+            </p>
           </div>
           <Badge tone={p.verified ? "green" : "amber"}>
-            {p.verified ? "Demo verified" : "Verification pending"}
+            {t(p.verified ? "Demo verified" : "Verification pending")}
           </Badge>
         </div>
         <div className="detail-grid">
-          <Detail label="Registration / verification" value={p.registration} />
           <Detail
-            label="Availability"
+            label={t("Registration / verification")}
+            value={p.registration}
+          />
+          <Detail
+            label={t("Availability")}
             value={p.available ? "Open to enquiries" : "Currently at capacity"}
           />
           <Detail
-            label="Communication preference"
+            label={t("Communication preference")}
             value={
               p.optIn
                 ? "Opted in to case opportunities"
                 : "No messaging consent"
             }
           />
-          <Detail label="Professional category" value={p.category} />
+          <Detail label={t("Professional category")} value={p.category} />
         </div>
         <div className="profile-section">
           <h3>
             <MapPin size={16} />
-            Service districts
+            {t("Service districts")}
           </h3>
           <div className="skill-tags">
             {p.districts.map((d) => (
-              <span key={d}>{d}</span>
+              <span key={d}>{t(d)}</span>
             ))}
           </div>
         </div>
         <div className="profile-section">
           <h3>
             <HeartHandshake size={17} />
-            Competencies & approved categories
+            {t("Competencies & approved categories")}
           </h3>
           <div className="skill-tags">
             {p.skills.map((s) => (
-              <span key={s}>{s}</span>
+              <span key={s}>{t(s)}</span>
             ))}
           </div>
         </div>
         <div className="info-callout small">
           <ShieldCheck size={20} />
           <p>
-            This is a fictional profile. Real registration details, identity
-            checks, competency verification and explicit availability are
-            required before any live assignment.
+            {t(
+              "This is a fictional profile. Real registration details, identity checks, competency verification and explicit availability are required before any live assignment.",
+            )}
           </p>
         </div>
       </div>
       <div className="modal-footer">
         <span className="modal-footer-note">
-          Sensitive registration details are never broadcast.
+          {t("Sensitive registration details are never broadcast.")}
         </span>
         <button className="button secondary" onClick={onClose}>
-          Done
+          {t("Done")}
         </button>
       </div>
     </ModalFrame>
   );
 }
 function HelpModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLocale();
+
   return (
     <ModalFrame
-      title="Care, connected. One step at a time."
-      eyebrow="WELCOME TO KINDRED CARE"
+      title={t("Care, connected. One step at a time.")}
+      eyebrow={t("WELCOME TO KINDRED CARE")}
       onClose={onClose}
     >
       <div className="modal-body">
         <p className="help-intro">
-          An interactive frontend prototype for home nursing navigation and
-          coordination in Hong Kong.
+          {t(
+            "An interactive frontend prototype for home nursing navigation and coordination in Hong Kong.",
+          )}
         </p>
         <div className="help-steps">
           {[
@@ -2181,9 +2307,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
               </span>
               <div>
                 <strong>
-                  {i + 1}. {step.title}
+                  {t(i + 1)}. {t(step.title)}
                 </strong>
-                <p>{step.text}</p>
+                <p>{t(step.text)}</p>
               </div>
             </div>
           ))}
@@ -2191,48 +2317,52 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <div className="info-callout small">
           <Sparkles size={20} />
           <p>
-            <strong>What’s simulated:</strong> AI extraction uses deterministic
-            rules. WhatsApp delivery, credentials and staff roles are
-            demonstrations. Browser storage, editing, approval, conflict checks
-            and exports are functional.
+            <strong>{t("What’s simulated:")}</strong>{" "}
+            {t(
+              "AI extraction uses deterministic rules. WhatsApp delivery, credentials and staff roles are demonstrations. Browser storage, editing, approval, conflict checks and exports are functional.",
+            )}
           </p>
         </div>
         <p className="form-hint">
-          Use fictional data. This prototype is not monitored for emergencies.
-          For an immediate emergency in Hong Kong, call 999.
+          {t(
+            "Use fictional data. This prototype is not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.",
+          )}
         </p>
       </div>
       <div className="modal-footer">
         <span className="modal-footer-note">
-          Built around people, supported by technology.
+          {t("Built around people, supported by technology.")}
         </span>
         <button className="button primary" onClick={onClose}>
-          Let’s get started <ArrowRight size={15} />
+          {t("Let’s get started")} <ArrowRight size={15} />
         </button>
       </div>
     </ModalFrame>
   );
 }
 function ResetModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLocale();
+
   const { update, toast } = useApp();
   return (
     <ModalFrame
-      title="Start with a fresh demo?"
-      eyebrow="RESET WORKSPACE"
+      title={t("Start with a fresh demo?")}
+      eyebrow={t("RESET WORKSPACE")}
       onClose={onClose}
     >
       <div className="modal-body">
         <p>
-          This replaces your browser-saved care requests, schedules,
-          applications and messages with the original fictional sample records.
+          {t(
+            "This replaces your browser-saved care requests, schedules, applications and messages with the original fictional sample records.",
+          )}
         </p>
         <p className="form-hint">
-          You can download a JSON backup from Settings before resetting.
+          {t("You can download a JSON backup from Settings before resetting.")}
         </p>
       </div>
       <div className="modal-footer">
         <button className="button secondary" onClick={onClose}>
-          Keep my changes
+          {t("Keep my changes")}
         </button>
         <button
           className="button danger"
@@ -2243,7 +2373,7 @@ function ResetModal({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         >
-          Reset demo workspace
+          {t("Reset demo workspace")}
         </button>
       </div>
     </ModalFrame>

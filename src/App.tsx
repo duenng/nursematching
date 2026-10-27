@@ -1,3 +1,4 @@
+import { LanguageSwitcher, useLocale } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
@@ -63,6 +64,8 @@ const navItems: { label: Page; icon: LucideIcon; group: string }[] = [
 ];
 
 function Shell() {
+  const { t } = useLocale();
+
   const { data, page, navigate, setModal, notification, switchView } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -125,7 +128,7 @@ function Shell() {
         <button
           className="brand-button"
           onClick={() => go("Overview")}
-          aria-label="Kindred Care home"
+          aria-label={t("Kindred Care home")}
         >
           <Logo />
         </button>
@@ -134,28 +137,28 @@ function Shell() {
             <Heart size={16} />
           </span>
           <span>
-            <strong>Care coordination</strong>
-            <small>Hong Kong workspace</small>
+            <strong>{t("Care coordination")}</strong>
+            <small>{t("Hong Kong workspace")}</small>
           </span>
           <ChevronDown size={15} />
         </div>
-        <nav aria-label="Main navigation">
+        <nav aria-label={t("Main navigation")}>
           {["WORKSPACE", "MANAGE"].map((group) => (
             <div className="nav-group" key={group}>
-              <p className="nav-label">{group}</p>
+              <p className="nav-label">{t(group)}</p>
               {navItems
                 .filter((i) => i.group === group)
                 .map((item) => (
                   <button
                     className={`nav-item ${page === item.label ? "active" : ""}`}
                     key={item.label}
-                    aria-label={item.label}
+                    aria-label={t(item.label)}
                     onClick={() => go(item.label)}
                   >
                     <item.icon size={19} strokeWidth={1.7} />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                     {item.label === "Care enquiries" && newCount > 0 && (
-                      <span className="nav-count">{newCount}</span>
+                      <span className="nav-count">{t(newCount)}</span>
                     )}
                     {item.label === "Messages" && <span className="nav-dot" />}
                   </button>
@@ -169,10 +172,10 @@ function Shell() {
               <Sparkles size={22} />
               <span>✧</span>
             </span>
-            <h3>A little help, a lot of care.</h3>
-            <p>Turn a family’s first message into their next step.</p>
+            <h3>{t("A little help, a lot of care.")}</h3>
+            <p>{t("Turn a family’s first message into their next step.")}</p>
             <button onClick={() => setModal({ type: "enquiry" })}>
-              Open care navigator <ArrowRight size={15} />
+              {t("Open care navigator")} <ArrowRight size={15} />
             </button>
           </div>
           <button
@@ -180,19 +183,19 @@ function Shell() {
             onClick={() => go("Settings")}
           >
             <Settings size={18} strokeWidth={1.7} />
-            <span>Settings</span>
+            <span>{t("Settings")}</span>
           </button>
           <button
             className="nav-item"
             onClick={() => setModal({ type: "help" })}
           >
             <CircleHelp size={18} strokeWidth={1.7} />
-            <span>Help & resources</span>
+            <span>{t("Help & resources")}</span>
             <ArrowUpRightIcon />
           </button>
           <div className="sidebar-footer">
             <span className="security-dot" />
-            Made for care. Built on trust.
+            {t("Made for care. Built on trust.")}
           </div>
         </div>
       </aside>
@@ -202,29 +205,30 @@ function Shell() {
             <button
               className="icon-button mobile-menu"
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Open menu"
+              aria-label={t("Open menu")}
             >
               <Menu size={21} />
             </button>
             <span className="breadcrumb">
-              Workspace <ChevronRight size={14} />
-              <strong>{page}</strong>
+              {t("Workspace")} <ChevronRight size={14} />
+              <strong>{t(page)}</strong>
             </span>
           </div>
           <div className="topbar-actions">
+            <LanguageSwitcher />
             <button
               className="staff-patient-preview"
               onClick={() => switchView("patient")}
             >
               <Heart size={14} />
-              Patient view
+              {t("Patient view")}
             </button>
             <div className="global-search" ref={searchArea}>
               <Search size={16} />
               <input
                 ref={searchRef}
-                aria-label="Search workspace"
-                placeholder="Search anything..."
+                aria-label={t("Search workspace")}
+                placeholder={t("Search anything...")}
                 value={query}
                 onFocus={() => setSearchOpen(true)}
                 onChange={(e) => {
@@ -232,11 +236,11 @@ function Shell() {
                   setSearchOpen(true);
                 }}
               />
-              <kbd>⌘ K</kbd>
+              <kbd>{t("⌘ K")}</kbd>
               {searchOpen && (
                 <div className="search-results">
                   <div className="dropdown-label">
-                    {query ? "SEARCH RESULTS" : "RECENT CASES"}
+                    {t(query ? "SEARCH RESULTS" : "RECENT CASES")}
                   </div>
                   {results.map((c) => (
                     <button
@@ -251,7 +255,7 @@ function Shell() {
                       <span>
                         <strong>{c.name}</strong>
                         <small>
-                          {c.id} · {c.district}
+                          {t(c.id)} · {t(c.district)}
                         </small>
                       </span>
                       <ArrowRight size={15} />
@@ -270,24 +274,24 @@ function Shell() {
                         <Avatar name={p.name} color={p.color} size="sm" />
                         <span>
                           <strong>{p.name}</strong>
-                          <small>{p.category}</small>
+                          <small>{t(p.category)}</small>
                         </span>
                       </button>
                     ))}
                   {!results.length && !providerResults.length && (
-                    <p className="no-results">No matching records.</p>
+                    <p className="no-results">{t("No matching records.")}</p>
                   )}
                 </div>
               )}
             </div>
             <span className="topbar-divider" />
             <Badge tone="demo" dot={false}>
-              Prototype
+              {t("Prototype")}
             </Badge>
             <div className="notification-wrap" ref={noticeArea}>
               <button
                 className="icon-button notification-button"
-                aria-label="Notifications"
+                aria-label={t("Notifications")}
                 aria-expanded={noticeOpen}
                 onClick={() => setNoticeOpen(!noticeOpen)}
               >
@@ -296,7 +300,9 @@ function Shell() {
               </button>
               {noticeOpen && (
                 <div className="notification-menu">
-                  <div className="dropdown-label">WORKSPACE ACTIVITY</div>
+                  <div className="dropdown-label">
+                    {t("WORKSPACE ACTIVITY")}
+                  </div>
                   {data.activities.slice(0, 4).map((a) => (
                     <button
                       key={a.id}
@@ -317,8 +323,8 @@ function Shell() {
                         <Check size={15} />
                       </span>
                       <span>
-                        <strong>{a.text}</strong>
-                        <small>{a.detail}</small>
+                        <strong>{t(a.text)}</strong>
+                        <small>{t(a.detail)}</small>
                       </span>
                     </button>
                   ))}
@@ -329,15 +335,15 @@ function Shell() {
               <button
                 className="profile-button"
                 onClick={() => setProfileOpen(!profileOpen)}
-                aria-label="Profile menu"
+                aria-label={t("Profile menu")}
               >
                 <Avatar name="Alex Chan" color="profile" size="sm" />
                 <ChevronDown size={13} />
               </button>
               {profileOpen && (
                 <div className="profile-menu">
-                  <strong>Alex Chan</strong>
-                  <small>Care coordinator · Demo account</small>
+                  <strong>{t("Alex Chan")}</strong>
+                  <small>{t("Care coordinator · Demo account")}</small>
                   <button
                     onClick={() => {
                       go("Settings");
@@ -345,7 +351,7 @@ function Shell() {
                     }}
                   >
                     <Settings size={15} />
-                    Workspace settings
+                    {t("Workspace settings")}
                   </button>
                   <button
                     onClick={() => {
@@ -354,7 +360,7 @@ function Shell() {
                     }}
                   >
                     <CircleHelp size={15} />
-                    About the prototype
+                    {t("About the prototype")}
                   </button>
                 </div>
               )}
@@ -382,11 +388,13 @@ function Shell() {
           <footer className="content-footer">
             <span>
               <Logo compact />
-              Care, connected.
+              {t("Care, connected.")}
             </span>
             <span>
-              Hong Kong <span className="footer-dot">·</span> All times in HKT
-              (UTC+8)<span className="footer-dot">·</span>Frontend prototype
+              {t("Hong Kong")} <span className="footer-dot">·</span>{" "}
+              {t("All times in HKT (UTC+8)")}
+              <span className="footer-dot">·</span>
+              {t("Frontend prototype")}
             </span>
           </footer>
         </main>
@@ -397,7 +405,7 @@ function Shell() {
           <span>
             <Check size={16} />
           </span>
-          {notification}
+          {t(notification)}
         </div>
       )}
     </div>
@@ -418,6 +426,8 @@ function ArrowUpRightIcon() {
 }
 
 function Overview() {
+  const { t, locale } = useLocale();
+
   const { data, navigate, setModal, toast } = useApp();
   const [caseTab, setCaseTab] = useState("All cases");
   const [period, setPeriod] = useState("This week");
@@ -506,9 +516,11 @@ function Overview() {
   return (
     <>
       <PageTitle
-        eyebrow="A LITTLE CLARITY. A LOT OF CARE."
-        title={`${greeting}, Alex`}
-        description="Here’s what’s happening across your care community today."
+        eyebrow={t("A LITTLE CLARITY. A LOT OF CARE.")}
+        title={t(`${greeting}, Alex`)}
+        description={t(
+          "Here’s what’s happening across your care community today.",
+        )}
       >
         <span className="date-display">
           <CalendarDays size={15} />
@@ -519,26 +531,27 @@ function Overview() {
           onClick={() => setModal({ type: "enquiry" })}
         >
           <Plus size={17} />
-          New enquiry
+          {t("New enquiry")}
         </button>
       </PageTitle>
       <section className="welcome-banner">
         <div className="welcome-copy">
           <span className="welcome-kicker">
             <span />
-            PEOPLE FIRST. ALWAYS.
+            {t("PEOPLE FIRST. ALWAYS.")}
           </span>
           <h2>
-            Good care begins
+            {t("Good care begins")}
             <br />
-            with a connection.
+            {t("with a connection.")}
           </h2>
           <p>
-            From a family’s first question to a nurse at their door,
-            <br className="desktop-break" /> bring every step of care together.
+            {t("From a family’s first question to a nurse at their door,")}
+            <br className="desktop-break" />{" "}
+            {t("bring every step of care together.")}
           </p>
           <button onClick={() => setModal({ type: "enquiry" })}>
-            Let’s find the right care <ArrowRight size={16} />
+            {t("Let’s find the right care")} <ArrowRight size={16} />
           </button>
         </div>
         <div className="welcome-art" aria-hidden="true">
@@ -549,41 +562,44 @@ function Overview() {
             <Heart size={15} fill="currentColor" />
           </span>
           <span>
-            A little support.
+            {t("A little support.")}
             <br />
-            <strong>A world of difference.</strong>
+            <strong>{t("A world of difference.")}</strong>
           </span>
         </div>
         <span className="banner-corner">✦</span>
       </section>
       <div className="section-bar">
         <h2>
-          Your workspace at a glance{" "}
+          {t("Your workspace at a glance")}
+          {t(" ")}
           <span className="live-label">
             <span />
-            Live overview
+            {t("Live overview")}
           </span>
         </h2>
         <Select
-          label="Reporting period"
+          label={t("Reporting period")}
           value={period}
           onChange={setPeriod}
           options={["This week", "This month"]}
         />
       </div>
-      <section className="stat-grid" aria-label="Workspace statistics">
+      <section className="stat-grid" aria-label={t("Workspace statistics")}>
         <StatCard
-          label="Active care cases"
+          label={t("Active care cases")}
           value={String(active).padStart(2, "0")}
           icon={FolderHeart}
           tone="green"
           detail="Families currently supported"
           onClick={() => navigate("Care requests")}
         >
-          <Trend>{total} open cases</Trend>
+          <Trend>
+            {total} {t("open cases")}
+          </Trend>
         </StatCard>
         <StatCard
-          label="Enquiries to review"
+          label={t("Enquiries to review")}
           value={String(attention).padStart(2, "0")}
           icon={MessageCircle}
           tone="amber"
@@ -592,11 +608,11 @@ function Overview() {
         >
           <span className="stat-attention">
             <span />
-            Needs your attention
+            {t("Needs your attention")}
           </span>
         </StatCard>
         <StatCard
-          label="Scheduled visits"
+          label={t("Scheduled visits")}
           value={String(periodVisits.length).padStart(2, "0")}
           icon={CalendarDays}
           tone="purple"
@@ -608,12 +624,13 @@ function Overview() {
           onClick={() => navigate("Care schedule")}
         >
           <Trend>
-            {periodVisits.filter((v) => v.status === "Confirmed").length}{" "}
-            confirmed
+            {periodVisits.filter((v) => v.status === "Confirmed").length}
+            {t(" ")}
+            {t("confirmed")}
           </Trend>
         </StatCard>
         <StatCard
-          label="Available providers"
+          label={t("Available providers")}
           value={String(available).padStart(2, "0")}
           icon={HeartHandshake}
           tone="blue"
@@ -627,7 +644,7 @@ function Overview() {
               .map((p) => (
                 <Avatar key={p.id} name={p.name} color={p.color} size="sm" />
               ))}
-            <span>in your network</span>
+            <span>{t("in your network")}</span>
           </span>
         </StatCard>
       </section>
@@ -637,16 +654,19 @@ function Overview() {
             <div className="panel-header">
               <div>
                 <h2>
-                  Recent care requests{" "}
+                  {t("Recent care requests")}
+                  {t(" ")}
                   <span className="number-pill">{data.cases.length}</span>
                 </h2>
-                <p>A helping hand, from first enquiry to ongoing care.</p>
+                <p>
+                  {t("A helping hand, from first enquiry to ongoing care.")}
+                </p>
               </div>
               <button
                 className="text-button"
                 onClick={() => navigate("Care requests")}
               >
-                View all requests <ArrowRight size={14} />
+                {t("View all requests")} <ArrowRight size={14} />
               </button>
             </div>
             <div className="table-toolbar">
@@ -657,7 +677,7 @@ function Overview() {
                     className={caseTab === tab ? "selected" : ""}
                     onClick={() => setCaseTab(tab)}
                   >
-                    {tab}
+                    {t(tab)}
                     {tab === "Needs attention" && <span>{attention}</span>}
                   </button>
                 ))}
@@ -665,7 +685,7 @@ function Overview() {
               <div className="small-menu-wrap">
                 <button
                   className="icon-button"
-                  aria-label="Care request options"
+                  aria-label={t("Care request options")}
                   onClick={() => setMenuOpen(!menuOpen)}
                 >
                   <MoreHorizontal size={19} />
@@ -674,7 +694,7 @@ function Overview() {
                   <div className="small-menu">
                     <button onClick={exportOverview}>
                       <ArrowDownToLine size={15} />
-                      Export CSV
+                      {t("Export CSV")}
                     </button>
                     <button
                       onClick={() => {
@@ -682,7 +702,7 @@ function Overview() {
                         setMenuOpen(false);
                       }}
                     >
-                      Manage all requests
+                      {t("Manage all requests")}
                     </button>
                   </div>
                 )}
@@ -692,10 +712,10 @@ function Overview() {
               <table className="care-table">
                 <thead>
                   <tr>
-                    <th>CLIENT / CASE</th>
-                    <th>CARE NEEDED</th>
-                    <th>DISTRICT</th>
-                    <th>STATUS</th>
+                    <th>{t("CLIENT / CASE")}</th>
+                    <th>{t("CARE NEEDED")}</th>
+                    <th>{t("DISTRICT")}</th>
+                    <th>{t("STATUS")}</th>
                     <th />
                   </tr>
                 </thead>
@@ -711,23 +731,25 @@ function Overview() {
                           <span>
                             <strong>{c.name}</strong>
                             <small>
-                              {c.id} <span>·</span> {c.age} years old
+                              {t(c.id)} <span>·</span> {c.age} {t("years old")}
                             </small>
                           </span>
                         </div>
                       </td>
                       <td>
                         <span className="care-type">
-                          {c.care.split(",")[0]}
+                          {t(c.care.split(",")[0])}
                         </span>
                         <span className="cell-subtitle">
-                          {c.category === "Needs review"
-                            ? "Scope to be confirmed"
-                            : c.category}
+                          {t(
+                            c.category === "Needs review"
+                              ? "Scope to be confirmed"
+                              : c.category,
+                          )}
                         </span>
                       </td>
                       <td>
-                        <span className="district-cell">{c.district}</span>
+                        <span className="district-cell">{t(c.district)}</span>
                       </td>
                       <td>
                         <CaseBadge status={c.status} />
@@ -735,7 +757,7 @@ function Overview() {
                       <td>
                         <button
                           className="row-arrow"
-                          aria-label={`Open ${c.id}`}
+                          aria-label={t(`Open ${c.id}`)}
                           onClick={(e) => {
                             e.stopPropagation();
                             setModal({ type: "case", id: c.id });
@@ -751,17 +773,18 @@ function Overview() {
             </div>
             {!filteredCases.length && (
               <EmptyState
-                title="All caught up"
-                description="No care requests in this view."
+                title={t("All caught up")}
+                description={t("No care requests in this view.")}
               />
             )}
             <div className="panel-table-footer">
               <span>
                 <ShieldCheck size={13} />
-                Every case is reviewed by a real person.
+                {t("Every case is reviewed by a real person.")}
               </span>
               <span>
-                Showing {filteredCases.length} of {data.cases.length} cases
+                {t("Showing")} {filteredCases.length} {t("of")}{" "}
+                {data.cases.length} {t("cases")}
               </span>
             </div>
           </section>
@@ -770,27 +793,29 @@ function Overview() {
               <Sparkles size={24} />
             </div>
             <div>
-              <span className="eyebrow">MEET YOUR CARE NAVIGATOR</span>
-              <h3>Less paperwork. More people.</h3>
+              <span className="eyebrow">{t("MEET YOUR CARE NAVIGATOR")}</span>
+              <h3>{t("Less paperwork. More people.")}</h3>
               <p>
-                Turn a family’s words into a clear, structured care enquiry.
+                {t(
+                  "Turn a family’s words into a clear, structured care enquiry.",
+                )}
               </p>
             </div>
             <button
               className="button secondary"
               onClick={() => setModal({ type: "enquiry" })}
             >
-              Try the navigator <ArrowRight size={15} />
+              {t("Try the navigator")} <ArrowRight size={15} />
             </button>
             <span className="navigator-decoration">✧</span>
           </section>
           <section className="panel pipeline-panel">
             <div className="panel-header compact">
               <div>
-                <h2>Every step, connected</h2>
-                <p>A snapshot of the care journey.</p>
+                <h2>{t("Every step, connected")}</h2>
+                <p>{t("A snapshot of the care journey.")}</p>
               </div>
-              <Badge dot={false}>All cases</Badge>
+              <Badge dot={false}>{t("All cases")}</Badge>
             </div>
             <div className="pipeline-bar">
               {stages
@@ -820,8 +845,8 @@ function Overview() {
                     className="pipeline-dot"
                     style={{ background: stage.color }}
                   />
-                  <span>{stage.label}</span>
-                  <strong>{String(stage.count).padStart(2, "0")}</strong>
+                  <span>{t(stage.label)}</span>
+                  <strong>{t(String(stage.count).padStart(2, "0"))}</strong>
                 </button>
               ))}
             </div>
@@ -831,20 +856,22 @@ function Overview() {
           <section className="panel today-panel">
             <div className="panel-header compact">
               <h2>
-                {scheduleOffset === 0
-                  ? "Today’s visits"
-                  : shortDate(visibleDate)}
+                {t(
+                  scheduleOffset === 0
+                    ? "Today’s visits"
+                    : shortDate(visibleDate, locale),
+                )}
                 <span className="number-pill">{visits.length}</span>
               </h2>
               <div className="mini-nav">
                 <button
-                  aria-label="Previous day"
+                  aria-label={t("Previous day")}
                   onClick={() => setScheduleOffset(scheduleOffset - 1)}
                 >
                   <ChevronLeft size={15} />
                 </button>
                 <button
-                  aria-label="Next day"
+                  aria-label={t("Next day")}
                   onClick={() => setScheduleOffset(scheduleOffset + 1)}
                 >
                   <ChevronRight size={15} />
@@ -853,12 +880,14 @@ function Overview() {
             </div>
             <div className="today-date">
               <span className="today-dot" />
-              {localDate(visibleDate).toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-              <span>HKT</span>
+              {t(
+                localDate(visibleDate).toLocaleDateString(locale, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                }),
+              )}
+              <span>{t("HKT")}</span>
             </div>
             <div className="visit-list">
               {visits.slice(0, 3).map((v) => {
@@ -873,12 +902,14 @@ function Overview() {
                     onClick={() => setModal({ type: "visit", id: v.id })}
                   >
                     <span className="visit-time">
-                      {v.time}
-                      <span>{v.duration} min</span>
+                      {t(v.time)}
+                      <span>
+                        {v.duration} {t("min")}
+                      </span>
                     </span>
                     <span className="visit-content">
                       <strong>{c?.name}</strong>
-                      <span>{v.tasks.split(",")[0]}</span>
+                      <span>{t(v.tasks.split(",")[0])}</span>
                       <small>
                         {provider ? (
                           <>
@@ -892,7 +923,7 @@ function Overview() {
                         ) : (
                           <>
                             <span className="tiny-dot" />
-                            Awaiting confirmation
+                            {t("Awaiting confirmation")}
                           </>
                         )}
                       </small>
@@ -906,8 +937,8 @@ function Overview() {
               {!visits.length && (
                 <div className="quiet-day">
                   <CalendarDays size={25} />
-                  <strong>A little room to breathe.</strong>
-                  <p>No visits scheduled for this day.</p>
+                  <strong>{t("A little room to breathe.")}</strong>
+                  <p>{t("No visits scheduled for this day.")}</p>
                 </div>
               )}
             </div>
@@ -915,12 +946,12 @@ function Overview() {
               className="rail-footer-button"
               onClick={() => navigate("Care schedule")}
             >
-              View care schedule <ArrowRight size={15} />
+              {t("View care schedule")} <ArrowRight size={15} />
             </button>
           </section>
           <section className="panel activity-panel">
             <div className="panel-header compact">
-              <h2>Around your workspace</h2>
+              <h2>{t("Around your workspace")}</h2>
               <span className="activity-live-dot" />
             </div>
             <div className="activity-list">
@@ -938,16 +969,18 @@ function Overview() {
                     )}
                   </span>
                   <div>
-                    <strong>{a.text}</strong>
-                    <p>{a.detail}</p>
+                    <strong>{t(a.text)}</strong>
+                    <p>{t(a.detail)}</p>
                     <small>
-                      {i === 0
-                        ? "Just recently"
-                        : new Date(a.time).toLocaleTimeString("en-HK", {
-                            timeZone: "Asia/Hong_Kong",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                      {t(
+                        i === 0
+                          ? "Just recently"
+                          : new Date(a.time).toLocaleTimeString(locale, {
+                              timeZone: "Asia/Hong_Kong",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }),
+                      )}
                     </small>
                   </div>
                 </div>
@@ -955,7 +988,7 @@ function Overview() {
             </div>
             <div className="activity-footnote">
               <span />
-              Everything up to date. You’re in good hands.
+              {t("Everything up to date. You’re in good hands.")}
             </div>
           </section>
           <div className="human-note">
@@ -963,9 +996,11 @@ function Overview() {
               <ShieldCheck size={22} />
             </span>
             <div>
-              <h3>Technology with a human touch.</h3>
+              <h3>{t("Technology with a human touch.")}</h3>
               <p>
-                AI helps organise. Qualified people make the care decisions.
+                {t(
+                  "AI helps organise. Qualified people make the care decisions.",
+                )}
               </p>
             </div>
           </div>
@@ -991,16 +1026,18 @@ function StatCard({
   children: React.ReactNode;
   onClick: () => void;
 }) {
+  const { t } = useLocale();
+
   return (
     <button className={`stat-card stat-${tone}`} onClick={onClick}>
       <div className="stat-top">
-        <span>{label}</span>
+        <span>{t(label)}</span>
         <span className={`stat-icon ${tone}`}>
           <Icon size={19} strokeWidth={1.7} />
         </span>
       </div>
       <div className="stat-number">
-        {value}
+        {t(value)}
         <span className="stat-mini-line">
           <svg width="74" height="28" viewBox="0 0 74 28" fill="none">
             <path
@@ -1021,7 +1058,7 @@ function StatCard({
           </svg>
         </span>
       </div>
-      <p>{detail}</p>
+      <p>{t(detail)}</p>
       <div className="stat-bottom">{children}</div>
     </button>
   );

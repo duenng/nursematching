@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
+});
+
 test("all workspace sections render and global search opens the matching record", async ({
   page,
 }) => {
@@ -60,7 +66,7 @@ test("Cantonese enquiry preserves unknown fields, accepts corrections, and persi
   await page.getByRole("button", { name: "Save & review enquiry" }).click();
   await expect(page.getByRole("dialog")).toContainText("Demo Wong");
   await expect(
-    page.getByRole("button", { name: "確認並發布 Case" }),
+    page.getByRole("button", { name: "Confirm & publish case" }),
   ).toBeDisabled();
   await page.reload();
   await page.getByLabel("Search workspace").fill("Demo Wong");
@@ -77,7 +83,7 @@ test("case publishing requires review and creates an anonymised simulated messag
   await page.getByRole("button", { name: "Open HK-0024", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByRole("button", { name: "確認並發布 Case" }),
+    dialog.getByRole("button", { name: "Confirm & publish case" }),
   ).toBeDisabled();
   await dialog
     .getByRole("checkbox", {
@@ -87,7 +93,7 @@ test("case publishing requires review and creates an anonymised simulated messag
   await dialog
     .getByRole("checkbox", { name: "Company approval to publish this case" })
     .check();
-  await dialog.getByRole("button", { name: "確認並發布 Case" }).click();
+  await dialog.getByRole("button", { name: "Confirm & publish case" }).click();
   await expect(dialog.locator(".case-meta-bar")).toContainText(
     "Awaiting providers",
   );

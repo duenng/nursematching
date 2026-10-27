@@ -1,3 +1,4 @@
+import { useLocale } from "../i18n";
 import { useState } from "react";
 import {
   ArrowDownToLine,
@@ -24,6 +25,8 @@ import { csvCell, missingFields, today } from "../lib/workflow";
 import type { CareCase } from "../types";
 
 export function EnquiriesPage() {
+  const { t } = useLocale();
+
   const { data, setModal, navigate } = useApp();
   const [filter, setFilter] = useState("All enquiries");
   const enquiries = data.cases.filter(
@@ -36,16 +39,18 @@ export function EnquiriesPage() {
   return (
     <>
       <PageTitle
-        eyebrow="A FIRST MESSAGE. A FRESH START."
-        title="Care enquiries"
-        description="Meet families where they are, and help them find their next step."
+        eyebrow={t("A FIRST MESSAGE. A FRESH START.")}
+        title={t("Care enquiries")}
+        description={t(
+          "Meet families where they are, and help them find their next step.",
+        )}
       >
         <button
           className="button primary"
           onClick={() => setModal({ type: "enquiry" })}
         >
           <Plus size={17} />
-          New enquiry
+          {t("New enquiry")}
         </button>
       </PageTitle>
       <section className="enquiry-intro">
@@ -54,44 +59,48 @@ export function EnquiriesPage() {
         </div>
         <div>
           <Badge tone="green" dot={false}>
-            CARE NAVIGATOR · DEMO
+            {t("CARE NAVIGATOR · DEMO")}
           </Badge>
           <h2>
-            They bring the questions.
+            {t("They bring the questions.")}
             <br />
-            You bring the care.
+            {t("You bring the care.")}
           </h2>
           <p>
-            A simple message in English or Chinese is all it takes to start.
+            {t(
+              "A simple message in English or Chinese is all it takes to start.",
+            )}
             <br />
-            Our prototype organises the details so your team can focus on
-            people.
+            {t(
+              "Our prototype organises the details so your team can focus on people.",
+            )}
           </p>
           <button
             className="button primary"
             onClick={() => setModal({ type: "enquiry" })}
           >
-            即時查詢服務 · Start an enquiry <ArrowRight size={16} />
+            {t("即時查詢服務 · Start an enquiry")} <ArrowRight size={16} />
           </button>
         </div>
         <div className="enquiry-intro-quote">
           <span>“</span>
           <p>
-            我媽媽最近出院，
+            {t("我媽媽最近出院，")}
             <br />
-            想搵護士上門幫手…
+            {t("想搵護士上門幫手…")}
           </p>
-          <small>Every story deserves a thoughtful response.</small>
+          <small>{t("Every story deserves a thoughtful response.")}</small>
           <MessageCircle size={32} />
         </div>
       </section>
       <div className="section-bar">
         <h2>
-          A conversation worth continuing{" "}
+          {t("A conversation worth continuing")}
+          {t(" ")}
           <span className="number-pill">{enquiries.length}</span>
         </h2>
         <Select
-          label="Filter enquiries"
+          label={t("Filter enquiries")}
           value={filter}
           onChange={setFilter}
           options={["All enquiries", "Needs information", "Under review"]}
@@ -109,7 +118,7 @@ export function EnquiriesPage() {
               <div>
                 <strong>{c.name}</strong>
                 <small>
-                  {c.id} · {c.district}
+                  {t(c.id)} · {t(c.district)}
                 </small>
               </div>
               <ChevronRight size={18} />
@@ -117,14 +126,16 @@ export function EnquiriesPage() {
             <blockquote>{c.original}</blockquote>
             <div className="extraction-preview">
               <Sparkles size={14} />
-              <span>{c.care || "Care needs to be clarified"}</span>
+              <span>{t(c.care || "Care needs to be clarified")}</span>
             </div>
             <div className="enquiry-card-footer">
               <CaseBadge status={c.status} />
               <span>
-                {missingFields(c).length
-                  ? `${missingFields(c).length} details to confirm`
-                  : "Details captured"}
+                {t(
+                  missingFields(c).length
+                    ? `${missingFields(c).length} details to confirm`
+                    : "Details captured",
+                )}
               </span>
             </div>
           </button>
@@ -132,21 +143,22 @@ export function EnquiriesPage() {
       </div>
       {!enquiries.length && (
         <EmptyState
-          title="You’re all caught up"
-          description="New family enquiries will appear here."
+          title={t("You’re all caught up")}
+          description={t("New family enquiries will appear here.")}
         />
       )}
       <div className="inline-note">
         <ShieldCheck size={17} />
         <p>
-          Original messages are preserved alongside the structured enquiry.
-          Every suggested care pathway needs staff review.
+          {t(
+            "Original messages are preserved alongside the structured enquiry. Every suggested care pathway needs staff review.",
+          )}
         </p>
         <button
           className="text-button"
           onClick={() => navigate("Care requests")}
         >
-          View care requests <ArrowRight size={14} />
+          {t("View care requests")} <ArrowRight size={14} />
         </button>
       </div>
     </>
@@ -197,6 +209,8 @@ function downloadCases(cases: CareCase[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function RequestsPage() {
+  const { t } = useLocale();
+
   const { data, setModal, toast } = useApp();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -212,9 +226,11 @@ export function RequestsPage() {
   return (
     <>
       <PageTitle
-        eyebrow="THE DETAILS THAT MAKE A DIFFERENCE."
-        title="Care requests"
-        description="One place for every care journey, from enquiry to a helping hand."
+        eyebrow={t("THE DETAILS THAT MAKE A DIFFERENCE.")}
+        title={t("Care requests")}
+        description={t(
+          "One place for every care journey, from enquiry to a helping hand.",
+        )}
       >
         <button
           className="button secondary"
@@ -224,14 +240,14 @@ export function RequestsPage() {
           }}
         >
           <ArrowDownToLine size={16} />
-          Export
+          {t("Export")}
         </button>
         <button
           className="button primary"
           onClick={() => setModal({ type: "enquiry" })}
         >
           <Plus size={17} />
-          New care request
+          {t("New care request")}
         </button>
       </PageTitle>
       <div className="mini-stats">
@@ -240,7 +256,7 @@ export function RequestsPage() {
             <FolderIcon />
           </span>
           <span>
-            <small>Total care requests</small>
+            <small>{t("Total care requests")}</small>
             <strong>{data.cases.length}</strong>
           </span>
         </div>
@@ -249,7 +265,7 @@ export function RequestsPage() {
             <MessageCircle size={21} />
           </span>
           <span>
-            <small>Awaiting review</small>
+            <small>{t("Awaiting review")}</small>
             <strong>
               {
                 data.cases.filter((c) =>
@@ -264,7 +280,7 @@ export function RequestsPage() {
             <Filter size={21} />
           </span>
           <span>
-            <small>Finding a provider</small>
+            <small>{t("Finding a provider")}</small>
             <strong>
               {
                 data.cases.filter((c) => c.status === "Awaiting providers")
@@ -278,7 +294,7 @@ export function RequestsPage() {
             <Check size={21} />
           </span>
           <span>
-            <small>Care in progress</small>
+            <small>{t("Care in progress")}</small>
             <strong>
               {
                 data.cases.filter((c) =>
@@ -294,15 +310,15 @@ export function RequestsPage() {
           <label className="table-search">
             <Search size={16} />
             <input
-              aria-label="Search care requests"
-              placeholder="Search by name, case ID or district..."
+              aria-label={t("Search care requests")}
+              placeholder={t("Search by name, case ID or district...")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
           <div>
             <Select
-              label="Case status"
+              label={t("Case status")}
               value={status}
               onChange={setStatus}
               options={[
@@ -317,7 +333,7 @@ export function RequestsPage() {
               ]}
             />
             <Select
-              label="Care category"
+              label={t("Care category")}
               value={category}
               onChange={setCategory}
               options={[
@@ -334,11 +350,11 @@ export function RequestsPage() {
           <table className="care-table large-table">
             <thead>
               <tr>
-                <th>CLIENT / CASE</th>
-                <th>CARE NEEDED</th>
-                <th>DISTRICT</th>
-                <th>PREFERRED TIME</th>
-                <th>STATUS</th>
+                <th>{t("CLIENT / CASE")}</th>
+                <th>{t("CARE NEEDED")}</th>
+                <th>{t("DISTRICT")}</th>
+                <th>{t("PREFERRED TIME")}</th>
+                <th>{t("STATUS")}</th>
                 <th />
               </tr>
             </thead>
@@ -354,24 +370,24 @@ export function RequestsPage() {
                       <span>
                         <strong>{c.name}</strong>
                         <small>
-                          {c.id} · {c.age || "Age unknown"}
+                          {t(c.id)} · {t(c.age || "Age unknown")}
                         </small>
                       </span>
                     </div>
                   </td>
                   <td>
                     <span className="care-type">
-                      {c.care || "To be confirmed"}
+                      {t(c.care || "To be confirmed")}
                     </span>
-                    <span className="cell-subtitle">{c.category}</span>
+                    <span className="cell-subtitle">{t(c.category)}</span>
                   </td>
-                  <td>{c.district || "To be confirmed"}</td>
+                  <td>{t(c.district || "To be confirmed")}</td>
                   <td>
                     <span className="care-type">
-                      {c.time || "To be confirmed"}
+                      {t(c.time || "To be confirmed")}
                     </span>
                     <span className="cell-subtitle">
-                      {c.days.join(", ") || "Days to confirm"}
+                      {t(c.days.join(", ") || "Days to confirm")}
                     </span>
                   </td>
                   <td>
@@ -380,7 +396,7 @@ export function RequestsPage() {
                   <td>
                     <button
                       className="row-arrow"
-                      aria-label={`Review ${c.id}`}
+                      aria-label={t(`Review ${c.id}`)}
                       onClick={(e) => {
                         e.stopPropagation();
                         setModal({ type: "case", id: c.id });
@@ -396,17 +412,18 @@ export function RequestsPage() {
         </div>
         {!filtered.length && (
           <EmptyState
-            title="No matching care requests"
-            description="Try another search or change the filters."
+            title={t("No matching care requests")}
+            description={t("Try another search or change the filters.")}
           />
         )}
         <div className="panel-table-footer">
           <span>
-            {filtered.length} care request{filtered.length === 1 ? "" : "s"}
+            {filtered.length} {t("care request")}
+            {t(filtered.length === 1 ? "" : "s")}
           </span>
           <span>
             <ShieldCheck size={13} />
-            Private to the care coordination team
+            {t("Private to the care coordination team")}
           </span>
         </div>
       </section>
@@ -431,6 +448,8 @@ function FolderIcon() {
   );
 }
 export function ClientsPage() {
+  const { t } = useLocale();
+
   const { data, setModal, toast } = useApp();
   const [query, setQuery] = useState("");
   const clientIds = [...new Set(data.cases.map((c) => c.clientId))];
@@ -444,9 +463,11 @@ export function ClientsPage() {
   return (
     <>
       <PageTitle
-        eyebrow="MORE THAN A RECORD. A PERSON."
-        title="Client records"
-        description="Keep each family’s information and care history connected."
+        eyebrow={t("MORE THAN A RECORD. A PERSON.")}
+        title={t("Client records")}
+        description={t(
+          "Keep each family’s information and care history connected.",
+        )}
       >
         <button
           className="button secondary"
@@ -456,17 +477,17 @@ export function ClientsPage() {
           }}
         >
           <ArrowDownToLine size={16} />
-          Export records
+          {t("Export records")}
         </button>
       </PageTitle>
       <div className="info-callout">
         <ShieldCheck size={21} />
         <div>
-          <strong>Thoughtfully connected, carefully kept.</strong>
+          <strong>{t("Thoughtfully connected, carefully kept.")}</strong>
           <p>
-            This prototype links repeat enquiries only when an existing client
-            is explicitly selected. Similar names are never automatically
-            merged.
+            {t(
+              "This prototype links repeat enquiries only when an existing client is explicitly selected. Similar names are never automatically merged.",
+            )}
           </p>
         </div>
       </div>
@@ -475,23 +496,25 @@ export function ClientsPage() {
           <label className="table-search">
             <Search size={16} />
             <input
-              aria-label="Search clients"
+              aria-label={t("Search clients")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by client name, ID or district..."
+              placeholder={t("Search by client name, ID or district...")}
             />
           </label>
-          <span className="results-count">{clients.length} client records</span>
+          <span className="results-count">
+            {clients.length} {t("client records")}
+          </span>
         </div>
         <div className="table-scroll">
           <table className="care-table large-table">
             <thead>
               <tr>
-                <th>CLIENT</th>
-                <th>DISTRICT</th>
-                <th>LINKED CASES</th>
-                <th>LATEST CARE REQUEST</th>
-                <th>STATUS</th>
+                <th>{t("CLIENT")}</th>
+                <th>{t("DISTRICT")}</th>
+                <th>{t("LINKED CASES")}</th>
+                <th>{t("LATEST CARE REQUEST")}</th>
+                <th>{t("STATUS")}</th>
                 <th />
               </tr>
             </thead>
@@ -509,23 +532,23 @@ export function ClientsPage() {
                         <span>
                           <strong>{c.name}</strong>
                           <small>
-                            {client.id} · Age {c.age || "unknown"}
+                            {t(client.id)} {t("· Age")} {t(c.age || "unknown")}
                           </small>
                         </span>
                       </div>
                     </td>
-                    <td>{c.district || "To confirm"}</td>
+                    <td>{t(c.district || "To confirm")}</td>
                     <td>
                       <Badge dot={false}>
-                        {client.cases.length} case
-                        {client.cases.length === 1 ? "" : "s"}
+                        {client.cases.length} {t("case")}
+                        {t(client.cases.length === 1 ? "" : "s")}
                       </Badge>
                     </td>
                     <td>
                       <span className="care-type">
-                        {c.care || "Not yet confirmed"}
+                        {t(c.care || "Not yet confirmed")}
                       </span>
-                      <span className="cell-subtitle">{c.id}</span>
+                      <span className="cell-subtitle">{t(c.id)}</span>
                     </td>
                     <td>
                       <CaseBadge status={c.status} />
@@ -533,7 +556,7 @@ export function ClientsPage() {
                     <td>
                       <button
                         className="row-arrow"
-                        aria-label={`Open ${c.name}`}
+                        aria-label={t(`Open ${c.name}`)}
                         onClick={(e) => {
                           e.stopPropagation();
                           setModal({ type: "case", id: c.id });
@@ -550,8 +573,8 @@ export function ClientsPage() {
         </div>
         {!clients.length && (
           <EmptyState
-            title="No matching clients"
-            description="Try a different name or district."
+            title={t("No matching clients")}
+            description={t("Try a different name or district.")}
           />
         )}
       </section>

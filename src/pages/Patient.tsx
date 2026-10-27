@@ -1,3 +1,4 @@
+import { LanguageSwitcher, useLocale } from "../i18n";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -40,6 +41,8 @@ export function patientStatus(c: CareCase) {
 }
 
 export function PatientPortal() {
+  const { t } = useLocale();
+
   const { data, setModal, switchView, notification, patientClientId } =
     useApp();
   const [section, setSection] = useState(
@@ -80,44 +83,49 @@ export function PatientPortal() {
       <div className="patient-top-strip">
         <span>
           <Heart size={12} />
-          Thoughtful home care, across Hong Kong.
+          {t("Thoughtful home care, across Hong Kong.")}
         </span>
-        <button onClick={() => switchView("staff")}>
-          Explore the staff demo <ArrowRight size={12} />
-        </button>
+        <div className="patient-top-actions">
+          <LanguageSwitcher />
+          <button onClick={() => switchView("staff")}>
+            {t("Explore the staff demo")} <ArrowRight size={12} />
+          </button>
+        </div>
       </div>
       <header className="patient-header">
         <div className="patient-header-inner">
           <button
             className="patient-brand-button"
             onClick={() => go("home")}
-            aria-label="Kindred Care home"
+            aria-label={t("Kindred Care home")}
           >
             <Logo />
           </button>
           <nav
             className={mobileMenu ? "patient-nav is-open" : "patient-nav"}
-            aria-label="Patient navigation"
+            aria-label={t("Patient navigation")}
           >
             <button
               className={section === "home" ? "active" : ""}
               onClick={() => go("home")}
             >
-              Home
+              {t("Home")}
             </button>
             <button onClick={() => scrollTo("our-services")}>
-              Our services
+              {t("Our services")}
             </button>
             <button onClick={() => scrollTo("how-it-works")}>
-              How it works
+              {t("How it works")}
             </button>
-            <button onClick={() => scrollTo("common-questions")}>FAQs</button>
+            <button onClick={() => scrollTo("common-questions")}>
+              {t("FAQs")}
+            </button>
             <button
               className={section === "care" ? "active" : ""}
               onClick={() => go("care")}
             >
               <UserRound size={15} />
-              My care
+              {t("My care")}
               {proposed > 0 && (
                 <span className="patient-nav-count">{proposed}</span>
               )}
@@ -128,11 +136,11 @@ export function PatientPortal() {
               className="button primary"
               onClick={() => setModal({ type: "enquiry" })}
             >
-              Enquire now <ArrowRight size={15} />
+              {t("Enquire now")} <ArrowRight size={15} />
             </button>
             <button
               className="icon-button patient-mobile-menu"
-              aria-label="Open patient menu"
+              aria-label={t("Open patient menu")}
               aria-expanded={mobileMenu}
               onClick={() => setMobileMenu(!mobileMenu)}
             >
@@ -153,14 +161,14 @@ export function PatientPortal() {
               <div className="patient-container">
                 <div className="patient-centered-heading">
                   <span className="patient-eyebrow">
-                    HOW IT WORKS · 服務流程
+                    {t("HOW IT WORKS · 服務流程")}
                   </span>
                   <h2>
-                    From “where do I start?”
+                    {t("From “where do I start?”")}
                     <br />
-                    to a helping hand at your door.
+                    {t("to a helping hand at your door.")}
                   </h2>
-                  <p>A clear next step, every step of the way.</p>
+                  <p>{t("A clear next step, every step of the way.")}</p>
                 </div>
                 <div className="patient-process-grid">
                   {[
@@ -188,10 +196,10 @@ export function PatientPortal() {
                     <div className="patient-process-step" key={step.title}>
                       <div className="patient-step-icon">
                         <step.icon size={26} strokeWidth={1.5} />
-                        <span>0{i + 1}</span>
+                        <span>0{t(i + 1)}</span>
                       </div>
-                      <h3>{step.title}</h3>
-                      <p>{step.text}</p>
+                      <h3>{t(step.title)}</h3>
+                      <p>{t(step.text)}</p>
                     </div>
                   ))}
                 </div>
@@ -202,40 +210,44 @@ export function PatientPortal() {
                 <div className="patient-demo-calendar" aria-hidden="true">
                   <div>
                     <CalendarDays size={17} />
-                    <span>YOUR CARE, AT A GLANCE</span>
+                    <span>{t("YOUR CARE, AT A GLANCE")}</span>
                   </div>
                   <div>
                     <span className="patient-demo-date">
-                      MON<strong>09:00</strong>
+                      {t("MON")}
+                      <strong>09:00</strong>
                     </span>
                     <span>
-                      <strong>Home care visit</strong>
-                      <small>Your confirmed care tasks</small>
-                      <Badge tone="amber">For your approval</Badge>
+                      <strong>{t("Home care visit")}</strong>
+                      <small>{t("Your confirmed care tasks")}</small>
+                      <Badge tone="amber">{t("For your approval")}</Badge>
                     </span>
                     <Check size={19} />
                   </div>
                   <div className="patient-demo-calendar-footer">
                     <ShieldCheck size={13} />
-                    You’re part of every decision.
+                    {t("You’re part of every decision.")}
                   </div>
                 </div>
                 <div>
-                  <span className="patient-eyebrow">YOUR CARE. YOUR SAY.</span>
+                  <span className="patient-eyebrow">
+                    {t("YOUR CARE. YOUR SAY.")}
+                  </span>
                   <h2>
-                    A plan you can see.
-                    <br />A schedule you can shape.
+                    {t("A plan you can see.")}
+                    <br />
+                    {t("A schedule you can shape.")}
                   </h2>
                   <p>
-                    Review your request, see upcoming visits, and ask for a
-                    different time. Nothing moves from proposed to confirmed
-                    without your approval.
+                    {t(
+                      "Review your request, see upcoming visits, and ask for a different time. Nothing moves from proposed to confirmed without your approval.",
+                    )}
                   </p>
                   <button
                     className="button secondary"
                     onClick={() => go("care")}
                   >
-                    Have a look at My care <ArrowRight size={16} />
+                    {t("Have a look at My care")} <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -246,23 +258,23 @@ export function PatientPortal() {
             >
               <div>
                 <span className="patient-eyebrow">
-                  A LITTLE MORE CLARITY · 常見問題
+                  {t("A LITTLE MORE CLARITY · 常見問題")}
                 </span>
                 <h2>
-                  A few questions
+                  {t("A few questions")}
                   <br />
-                  you might have.
+                  {t("you might have.")}
                 </h2>
                 <p>
-                  Not sure where to start?
+                  {t("Not sure where to start?")}
                   <br />
-                  Your first enquiry is just a conversation.
+                  {t("Your first enquiry is just a conversation.")}
                 </p>
                 <button
                   className="patient-link"
                   onClick={() => setModal({ type: "enquiry" })}
                 >
-                  Let’s talk about your needs <ArrowRight size={15} />
+                  {t("Let’s talk about your needs")} <ArrowRight size={15} />
                 </button>
               </div>
               <div className="patient-faq-list">
@@ -290,10 +302,10 @@ export function PatientPortal() {
                 ].map(([question, answer]) => (
                   <details key={question}>
                     <summary>
-                      {question}
+                      {t(question)}
                       <Plus size={17} />
                     </summary>
-                    <p>{answer}</p>
+                    <p>{t(answer)}</p>
                   </details>
                 ))}
               </div>
@@ -301,15 +313,16 @@ export function PatientPortal() {
             <section className="patient-bottom-cta">
               <div className="patient-container">
                 <span className="patient-eyebrow">
-                  YOU DON’T HAVE TO FIGURE IT ALL OUT ALONE.
+                  {t("YOU DON’T HAVE TO FIGURE IT ALL OUT ALONE.")}
                 </span>
-                <h2>Let’s find your next step, together.</h2>
-                <p>Tell us a little. We’ll help make things clearer.</p>
+                <h2>{t("Let’s find your next step, together.")}</h2>
+                <p>{t("Tell us a little. We’ll help make things clearer.")}</p>
                 <button
                   className="button primary"
                   onClick={() => setModal({ type: "enquiry" })}
                 >
-                  即時查詢服務 · Start an enquiry <ArrowRight size={16} />
+                  {t("即時查詢服務 · Start an enquiry")}{" "}
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </section>
@@ -318,33 +331,40 @@ export function PatientPortal() {
           <section className="patient-container patient-care-page">
             <div className="patient-care-heading">
               <div>
-                <span className="patient-eyebrow">YOUR CARE, CONNECTED.</span>
-                <h1>A little clarity for the days ahead.</h1>
-                <p>Your requests, visits and care provider, in one place.</p>
+                <span className="patient-eyebrow">
+                  {t("YOUR CARE, CONNECTED.")}
+                </span>
+                <h1>{t("A little clarity for the days ahead.")}</h1>
+                <p>
+                  {t("Your requests, visits and care provider, in one place.")}
+                </p>
               </div>
               <button
                 className="button primary"
                 onClick={() => setModal({ type: "enquiry" })}
               >
                 <Plus size={16} />
-                New care enquiry
+                {t("New care enquiry")}
               </button>
             </div>
             <div className="patient-demo-notice">
               <Sparkles size={18} />
               <p>
                 <strong>
-                  {latest?.clientId === "C-0023"
-                    ? "You’re exploring Mr. Chan’s sample patient journey."
-                    : "You’re viewing the request you created in this demo."}
+                  {t(
+                    latest?.clientId === "C-0023"
+                      ? "You’re exploring Mr. Chan’s sample patient journey."
+                      : "You’re viewing the request you created in this demo.",
+                  )}
                 </strong>
                 <span>
-                  Fictional data · Saved in this browser · No real services are
-                  booked
+                  {t(
+                    "Fictional data · Saved in this browser · No real services are booked",
+                  )}
                 </span>
               </p>
               <Badge tone="amber" dot={false}>
-                Patient preview
+                {t("Patient preview")}
               </Badge>
             </div>
             {latest ? (
@@ -353,8 +373,8 @@ export function PatientPortal() {
                   <div>
                     <section className="patient-request-card">
                       <div className="patient-card-header">
-                        <h2>Your care request</h2>
-                        <span>{latest.id}</span>
+                        <h2>{t("Your care request")}</h2>
+                        <span>{t(latest.id)}</span>
                       </div>
                       <div className="patient-request-person">
                         <Avatar
@@ -366,8 +386,9 @@ export function PatientPortal() {
                           <h3>{latest.name}</h3>
                           <p>
                             <MapPin size={13} />
-                            {latest.district || "District to confirm"}{" "}
-                            {latest.age && ` · Age ${latest.age}`}
+                            {t(latest.district || "District to confirm")}
+                            {t(" ")}
+                            {t(latest.age && ` · Age ${latest.age}`)}
                           </p>
                         </div>
                       </div>
@@ -376,34 +397,40 @@ export function PatientPortal() {
                           <Heart size={18} />
                         </span>
                         <div>
-                          <strong>{patientStatus(latest)}</strong>
+                          <strong>{t(patientStatus(latest))}</strong>
                           <p>
-                            {latest.status === "Awaiting providers"
-                              ? "Your request has been reviewed. The care team will confirm an available provider with the right skills."
-                              : latest.status === "Information required"
-                                ? "The team needs a few more details. You can add or correct your request below."
-                                : latest.status === "Under review"
-                                  ? "Your details are saved for review by the care team."
-                                  : "You can review your details and visits below."}
+                            {t(
+                              latest.status === "Awaiting providers"
+                                ? "Your request has been reviewed. The care team will confirm an available provider with the right skills."
+                                : latest.status === "Information required"
+                                  ? "The team needs a few more details. You can add or correct your request below."
+                                  : latest.status === "Under review"
+                                    ? "Your details are saved for review by the care team."
+                                    : "You can review your details and visits below.",
+                            )}
                           </p>
                         </div>
                       </div>
                       <dl className="patient-request-details">
                         <div>
-                          <dt>Care requested</dt>
-                          <dd>{latest.care || "To be clarified together"}</dd>
+                          <dt>{t("Care requested")}</dt>
+                          <dd>
+                            {t(latest.care || "To be clarified together")}
+                          </dd>
                         </div>
                         <div>
-                          <dt>Preferred days</dt>
-                          <dd>{latest.days.join(", ") || "To be confirmed"}</dd>
+                          <dt>{t("Preferred days")}</dt>
+                          <dd>
+                            {t(latest.days.join(", ") || "To be confirmed")}
+                          </dd>
                         </div>
                         <div>
-                          <dt>Preferred time</dt>
-                          <dd>{latest.time || "To be confirmed"}</dd>
+                          <dt>{t("Preferred time")}</dt>
+                          <dd>{t(latest.time || "To be confirmed")}</dd>
                         </div>
                         <div>
-                          <dt>Service duration</dt>
-                          <dd>{latest.duration || "Not yet confirmed"}</dd>
+                          <dt>{t("Service duration")}</dt>
+                          <dd>{t(latest.duration || "Not yet confirmed")}</dd>
                         </div>
                       </dl>
                       <button
@@ -412,7 +439,8 @@ export function PatientPortal() {
                           setModal({ type: "patient-details", id: latest.id })
                         }
                       >
-                        Review or correct my details <ArrowRight size={15} />
+                        {t("Review or correct my details")}{" "}
+                        <ArrowRight size={15} />
                       </button>
                     </section>
                     <section
@@ -421,13 +449,15 @@ export function PatientPortal() {
                     >
                       <div className="patient-card-header">
                         <div>
-                          <h2>Your care schedule</h2>
-                          <p>Times shown in Hong Kong time (HKT).</p>
+                          <h2>{t("Your care schedule")}</h2>
+                          <p>{t("Times shown in Hong Kong time (HKT).")}</p>
                         </div>
                         <Badge tone={proposed ? "amber" : "green"}>
-                          {proposed
-                            ? `${proposed} to review`
-                            : `${upcoming.length} upcoming`}
+                          {t(
+                            proposed
+                              ? `${proposed} to review`
+                              : `${upcoming.length} upcoming`,
+                          )}
                         </Badge>
                       </div>
                       {visits.length ? (
@@ -442,8 +472,10 @@ export function PatientPortal() {
                         </div>
                       ) : (
                         <EmptyState
-                          title="Your schedule will appear here"
-                          description="Once the team has reviewed your requirements, you’ll be able to review proposed visits and request changes."
+                          title={t("Your schedule will appear here")}
+                          description={t(
+                            "Once the team has reviewed your requirements, you’ll be able to review proposed visits and request changes.",
+                          )}
                         />
                       )}
                     </section>
@@ -453,16 +485,22 @@ export function PatientPortal() {
                       <span className="patient-round-icon">
                         <CalendarDays size={25} />
                       </span>
-                      <span className="patient-eyebrow">YOUR NEXT STEP</span>
+                      <span className="patient-eyebrow">
+                        {t("YOUR NEXT STEP")}
+                      </span>
                       <h2>
-                        {proposed
-                          ? "A schedule for your approval."
-                          : "We’ll take it one step at a time."}
+                        {t(
+                          proposed
+                            ? "A schedule for your approval."
+                            : "We’ll take it one step at a time.",
+                        )}
                       </h2>
                       <p>
-                        {proposed
-                          ? "Check the proposed dates and times below. You can approve a visit or ask for a time that suits you better."
-                          : "Your enquiry is saved. The care team will review your needs before proposing care."}
+                        {t(
+                          proposed
+                            ? "Check the proposed dates and times below. You can approve a visit or ask for a time that suits you better."
+                            : "Your enquiry is saved. The care team will review your needs before proposing care.",
+                        )}
                       </p>
                       {proposed > 0 && (
                         <button
@@ -475,12 +513,13 @@ export function PatientPortal() {
                               setModal({ type: "patient-visit", id: v.id });
                           }}
                         >
-                          Review a proposed visit <ArrowRight size={15} />
+                          {t("Review a proposed visit")}{" "}
+                          <ArrowRight size={15} />
                         </button>
                       )}
                     </section>
                     <section className="patient-provider-panel">
-                      <h2>Your care provider</h2>
+                      <h2>{t("Your care provider")}</h2>
                       {latest.providerId ? (
                         (() => {
                           const p = data.providers.find(
@@ -492,13 +531,14 @@ export function PatientPortal() {
                                 <Avatar name={p.name} color={p.color} />
                                 <div>
                                   <strong>{p.name}</strong>
-                                  <small>{p.category}</small>
+                                  <small>{t(p.category)}</small>
                                 </div>
                                 <ShieldCheck size={20} />
                               </div>
                               <p>
-                                Assigned by the care team after checking
-                                relevant credentials and availability.
+                                {t(
+                                  "Assigned by the care team after checking relevant credentials and availability.",
+                                )}
                               </p>
                             </>
                           ) : null;
@@ -508,27 +548,29 @@ export function PatientPortal() {
                           <span className="patient-provider-outline">
                             <HeartHandshake size={31} />
                           </span>
-                          <h3>The right person takes a little care.</h3>
+                          <h3>{t("The right person takes a little care.")}</h3>
                           <p>
-                            We’ll show your provider here once the care team
-                            confirms a suitable, available person.
+                            {t(
+                              "We’ll show your provider here once the care team confirms a suitable, available person.",
+                            )}
                           </p>
-                          <Badge dot={false}>Not assigned yet</Badge>
+                          <Badge dot={false}>{t("Not assigned yet")}</Badge>
                         </>
                       )}
                     </section>
                     <section className="patient-question-card">
                       <CircleHelp size={24} />
-                      <h3>Something you’d like to clarify?</h3>
+                      <h3>{t("Something you’d like to clarify?")}</h3>
                       <p>
-                        Add a question for the care team about your request or
-                        schedule.
+                        {t(
+                          "Add a question for the care team about your request or schedule.",
+                        )}
                       </p>
                       <button
                         className="patient-link"
                         onClick={() => setModal({ type: "patient-support" })}
                       >
-                        Ask a question <MessageCircle size={15} />
+                        {t("Ask a question")} <MessageCircle size={15} />
                       </button>
                     </section>
                   </aside>
@@ -536,14 +578,16 @@ export function PatientPortal() {
               </>
             ) : (
               <EmptyState
-                title="Your next chapter starts here"
-                description="Share a little about the support you need to create a care enquiry."
+                title={t("Your next chapter starts here")}
+                description={t(
+                  "Share a little about the support you need to create a care enquiry.",
+                )}
                 action={
                   <button
                     className="button primary"
                     onClick={() => setModal({ type: "enquiry" })}
                   >
-                    Start my enquiry <ArrowRight size={15} />
+                    {t("Start my enquiry")} <ArrowRight size={15} />
                   </button>
                 }
               />
@@ -557,39 +601,42 @@ export function PatientPortal() {
             <div>
               <Logo />
               <p>
-                A little support. A world of difference.
+                {t("A little support. A world of difference.")}
                 <br />
-                Home nursing navigation & coordination in Hong Kong.
+                {t("Home nursing navigation & coordination in Hong Kong.")}
               </p>
             </div>
             <div>
-              <strong>Here to help</strong>
+              <strong>{t("Here to help")}</strong>
               <button onClick={() => scrollTo("our-services")}>
-                Our services
+                {t("Our services")}
               </button>
               <button onClick={() => scrollTo("how-it-works")}>
-                How it works
+                {t("How it works")}
               </button>
               <button onClick={() => scrollTo("common-questions")}>
-                Common questions
+                {t("Common questions")}
               </button>
             </div>
             <div>
-              <strong>Your care journey</strong>
+              <strong>{t("Your care journey")}</strong>
               <button onClick={() => setModal({ type: "enquiry" })}>
-                Start an enquiry
+                {t("Start an enquiry")}
               </button>
-              <button onClick={() => go("care")}>My care & schedule</button>
+              <button onClick={() => go("care")}>
+                {t("My care & schedule")}
+              </button>
               <button onClick={() => switchView("staff")}>
-                Staff demo workspace <ArrowRight size={12} />
+                {t("Staff demo workspace")} <ArrowRight size={12} />
               </button>
             </div>
           </div>
           <div className="patient-footer-bottom">
-            <span>Kindred Care · Frontend prototype</span>
+            <span>{t("Kindred Care · Frontend prototype")}</span>
             <span>
-              Not monitored for emergencies. For an immediate emergency in Hong
-              Kong, call 999.
+              {t(
+                "Not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.",
+              )}
             </span>
           </div>
         </div>
@@ -600,7 +647,7 @@ export function PatientPortal() {
           <span>
             <Check size={16} />
           </span>
-          {notification}
+          {t(notification)}
         </div>
       )}
     </div>
@@ -613,28 +660,31 @@ function PatientVisitCard({
   visit: Visit;
   careCase: CareCase;
 }) {
+  const { t, locale } = useLocale();
+
   const { setModal } = useApp();
   const d = localDate(visit.date);
   return (
     <button
       className={`patient-visit-row ${visit.status === "Proposed" ? "proposed" : ""}`}
       onClick={() => setModal({ type: "patient-visit", id: visit.id })}
-      aria-label={`Review visit ${visit.date} at ${visit.time}`}
+      aria-label={t(`Review visit ${visit.date} at ${visit.time}`)}
     >
       <span className="patient-visit-date">
-        <span>{d.toLocaleDateString("en-GB", { month: "short" })}</span>
+        <span>{t(d.toLocaleDateString(locale, { month: "short" }))}</span>
         <strong>{d.getDate()}</strong>
-        <small>{d.toLocaleDateString("en-GB", { weekday: "short" })}</small>
+        <small>{t(d.toLocaleDateString(locale, { weekday: "short" }))}</small>
       </span>
       <span className="patient-visit-info">
-        <strong>{visit.tasks}</strong>
+        <strong>{t(visit.tasks)}</strong>
         <span>
           <Clock3 size={12} />
-          {visit.time} · {visit.duration} min <span>· {careCase.name}</span>
+          {t(visit.time)} · {visit.duration} {t("min")}{" "}
+          <span>· {careCase.name}</span>
         </span>
         {visit.changeRequest && (
           <small className="patient-change-pending">
-            Time change requested · awaiting the team
+            {t("Time change requested · awaiting the team")}
           </small>
         )}
       </span>
@@ -650,10 +700,10 @@ function PatientVisitCard({
                   : "red"
           }
         >
-          {visit.status === "Proposed" ? "For your approval" : visit.status}
+          {t(visit.status === "Proposed" ? "For your approval" : visit.status)}
         </Badge>
         <span>
-          {visit.status === "Proposed" ? "Review visit" : "View details"}
+          {t(visit.status === "Proposed" ? "Review visit" : "View details")}
           <ChevronRight size={14} />
         </span>
       </span>

@@ -29,8 +29,8 @@ export const today = () =>
     day: "2-digit",
   }).format(new Date());
 export const localDate = (date: string) => new Date(`${date}T12:00:00`);
-export const shortDate = (date: string) =>
-  localDate(date).toLocaleDateString("en-GB", {
+export const shortDate = (date: string, locale = "en-GB") =>
+  localDate(date).toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
   });

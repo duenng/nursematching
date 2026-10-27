@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import { useState } from "react";
 import {
   AlertCircle,
@@ -21,6 +22,8 @@ export function PatientVisitModal({
   id: string;
   onClose: () => void;
 }) {
+  const { t, locale } = useLocale();
+
   const { data, update, toast, patientClientId } = useApp();
   const visit = data.visits.find((v) => v.id === id);
   const c = data.cases.find(
@@ -123,8 +126,8 @@ export function PatientVisitModal({
   }
   return (
     <ModalFrame
-      title="Your care visit"
-      eyebrow={`${c.name} · ${c.id}`}
+      title={t("Your care visit")}
+      eyebrow={t(`${c.name} · ${c.id}`)}
       onClose={onClose}
     >
       <div className="modal-body patient-modal-body">
@@ -138,49 +141,57 @@ export function PatientVisitModal({
                   : "green"
             }
           >
-            {visit.status === "Proposed"
-              ? "Proposed · for your approval"
-              : visit.status}
+            {t(
+              visit.status === "Proposed"
+                ? "Proposed · for your approval"
+                : visit.status,
+            )}
           </Badge>
-          <span>Version {visit.version}</span>
+          <span>
+            {t("Version")} {visit.version}
+          </span>
         </div>
         <div className="patient-dialog-date">
           <CalendarDays size={32} />
           <div>
             <h3>
-              {localDate(visit.date).toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
+              {t(
+                localDate(visit.date).toLocaleDateString(locale, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                }),
+              )}
             </h3>
             <p>
               <Clock3 size={14} />
-              {visit.time} · {visit.duration} minutes · HKT
+              {t(visit.time)} · {visit.duration} {t("minutes · HKT")}
             </p>
           </div>
         </div>
         <dl className="patient-dialog-details">
           <div>
-            <dt>Care tasks</dt>
-            <dd>{visit.tasks}</dd>
+            <dt>{t("Care tasks")}</dt>
+            <dd>{t(visit.tasks)}</dd>
           </div>
           <div>
-            <dt>Service district</dt>
-            <dd>{c.district}</dd>
+            <dt>{t("Service district")}</dt>
+            <dd>{t(c.district)}</dd>
           </div>
           <div>
-            <dt>Your care provider</dt>
-            <dd>{provider?.name || "The care team is arranging a provider"}</dd>
+            <dt>{t("Your care provider")}</dt>
+            <dd>
+              {t(provider?.name || "The care team is arranging a provider")}
+            </dd>
           </div>
         </dl>
         {visit.previousTime && (
           <div className="patient-revision-note">
             <Pencil size={15} />
             <p>
-              Previous proposal: <s>{visit.previousTime}</s>
+              {t("Previous proposal:")} <s>{t(visit.previousTime)}</s>
               <br />
-              Please review the updated date and time above.
+              {t("Please review the updated date and time above.")}
             </p>
           </div>
         )}
@@ -188,35 +199,40 @@ export function PatientVisitModal({
           <div className="patient-pending-change">
             <MessageCircle size={18} />
             <div>
-              <strong>Your change request is with the care team.</strong>
+              <strong>{t("Your change request is with the care team.")}</strong>
               <p>
-                Preferred visit:{" "}
-                {localDate(visit.changeRequest.date).toLocaleDateString(
-                  "en-GB",
-                  { day: "numeric", month: "long" },
-                )}{" "}
-                at {visit.changeRequest.time} HKT.
+                {t("Preferred visit:")}
+                {t(" ")}
+                {t(
+                  localDate(visit.changeRequest.date).toLocaleDateString(
+                    locale,
+                    { day: "numeric", month: "long" },
+                  ),
+                )}
+                {t(" ")}
+                {t("at")} {t(visit.changeRequest.time)} {t("HKT.")}
               </p>
               {visit.changeRequest.note && <p>{visit.changeRequest.note}</p>}
               <small>
-                The team needs to check provider availability. The current visit
-                time stays in place until a revised proposal is agreed.
+                {t(
+                  "The team needs to check provider availability. The current visit time stays in place until a revised proposal is agreed.",
+                )}
               </small>
             </div>
           </div>
         )}
         {changing ? (
           <div className="patient-change-form">
-            <h3>What time would suit you better?</h3>
+            <h3>{t("What time would suit you better?")}</h3>
             <div className="form-grid">
-              <Field label="Preferred date">
+              <Field label={t("Preferred date")}>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </Field>
-              <Field label="Preferred time (HKT)">
+              <Field label={t("Preferred time (HKT)")}>
                 <input
                   type="time"
                   min="08:00"
@@ -226,22 +242,24 @@ export function PatientVisitModal({
                 />
               </Field>
             </div>
-            <Field label="Anything the team should know? (optional)">
+            <Field label={t("Anything the team should know? (optional)")}>
               <textarea
                 rows={2}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="For example: I have an appointment that morning."
+                placeholder={t(
+                  "For example: I have an appointment that morning.",
+                )}
               />
             </Field>
             <p>
-              We’ll save your preference for the care team. Provider
-              availability must be checked before a revised visit can be
-              confirmed.
+              {t(
+                "We’ll save your preference for the care team. Provider availability must be checked before a revised visit can be confirmed.",
+              )}
             </p>
             <div className="button-row">
               <button className="button primary" onClick={requestChange}>
-                Send change request <ArrowRight size={15} />
+                {t("Send change request")} <ArrowRight size={15} />
               </button>
               <button
                 className="button secondary"
@@ -250,16 +268,17 @@ export function PatientVisitModal({
                   setError("");
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </button>
             </div>
           </div>
         ) : visit.status === "Proposed" && !visit.changeRequest ? (
           <div className="patient-approve-box">
-            <h3>Does this visit work for you?</h3>
+            <h3>{t("Does this visit work for you?")}</h3>
             <p>
-              Check the proposed date, time and existing care tasks. You can
-              approve this visit or ask for another time.
+              {t(
+                "Check the proposed date, time and existing care tasks. You can approve this visit or ask for another time.",
+              )}
             </p>
             <label className="checkbox-row">
               <input
@@ -268,20 +287,22 @@ export function PatientVisitModal({
                 onChange={(e) => setApproved(e.target.checked)}
               />
               <span>
-                I’ve reviewed this visit and agree to the proposed schedule.
+                {t(
+                  "I’ve reviewed this visit and agree to the proposed schedule.",
+                )}
               </span>
             </label>
             <div className="button-row">
               <button className="button primary" onClick={approve}>
                 <Check size={15} />
-                Approve this visit
+                {t("Approve this visit")}
               </button>
               <button
                 className="button secondary"
                 onClick={() => setChanging(true)}
               >
                 <Pencil size={14} />
-                Request a different time
+                {t("Request a different time")}
               </button>
             </div>
           </div>
@@ -289,44 +310,46 @@ export function PatientVisitModal({
           <div className="patient-approve-box">
             <h3>
               <Check size={17} />
-              You’ve approved this visit.
+              {t("You’ve approved this visit.")}
             </h3>
             <p>
-              {provider
-                ? "Your provider is confirmed. Your care team will coordinate the visit."
-                : "Your schedule approval is saved. The care team still needs to confirm an available provider."}
+              {t(
+                provider
+                  ? "Your provider is confirmed. Your care team will coordinate the visit."
+                  : "Your schedule approval is saved. The care team still needs to confirm an available provider.",
+              )}
             </p>
             <button
               className="button secondary"
               onClick={() => setChanging(true)}
             >
               <Pencil size={14} />
-              Request a different time
+              {t("Request a different time")}
             </button>
           </div>
         ) : visit.status === "Completed" ? (
           <div className="patient-approve-box">
             <h3>
               <Check size={17} />
-              Visit marked complete by your provider.
+              {t("Visit marked complete by your provider.")}
             </h3>
-            <p>Completion has been recorded in your care history.</p>
+            <p>{t("Completion has been recorded in your care history.")}</p>
           </div>
         ) : null}
         {error && (
           <div className="error-box" role="alert">
             <AlertCircle size={16} />
-            {error}
+            {t(error)}
           </div>
         )}
       </div>
       <div className="modal-footer">
         <span className="modal-footer-note">
           <ShieldCheck size={14} />
-          Your care team confirms clinical instructions.
+          {t("Your care team confirms clinical instructions.")}
         </span>
         <button className="button secondary" onClick={onClose}>
-          Done
+          {t("Done")}
         </button>
       </div>
     </ModalFrame>
@@ -340,6 +363,8 @@ export function PatientDetailsModal({
   id: string;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
+
   const { data, update, toast, patientClientId } = useApp();
   const c = data.cases.find(
     (c) => c.id === id && c.clientId === patientClientId,
@@ -408,23 +433,24 @@ export function PatientDetailsModal({
   }
   return (
     <ModalFrame
-      title="Let’s get your details right"
-      eyebrow={`YOUR CARE REQUEST · ${id}`}
+      title={t("Let’s get your details right")}
+      eyebrow={t(`YOUR CARE REQUEST · ${id}`)}
       onClose={onClose}
     >
       <div className="modal-body patient-modal-body">
         <p className="patient-dialog-intro">
-          Check what you’ve shared and correct anything that needs updating.
-          Changes go back to the care team for review.
+          {t(
+            "Check what you’ve shared and correct anything that needs updating. Changes go back to the care team for review.",
+          )}
         </p>
         <div className="form-grid">
-          <Field label="Your name / fictional alias" required>
+          <Field label={t("Your name / fictional alias")} required>
             <input
               value={draft.name}
               onChange={(e) => set("name", e.target.value)}
             />
           </Field>
-          <Field label="Age">
+          <Field label={t("Age")}>
             <input
               type="number"
               min="0"
@@ -433,77 +459,80 @@ export function PatientDetailsModal({
               onChange={(e) => set("age", e.target.value)}
             />
           </Field>
-          <Field label="Your service district">
+          <Field label={t("Your service district")}>
             <Select
-              label="Your service district"
+              label={t("Your service district")}
               value={draft.district}
               onChange={(v) => set("district", v)}
               options={[{ value: "", label: "To be confirmed" }, ...DISTRICTS]}
             />
           </Field>
-          <Field label="Contact details">
+          <Field label={t("Contact details")}>
             <input
               value={draft.contact}
               onChange={(e) => set("contact", e.target.value)}
-              placeholder="Fictional demo contact only"
+              placeholder={t("Fictional demo contact only")}
             />
           </Field>
-          <Field label="Help you’re requesting">
+          <Field label={t("Help you’re requesting")}>
             <input
               value={draft.care}
               onChange={(e) => set("care", e.target.value)}
             />
           </Field>
-          <Field label="Background you’ve shared">
+          <Field label={t("Background you’ve shared")}>
             <input
               value={draft.background}
               onChange={(e) => set("background", e.target.value)}
             />
           </Field>
-          <Field label="Preferred visit time">
+          <Field label={t("Preferred visit time")}>
             <input
               value={draft.time}
               onChange={(e) => set("time", e.target.value)}
-              placeholder="To be confirmed"
+              placeholder={t("To be confirmed")}
             />
           </Field>
-          <Field label="How long you need support">
+          <Field label={t("How long you need support")}>
             <input
               value={draft.duration}
               onChange={(e) => set("duration", e.target.value)}
-              placeholder="Not yet confirmed"
+              placeholder={t("Not yet confirmed")}
             />
           </Field>
         </div>
         <details className="original-message">
-          <summary>Your original enquiry</summary>
+          <summary>{t("Your original enquiry")}</summary>
           <p>{c.original}</p>
         </details>
         <div className="info-callout small">
           <ShieldCheck size={18} />
           <p>
-            Changes to your request need another review before care is
-            confirmed. This form cannot change a treatment plan.
+            {t(
+              "Changes to your request need another review before care is confirmed. This form cannot change a treatment plan.",
+            )}
           </p>
         </div>
         {error && (
           <p className="form-error" role="alert">
-            {error}
+            {t(error)}
           </p>
         )}
       </div>
       <div className="modal-footer">
         <button className="button secondary" onClick={onClose}>
-          Cancel
+          {t("Cancel")}
         </button>
         <button className="button primary" onClick={save}>
-          Save my corrections <Check size={15} />
+          {t("Save my corrections")} <Check size={15} />
         </button>
       </div>
     </ModalFrame>
   );
 }
 export function PatientSupportModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLocale();
+
   const { data, update, toast, patientClientId } = useApp();
   const [question, setQuestion] = useState("");
   const [sent, setSent] = useState(false);
@@ -526,8 +555,10 @@ export function PatientSupportModal({ onClose }: { onClose: () => void }) {
   }
   return (
     <ModalFrame
-      title={sent ? "Your question is saved" : "What would you like to know?"}
-      eyebrow="A LITTLE MORE SUPPORT"
+      title={t(
+        sent ? "Your question is saved" : "What would you like to know?",
+      )}
+      eyebrow={t("A LITTLE MORE SUPPORT")}
       onClose={onClose}
     >
       <div className="modal-body patient-modal-body">
@@ -536,37 +567,41 @@ export function PatientSupportModal({ onClose }: { onClose: () => void }) {
             <div className="patient-approve-box">
               <h3>
                 <Check size={18} />
-                Saved with your care journey.
+                {t("Saved with your care journey.")}
               </h3>
               <p>{question}</p>
             </div>
             <p className="patient-dialog-intro">
-              This is a demonstration. Your question is recorded in this
-              browser’s staff activity log; no message has been sent to a real
-              care team.
+              {t(
+                "This is a demonstration. Your question is recorded in this browser’s staff activity log; no message has been sent to a real care team.",
+              )}
             </p>
           </>
         ) : (
           <>
             <p className="patient-dialog-intro">
-              Ask about your request, a proposed visit, or what happens next.
-              This demo saves your question for review.
+              {t(
+                "Ask about your request, a proposed visit, or what happens next. This demo saves your question for review.",
+              )}
             </p>
-            <Field label="Your question">
+            <Field label={t("Your question")}>
               <textarea
                 rows={4}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                placeholder="For example: Can a family member be present during the visit?"
+                placeholder={t(
+                  "For example: Can a family member be present during the visit?",
+                )}
               />
             </Field>
             <p className="form-hint">
-              For immediate emergency assistance in Hong Kong, call 999. This
-              prototype is not monitored.
+              {t(
+                "For immediate emergency assistance in Hong Kong, call 999. This prototype is not monitored.",
+              )}
             </p>
             {error && (
               <p className="form-error" role="alert">
-                {error}
+                {t(error)}
               </p>
             )}
           </>
@@ -574,11 +609,11 @@ export function PatientSupportModal({ onClose }: { onClose: () => void }) {
       </div>
       <div className="modal-footer">
         <button className="button secondary" onClick={onClose}>
-          {sent ? "Done" : "Cancel"}
+          {t(sent ? "Done" : "Cancel")}
         </button>
         {!sent && (
           <button className="button primary" onClick={save}>
-            Save my question <MessageCircle size={15} />
+            {t("Save my question")} <MessageCircle size={15} />
           </button>
         )}
       </div>

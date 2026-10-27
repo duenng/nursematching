@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -12,6 +13,8 @@ import type { CareCase } from "./types";
 import { initials, localDate, today } from "./lib/workflow";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
+  const { t } = useLocale();
+
   return (
     <div className="brand">
       <span className="brand-mark">
@@ -30,7 +33,8 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span>
-          kindred<span className="brand-care">care</span>
+          {t("kindred")}
+          <span className="brand-care">{t("care")}</span>
           <span className="brand-dot">.</span>
         </span>
       )}
@@ -46,7 +50,9 @@ export function Avatar({
   color?: string;
   size?: "sm" | "md" | "lg";
 }) {
-  return <span className={`avatar ${color} ${size}`}>{initials(name)}</span>;
+  const { t } = useLocale();
+
+  return <span className={`avatar ${color} ${size}`}>{t(initials(name))}</span>;
 }
 export function Badge({
   children,
@@ -65,6 +71,8 @@ export function Badge({
   );
 }
 export function CaseBadge({ status }: { status: CareCase["status"] }) {
+  const { t } = useLocale();
+
   const tone = {
     "Under review": "amber",
     "Information required": "amber",
@@ -74,7 +82,7 @@ export function CaseBadge({ status }: { status: CareCase["status"] }) {
     "Service active": "green",
     Completed: "neutral",
   }[status];
-  return <Badge tone={tone}>{status}</Badge>;
+  return <Badge tone={tone}>{t(status)}</Badge>;
 }
 export function PageTitle({
   eyebrow,
@@ -87,12 +95,14 @@ export function PageTitle({
   description: string;
   children?: ReactNode;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="page-title">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1>{title}</h1>
-        <p>{description}</p>
+        <div className="eyebrow">{t(eyebrow)}</div>
+        <h1>{t(title)}</h1>
+        <p>{t(description)}</p>
       </div>
       <div className="page-actions">{children}</div>
     </div>
@@ -107,13 +117,15 @@ export function EmptyState({
   description: string;
   action?: ReactNode;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="empty-state">
       <span className="empty-symbol">
         <Plus size={24} />
       </span>
-      <h3>{title}</h3>
-      <p>{description}</p>
+      <h3>{t(title)}</h3>
+      <p>{t(description)}</p>
       {action}
     </div>
   );
@@ -129,14 +141,16 @@ export function Field({
   hint?: string;
   required?: boolean;
 }) {
+  const { t } = useLocale();
+
   return (
     <label className="field">
       <span>
-        {label}
+        {t(label)}
         {required && <em> *</em>}
       </span>
       {children}
-      {hint && <small>{hint}</small>}
+      {hint && <small>{t(hint)}</small>}
     </label>
   );
 }
@@ -151,19 +165,23 @@ export function Select({
   options: (string | { value: string; label: string })[];
   label?: string;
 }) {
+  const { t } = useLocale();
+
   return (
     <span className="select-wrap">
       <select
-        aria-label={label}
+        aria-label={t(label)}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
         {options.map((option) =>
           typeof option === "string" ? (
-            <option key={option}>{option}</option>
+            <option value={option} key={option}>
+              {t(option)}
+            </option>
           ) : (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {t(option.label)}
             </option>
           ),
         )}
@@ -185,6 +203,8 @@ export function ModalFrame({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const { t } = useLocale();
+
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -239,13 +259,13 @@ export function ModalFrame({
       >
         <header className="modal-header">
           <div>
-            {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-            <h2 id="modal-title">{title}</h2>
+            {eyebrow && <div className="eyebrow">{t(eyebrow)}</div>}
+            <h2 id="modal-title">{t(title)}</h2>
           </div>
           <button
             className="icon-button"
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t("Close dialog")}
           >
             <X size={20} />
           </button>
@@ -277,12 +297,14 @@ export function Toggle({
   onChange: () => void;
   label: string;
 }) {
+  const { t } = useLocale();
+
   return (
     <button
       className={`toggle ${checked ? "on" : ""}`}
       role="switch"
       aria-checked={checked}
-      aria-label={label}
+      aria-label={t(label)}
       onClick={onChange}
     >
       <span>{checked && <Check size={10} />}</span>
@@ -290,14 +312,18 @@ export function Toggle({
   );
 }
 export function DateLabel() {
+  const { t, locale } = useLocale();
+
   return (
     <span>
-      {localDate(today()).toLocaleDateString("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })}
+      {t(
+        localDate(today()).toLocaleDateString(locale, {
+          weekday: "short",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      )}
     </span>
   );
 }
