@@ -31,6 +31,36 @@ npm test          # Browser workflow tests
 
 Local browser tests use installed Google Chrome. On CI, install Chromium with `npx playwright install --with-deps chromium` and set `CI=1`.
 
+## Deploy with Dokploy (Nixpacks)
+
+The repository includes `nixpacks.toml`. It installs the dependencies, builds
+`dist`, and starts a production static server on `0.0.0.0:3000` by default.
+
+1. Select **Nixpacks** as the application's Build Type, using the repository root.
+2. Use Install Command `npm ci --include=dev`, Build Command `npm run build`,
+   and Start Command `npm start` if entering overrides in Dokploy. Otherwise the
+   checked-in Nixpacks configuration supplies them.
+3. Set environment variable `PORT=3000` in Dokploy.
+4. In Domains, set Host to `nursematching.duen.ng`, Path and Internal Path to `/`,
+   and **Container Port to `3000`**. Leave Strip Path and Custom Entrypoint off.
+5. Point DNS to the Dokploy server, configure HTTPS with a valid certificate,
+   save, and redeploy after pushing the updated repository to GitHub.
+
+The domain's container port must match `PORT`. A 502 means the proxy could not
+get a valid upstream response. Check deployment logs for a successful build and
+runtime logs for the static server listening on port 3000. Changing only the
+Domain port cannot start a stopped container. No Vite development server is
+needed for this deployment.
+
+To verify locally:
+
+```sh
+npm ci
+npm run build
+npm start
+# Open http://localhost:3000
+```
+
 ## Explore the prototype
 
 1. **Overview** — live counts from browser data, care pipeline, recent requests, daily visits, activity, global search and CSV export.
