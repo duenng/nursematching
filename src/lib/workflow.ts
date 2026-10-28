@@ -21,6 +21,115 @@ export const DISTRICTS = [
   "Sai Kung",
   "Islands",
 ];
+export interface ServiceItemDefinition {
+  id: string;
+  category: "A" | "B" | "C";
+  label: string;
+  zh: string;
+  doctorOrderRequired?: boolean;
+  tubeOnly?: boolean;
+}
+export const SERVICE_ITEMS: ServiceItemDefinition[] = [
+  { id: "vitals", category: "A", label: "Vital signs monitoring", zh: "檢測生命表徵（血壓、脈搏、體溫、血氧）" },
+  { id: "glucose", category: "A", label: "Blood glucose monitoring", zh: "血糖監測（篤手指度血糖）" },
+  { id: "simple-wound", category: "A", label: "Simple wound care", zh: "簡單傷口護理（清洗及換敷料）" },
+  { id: "stoma", category: "A", label: "Stoma care", zh: "造口護理（清潔及換袋）" },
+  { id: "catheter-care", category: "A", label: "Existing urinary catheter daily care", zh: "現有尿喉日常護理（不包括更換）" },
+  { id: "tube-feeding", category: "A", label: "Tube feeding through an existing tube", zh: "經現有喉管管道餵食" },
+  { id: "suction", category: "A", label: "Suction / chest physiotherapy", zh: "抽痰／拍痰（可按需要 PRN）" },
+  { id: "tracheostomy", category: "A", label: "Tracheostomy care", zh: "氣管造口護理" },
+  { id: "peritoneal", category: "A", label: "Peritoneal dialysis", zh: "腹膜透析（洗肚）" },
+  { id: "tpn", category: "B", label: "TPN / intravenous nutrition", zh: "TPN／靜脈營養", doctorOrderRequired: true },
+  { id: "picc", category: "B", label: "PICC care", zh: "PICC 中央靜脈導管護理", doctorOrderRequired: true },
+  { id: "iv", category: "B", label: "Intravenous injection", zh: "靜脈注射", doctorOrderRequired: true },
+  { id: "ng-change", category: "B", label: "Replace an existing nasogastric tube", zh: "更換鼻胃喉（只換現有喉管，不做首次插入）", tubeOnly: true, doctorOrderRequired: true },
+  { id: "peg-change", category: "B", label: "Replace an existing gastrostomy tube", zh: "更換胃造口喉（只換現有喉管，不做首次插入）", tubeOnly: true, doctorOrderRequired: true },
+  { id: "urinary-change", category: "B", label: "Replace an existing urinary catheter", zh: "更換尿喉（只換現有喉管，不做首次插入）", tubeOnly: true, doctorOrderRequired: true },
+  { id: "medication", category: "B", label: "Medication or injections", zh: "藥物或注射（派藥／皮下／肌肉注射）", doctorOrderRequired: true },
+  { id: "complex-wound", category: "B", label: "Complex wound care", zh: "複雜傷口護理", doctorOrderRequired: true },
+  { id: "mobility", category: "C", label: "Mobility assistance", zh: "行動協助（扶抱、轉位、行路）" },
+  { id: "companionship", category: "C", label: "Companionship", zh: "陪伴" },
+  { id: "appointment", category: "C", label: "Appointment accompaniment", zh: "陪診" },
+] as const;
+export type ServiceItem = ServiceItemDefinition;
+export const RECENT_CONDITIONS = [
+  "Serious illness",
+  "Fall / dizziness / loss of balance",
+  "Eating or swallowing difficulty",
+  "Pain",
+  "Pressure sore / surgical wound",
+  "None of the above",
+] as const;
+export const HONG_KONG_HOLIDAYS = new Set([
+  "2026-01-01", "2026-02-17", "2026-02-18", "2026-04-03", "2026-04-04",
+  "2026-04-06", "2026-04-07", "2026-05-01", "2026-05-25", "2026-07-01",
+  "2026-09-26", "2026-10-01", "2026-10-19", "2026-12-25", "2026-12-26",
+]);
+export const DAY_RATE = 305;
+export const NIGHT_RATE = 325;
+export const NURSE_DAY_RATE = 245;
+export const NURSE_NIGHT_RATE = 270;
+export const HOLIDAY_SURCHARGE = 30;
+export const REMOTE_ALLOWANCE = 150;
+export const PACKAGE_HOURS = 30;
+export const PACKAGE_PRICE = 8650;
+export function minutes(time: string) {
+  const [hours, mins] = time.split(":").map(Number);
+  return hours * 60 + mins;
+}
+export function validateServiceWindow(category: CareCase["timeCategory"], start: string, end: string) {
+  if (category === "Night 10 hours") return start === "22:00" && end === "08:00";
+  if (category === "Night 12 hours") return start === "22:00" && end === "10:00";
+  if (!start || !end) return false;
+  return minutes(start) >= 420 && minutes(end) <= 1320 && minutes(start) < minutes(end);
+}
+export function parsePreferredTimes(value: string) {
+  return value.split(/[,、\s]+/).filter(Boolean).map((time) => time.trim());
+}
+export function validPreferredTimes(times: string[], category: CareCase["timeCategory"], start: string, end: string) {
+  return times.every((time) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time) &&
+    (category !== "Day" || (minutes(time) >= minutes(start) && minutes(time) <= minutes(end))));
+}
+export function isHolidayOrSunday(date: string) {
+  const day = new Date(`${date}T12:00:00`).getDay();
+  return day === 0 || HONG_KONG_HOLIDAYS.has(date);
+}
+export function holidayHours(date: string, category: CareCase["timeCategory"], start: string, end: string) {
+  if (category === "Day") return isHolidayOrSunday(date) ? Math.max(minutes(end) - minutes(start), 240) / 60 : 0;
+  const endDate = new Date(`${date}T12:00:00`);
+  endDate.setDate(endDate.getDate() + 1);
+  const nextDate = endDate.toISOString().slice(0, 10);
+  return (isHolidayOrSunday(nextDate) ? (category === "Night 10 hours" ? 8 : 10) : 0);
+}
+export function calculateQuote(input: {
+  dates: string[];
+  category: CareCase["timeCategory"];
+  start: string;
+  end: string;
+}) {
+  const category = input.category ?? "Day";
+  if (!validateServiceWindow(category, input.start, input.end)) throw new Error("Invalid service window");
+  const lines = input.dates.map((date) => {
+    const hours = category === "Day" ? Math.max((minutes(input.end) - minutes(input.start)) / 60, 4) : category === "Night 10 hours" ? 10 : 12;
+    const rate = category === "Day" ? DAY_RATE : NIGHT_RATE;
+    const holiday = holidayHours(date, category, input.start, input.end);
+    const baseAmount = hours * rate;
+    const surcharge = holiday * HOLIDAY_SURCHARGE;
+    return { date, category, startTime: input.start, endTime: input.end, billableHours: hours, hourlyRate: rate, baseAmount, holidayHours: holiday, holidaySurcharge: surcharge, subtotal: baseAmount + surcharge };
+  });
+  return { lines, total: lines.reduce((sum, line) => sum + line.subtotal, 0), holidayHours: lines.reduce((sum, line) => sum + line.holidayHours, 0), holidaySurcharge: lines.reduce((sum, line) => sum + line.holidaySurcharge, 0) };
+}
+export function remoteAreaTier(district: string, building: string): "A" | "B" | "C" | "unmatched" {
+  const value = `${district} ${building}`.toLowerCase();
+  if (/長洲|cheung chau|坪洲|peng chau|南丫|lamma|塔門|tap mun|吉澳|蓮麻坑|鹿頸|大澳|梅窩|北潭涌|白泥|龍鼓灘/.test(value)) return "A";
+  if (/打鼓嶺|坪輋|落馬洲|新田|米埔|白沙灣|相思灣|大網仔|大美督|汀角|林村|八鄉|石崗|流浮山|掃管笏|石澳|紅山半島|愉景灣/.test(value)) return "B";
+  if (building.trim()) return "C";
+  return "unmatched";
+}
+export function nursePay(category: CareCase["timeCategory"], billableHours: number, remoteTier: string) {
+  const base = (category === "Day" ? Math.max(billableHours, 4) * NURSE_DAY_RATE : (category === "Night 10 hours" ? 10 : 12) * NURSE_NIGHT_RATE);
+  return base + ((remoteTier === "A" || remoteTier === "B") ? REMOTE_ALLOWANCE : 0);
+}
 export const today = () =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Hong_Kong",

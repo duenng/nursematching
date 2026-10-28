@@ -74,6 +74,21 @@ export function CaseBadge({ status }: { status: CareCase["status"] }) {
   const { t } = useLocale();
 
   const tone = {
+    Submitted: "amber",
+    "Manual review": "amber",
+    "No doctor order": "neutral",
+    "No first insertion": "neutral",
+    Quoted: "purple",
+    "Awaiting payment": "amber",
+    "Payment expired": "neutral",
+    Paid: "green",
+    Posted: "purple",
+    Matched: "blue",
+    Rematching: "amber",
+    "Ready for service": "green",
+    "Full refund": "green",
+    "Partial refund": "amber",
+    Cancelled: "neutral",
     "Under review": "amber",
     "Information required": "amber",
     "Ready to publish": "green",

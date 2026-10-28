@@ -11,6 +11,21 @@ Messages|訊息
 Client records|服務對象紀錄
 Information required|待補充資料
 Under review|審核中
+Submitted|已提交查詢
+Manual review|待人工處理
+No doctor order|需醫生指示未提供
+No first insertion|不提供首次插喉
+Quoted|已報價
+Awaiting payment|待付款
+Payment expired|付款逾時取消
+Paid|已付款
+Posted|已派單
+Matched|已配對
+Rematching|放飛重新配對
+Ready for service|待服務
+Full refund|全額退款
+Partial refund|扣費退款
+Cancelled|已取消
 Kindred Care home|Kindred Care 首頁
 Care coordination|護理協調
 Hong Kong workspace|香港工作區
@@ -39,6 +54,39 @@ About the prototype|關於示範版本
 Care, connected.|連繫每一份關懷。
 Hong Kong|香港
 All times in HKT (UTC+8)|所有時間均為香港時間（UTC+8）
+Patient surname|病人姓氏
+Gender|性別
+Age|年齡
+District|地區
+Building / estate / village|大廈／屋苑／村名
+Weight (kg)|體重（公斤）
+Height (cm)|身高（厘米）
+WhatsApp phone (8 digits)|WhatsApp 電話（8 位數字）
+Mobility|行動能力
+Someone at home during service|服務時間內屋企有冇其他人陪伴
+Recent conditions in the last 3 months|近三個月情況
+Serious illness|嚴重疾病
+Fall / dizziness / loss of balance|跌倒／頭暈／失去平衡
+Eating or swallowing difficulty|進食／吞嚥困難
+Pain|疼痛
+Pressure sore / surgical wound|壓瘡／手術傷口
+None of the above|以上皆無
+Care services · select all that apply|護理服務・可選多項
+A · Basic care|A・基本護理
+B · Doctor instruction required|B・需醫生指示
+C · Non-clinical support|C・非護理程序
+As needed (PRN)|按需要（PRN）
+Doctor instruction / prescription|醫生指示／處方
+Visit period|時段類別
+Service date|服務日期
+Start time|開始時間
+End time|結束時間
+Other care need|其他護理需要
+Use the structured care form|使用結構化查詢表格
+Use free-text enquiry|使用自由文字查詢
+Quote preview|報價預覽
+Quotation|報價
+Materials and tools are supplied by the client. Remote travel allowance is paid by the platform, not added to your quote.|工具及物料由客人自備。偏遠交通津貼由平台支付，不會加在客人報價內。
 Frontend prototype|前端示範版本
 All cases|所有個案
 This week|本週
@@ -671,6 +719,7 @@ to a helping hand at your door.|到安心享用上門支援。
 A clear next step, every step of the way.|每一步，都有清晰方向。
 Start an enquiry|開始查詢
 Tell us who needs support, your district and the building or estate. Unit details are collected privately later.|告訴我們誰需要支援、所在區域及大廈／屋苑。單位號碼會在稍後透過私人 WhatsApp 收集。
+An Asian care worker speaking with an older adult during a private care visit|亞洲照護人員在私人護理探訪中與長者交流
 AI organises details, you check|AI 整理資料，你核對
 AI structures the tick-box services, preferred times and visit details. You review everything before a quotation is prepared.|AI 會整理勾選的服務、偏好時間及到訪資料；報價前由你核對全部內容。
 Confirm the quote and pay|確認報價及付款

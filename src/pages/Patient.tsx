@@ -30,6 +30,21 @@ import "../patient.css";
 
 export function patientStatus(c: CareCase) {
   return {
+    Submitted: "Your request has been received",
+    "Manual review": "A team member is reviewing your request",
+    "No doctor order": "Doctor instruction is required",
+    "No first insertion": "This procedure is not provided",
+    Quoted: "Your quotation is ready",
+    "Awaiting payment": "Payment is due within 24 hours",
+    "Payment expired": "The payment window has expired",
+    Paid: "Payment received",
+    Posted: "Finding a qualified nurse",
+    Matched: "A nurse has accepted your request",
+    Rematching: "Finding a replacement nurse",
+    "Ready for service": "Your visit is ready",
+    "Full refund": "A full refund is being processed",
+    "Partial refund": "A refund is being processed",
+    Cancelled: "This request is cancelled",
     "Information required": "A few details to clarify",
     "Under review": "Your request is being reviewed",
     "Ready to publish": "Getting ready to find your provider",

@@ -3084,6 +3084,42 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 18px;
 }
+.guided-enquiry-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+.guided-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.condition-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+.guided-section h4 {
+  margin: 8px 0 2px;
+  font-size: .95rem;
+}
+.guided-service-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.guided-service-row .checkbox-row { margin: 0; }
+.guided-service-row small { display: block; color: var(--text-muted); margin-top: 3px; }
+.guided-service-row input[type="text"], .guided-service-row > input:not([type]) { min-width: 0; }
+@media (max-width: 700px) {
+  .guided-service-row { grid-template-columns: 1fr; }
+}
 .review-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 210px;

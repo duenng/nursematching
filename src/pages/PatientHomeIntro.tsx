@@ -248,7 +248,7 @@ export function PatientHomeIntro({
           <div className="clinic-provider-image">
             <img
               src="/images/care-provider.jpg"
-              alt={t("A care professional in a white coat outdoors")}
+              alt={t("A Hong Kong senior-care volunteer supporting an older adult indoors")}
               loading="lazy"
               width="1400"
               height="933"

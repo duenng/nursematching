@@ -10,6 +10,21 @@ export type Page =
 export type CaseStatus =
   | "Information required"
   | "Under review"
+  | "Submitted"
+  | "Manual review"
+  | "No doctor order"
+  | "No first insertion"
+  | "Quoted"
+  | "Awaiting payment"
+  | "Payment expired"
+  | "Paid"
+  | "Posted"
+  | "Matched"
+  | "Rematching"
+  | "Ready for service"
+  | "Full refund"
+  | "Partial refund"
+  | "Cancelled"
   | "Ready to publish"
   | "Awaiting providers"
   | "Provider confirmed"
@@ -51,6 +66,94 @@ export interface CareCase {
   approved: boolean;
   applications: Application[];
   providerId?: string;
+  /** Structured v2 enquiry fields. Optional so existing demo records remain readable. */
+  gender?: "Male" | "Female";
+  building?: string;
+  weightKg?: string;
+  heightCm?: string;
+  mobility?: string;
+  recentConditions?: string[];
+  doctorOrderStatus?: "Yes" | "No" | "Unsure";
+  tubeStatus?: Record<string, "Existing" | "First insertion" | "Unsure">;
+  companion?: "Yes" | "No" | "Part of the time";
+  services?: ServiceSelection[];
+  otherNeedText?: string;
+  timeCategory?: "Day" | "Night 10 hours" | "Night 12 hours";
+  serviceDates?: string[];
+  startTime?: string;
+  endTime?: string;
+  paymentStatus?: "Not quoted" | "Quoted" | "Awaiting payment" | "Paid" | "Payment expired";
+  paymentDeadline?: string;
+  quoteTotal?: number;
+  packageChoice?: "Single visit" | "30-hour package";
+  dispatchStatus?: "Not posted" | "Posted" | "Assigned" | "No provider";
+  addressStatus?: "Not requested" | "Requested privately" | "Received";
+  remoteTier?: "A" | "B" | "C" | "admin" | "unmatched" | "not_accepting";
+  nurseTravelAllowance?: number;
+  remoteReviewRequired?: boolean;
+  allowanceCancelledBy?: string;
+  allowanceCancelReason?: string;
+  transportTimeFlag?: string;
+  holidayHours?: number;
+  holidaySurcharge?: number;
+  quoteLines?: QuoteLine[];
+  quoteVersion?: number;
+  paymentLink?: string;
+  paymentLinkSentAt?: string;
+  paidAt?: string;
+  amountPaid?: number;
+  postedAt?: string;
+  repostCount?: number;
+  noTakerFlag?: boolean;
+  assignedAt?: string;
+  scheduleStatus?: "Draft" | "Senior nurse reviewed" | "Confirmed";
+  scheduleVersion?: number;
+  lateFee?: number;
+  refundAmount?: number;
+  refundStatus?: "Pending" | "Approved" | "Paid";
+  cancellationType?: string;
+  auditLog?: AuditEntry[];
+}
+export interface ServiceSelection {
+  itemId: string;
+  label: string;
+  category: "A" | "B" | "C";
+  preferredTimes: string[];
+  prn: boolean;
+  tubeOnly?: boolean;
+  doctorOrderRequired?: boolean;
+}
+export interface QuoteLine {
+  date: string;
+  category: "Day" | "Night 10 hours" | "Night 12 hours";
+  startTime: string;
+  endTime: string;
+  billableHours: number;
+  hourlyRate: number;
+  baseAmount: number;
+  holidayHours: number;
+  holidaySurcharge: number;
+  subtotal: number;
+}
+export interface AuditEntry {
+  at: string;
+  actor: "System" | "AI" | "Client" | "Yi admin" | "Senior nurse" | "Nurse";
+  action: string;
+  detail?: string;
+}
+export interface PackageLedger {
+  id: string;
+  clientId: string;
+  patientRef: string;
+  hoursTotal: number;
+  hoursUsed: number;
+  hoursReserved: number;
+  price: number;
+  discount: number;
+  status: "Pending payment" | "Active" | "Used up" | "Payment expired" | "Refunded";
+  paymentDeadline?: string;
+  paidAt?: string;
+  entries: { at: string; type: string; hours: number; caseId?: string; reason?: string }[];
 }
 export interface Provider {
   id: string;
@@ -108,4 +211,5 @@ export interface Store {
   visits: Visit[];
   activities: Activity[];
   messages: Message[];
+  packages?: PackageLedger[];
 }

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   CheckCheck,
+  ClipboardList,
   ChevronRight,
   Clock3,
   Copy,
@@ -36,7 +37,14 @@ import {
   broadcastText,
   canPublish,
   DISTRICTS,
+  SERVICE_ITEMS,
+  calculateQuote,
   extractEnquiry,
+  parsePreferredTimes,
+  RECENT_CONDITIONS,
+  remoteAreaTier,
+  validateServiceWindow,
+  validPreferredTimes,
   localDate,
   missingFields,
   providerEligible,
@@ -107,10 +115,45 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
   const [followup, setFollowup] = useState("");
   const [followups, setFollowups] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [workflowStatus, setWorkflowStatus] = useState<CareCase["status"] | "">("");
+  const [guided, setGuided] = useState(false);
+  const [structured, setStructured] = useState({
+    surname: "", age: "", gender: "", weightKg: "", heightCm: "", district: "", building: "",
+    mobility: "", conditions: [] as string[], doctorOrderStatus: "",
+    tubeStatus: {} as Record<string, string>, companion: "", other: "",
+    services: [] as string[], serviceTimes: {} as Record<string, string>,
+    prn: [] as string[], timeCategory: "Day" as "Day" | "Night 10 hours" | "Night 12 hours",
+    serviceDates: [today()], startTime: "09:00", endTime: "13:00", whatsapp: "",
+  });
   const pathway = servicePathway(text);
   const missing = extracted ? missingFields(extracted) : [];
   function analyse() {
-    if (text.trim().length < 15) {
+    setWorkflowStatus("");
+    if (guided) {
+      const next = structured;
+      if (!next.surname || !next.age || Number(next.age) < 0 || Number(next.age) > 120 || !next.gender || !next.weightKg || !next.heightCm || !next.district || !next.building || !next.mobility || !next.companion || !/^\d{8}$/.test(next.whatsapp) || !next.services.length || !next.serviceDates.length) {
+        setError("Please complete all required guided-form fields.");
+        return;
+      }
+      if (!validateServiceWindow(next.timeCategory, next.startTime, next.endTime)) {
+        setError("Daytime service must be within 07:00–22:00; night services use fixed times.");
+        return;
+      }
+      const needsDoctor = next.services.some((id) => SERVICE_ITEMS.find((item) => item.id === id)?.doctorOrderRequired);
+      const tubeItems = next.services.filter((id) => SERVICE_ITEMS.find((item) => item.id === id)?.tubeOnly);
+      if (needsDoctor && !next.doctorOrderStatus) { setError("Please tell us whether a doctor’s instruction is available."); return; }
+      if (tubeItems.some((id) => !next.tubeStatus[id])) { setError("Please tell us whether each selected tube already exists."); return; }
+      if (needsDoctor && next.doctorOrderStatus === "No") setWorkflowStatus("No doctor order");
+      else if (needsDoctor && next.doctorOrderStatus === "Unsure") setWorkflowStatus("Manual review");
+      else if (tubeItems.some((id) => next.tubeStatus[id] === "First insertion")) setWorkflowStatus("No first insertion");
+      else if (tubeItems.some((id) => next.tubeStatus[id] === "Unsure")) setWorkflowStatus("Manual review");
+      for (const id of next.services) {
+        const times = parsePreferredTimes(next.serviceTimes[id] || "");
+        if (times.length && !validPreferredTimes(times, next.timeCategory, next.startTime, next.endTime)) { setError("Preferred times must use HH:MM and fall within the selected service window."); return; }
+      }
+      setText(`${next.surname} structured enquiry with selected care services and visit details`);
+    }
+    if (!guided && text.trim().length < 15) {
       setError(
         "Please share a little more about the care needed (at least 15 characters).",
       );
@@ -120,7 +163,15 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
       setError("Please acknowledge the demo data notice to continue.");
       return;
     }
-    setExtracted(extractEnquiry(text));
+    const parsed = extractEnquiry(text);
+    if (guided) {
+      const selections = structured.services.map((id) => {
+        const item = SERVICE_ITEMS.find((entry) => entry.id === id)!;
+        return { itemId: item.id, label: item.label, category: item.category, preferredTimes: parsePreferredTimes(structured.serviceTimes[id] || ""), prn: structured.prn.includes(id), tubeOnly: item.tubeOnly, doctorOrderRequired: item.doctorOrderRequired };
+      });
+      Object.assign(parsed, { name: structured.surname, age: structured.age, district: structured.district, care: selections.map((s) => s.label).join(", "), contact: structured.whatsapp, days: ["Mon"], time: `${structured.startTime}–${structured.endTime}`, duration: structured.timeCategory === "Day" ? "Day visit" : structured.timeCategory, background: structured.conditions.join(", ") });
+    }
+    setExtracted(parsed);
     setStep(1);
     setError("");
   }
@@ -162,7 +213,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
         ...extracted,
         id,
         clientId,
-        status: missing.length ? "Information required" : "Under review",
+        status: workflowStatus || (missing.length ? "Information required" : "Under review"),
         original:
           text +
           (followups.length
@@ -178,6 +229,34 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
         priceConfirmed: false,
         approved: false,
         applications: [],
+        ...(guided ? {
+          gender: structured.gender as "Male" | "Female",
+          building: structured.building,
+          weightKg: structured.weightKg,
+          heightCm: structured.heightCm,
+          mobility: structured.mobility,
+          recentConditions: structured.conditions,
+          doctorOrderStatus: structured.doctorOrderStatus as "Yes" | "No" | "Unsure" | undefined,
+          tubeStatus: structured.tubeStatus as CareCase["tubeStatus"],
+          companion: structured.companion as "Yes" | "No" | "Part of the time",
+          services: structured.services.map((serviceId) => {
+            const item = SERVICE_ITEMS.find((entry) => entry.id === serviceId)!;
+            return { itemId: item.id, label: item.label, category: item.category, preferredTimes: parsePreferredTimes(structured.serviceTimes[serviceId] || ""), prn: structured.prn.includes(serviceId), tubeOnly: item.tubeOnly, doctorOrderRequired: item.doctorOrderRequired };
+          }),
+          otherNeedText: structured.other,
+          timeCategory: structured.timeCategory,
+          serviceDates: structured.serviceDates,
+          startTime: structured.startTime,
+          endTime: structured.endTime,
+          dispatchStatus: "Not posted" as const,
+          addressStatus: "Not requested" as const,
+          remoteTier: remoteAreaTier(structured.district, structured.building),
+          nurseTravelAllowance: ["A", "B"].includes(remoteAreaTier(structured.district, structured.building)) ? 150 : 0,
+          quoteLines: (() => { try { return calculateQuote({ dates: structured.serviceDates, category: structured.timeCategory, start: structured.startTime, end: structured.endTime }).lines; } catch { return []; } })(),
+          quoteTotal: (() => { try { return calculateQuote({ dates: structured.serviceDates, category: structured.timeCategory, start: structured.startTime, end: structured.endTime }).total; } catch { return undefined; } })(),
+          quoteVersion: 1,
+          paymentStatus: workflowStatus ? "Not quoted" as const : "Quoted" as const,
+        } : {}),
       };
       next.cases.unshift(c);
       logEvent(
@@ -236,7 +315,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <Field label={t("How can we help?")} required>
-            <textarea
+            {!guided && <textarea
               className="enquiry-textarea"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -244,8 +323,33 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                 "For example: My mum is 78 and has just come home from hospital. We live in Sha Tin and need help with her wound care on weekday afternoons…",
               )}
               rows={6}
-            />
+            />}
           </Field>
+          <button className="sample-button" type="button" onClick={() => setGuided(!guided)}>
+            <ClipboardList size={14} /> {guided ? t("Use free-text enquiry") : t("Use the structured care form")}
+          </button>
+          {guided && <div className="guided-enquiry-form">
+            <div className="form-grid">
+              <Field label={t("Patient surname")} required><input aria-label={t("Patient surname")} value={structured.surname} onChange={(e) => setStructured({ ...structured, surname: e.target.value })} /></Field>
+              <Field label={t("Gender")} required><Select label={t("Gender")} value={structured.gender} onChange={(gender) => setStructured({ ...structured, gender })} options={[{ value: "", label: "Select" }, { value: "Male", label: "Male · 男" }, { value: "Female", label: "Female · 女" }]} /></Field>
+              <Field label={t("Age")} required><input type="number" min="0" max="120" aria-label={t("Patient age (years)")} value={structured.age} onChange={(e) => setStructured({ ...structured, age: e.target.value })} /></Field>
+              <Field label={t("District")} required><Select label={t("District")} value={structured.district} onChange={(district) => setStructured({ ...structured, district })} options={[{ value: "", label: "Select district" }, ...DISTRICTS]} /></Field>
+              <Field label={t("Building / estate / village")} required><input aria-label={t("Building / estate / village")} value={structured.building} onChange={(e) => setStructured({ ...structured, building: e.target.value })} placeholder={t("Unit number is collected privately later")} /></Field>
+              <Field label={t("Weight (kg)")} required><input type="number" aria-label={t("Weight (kg)")} value={structured.weightKg} onChange={(e) => setStructured({ ...structured, weightKg: e.target.value })} /></Field>
+              <Field label={t("Height (cm)")} required><input type="number" aria-label={t("Height (cm)")} value={structured.heightCm} onChange={(e) => setStructured({ ...structured, heightCm: e.target.value })} /></Field>
+              <Field label={t("WhatsApp phone (8 digits)")} required><input aria-label={t("WhatsApp phone (8 digits)")} value={structured.whatsapp} onChange={(e) => setStructured({ ...structured, whatsapp: e.target.value })} /></Field>
+            </div>
+            <Field label={t("Mobility")} required><Select label={t("Mobility")} value={structured.mobility} onChange={(mobility) => setStructured({ ...structured, mobility })} options={[{ value: "", label: "Select" }, "Needs assistance", "Bedbound", "Wheelchair", "Walking frame", "Can go out independently"]} /></Field>
+            <Field label={t("Someone at home during service")} required><Select label={t("Someone at home during service")} value={structured.companion} onChange={(companion) => setStructured({ ...structured, companion })} options={[{ value: "", label: "Select" }, "Yes", "No", "Part of the time"]} /></Field>
+            <Field label={t("Recent conditions in the last 3 months")}><div className="condition-grid">{RECENT_CONDITIONS.map((condition) => <label className="checkbox-row" key={condition}><input type="checkbox" checked={structured.conditions.includes(condition)} onChange={(e) => setStructured({ ...structured, conditions: e.target.checked ? [...structured.conditions, condition] : structured.conditions.filter((item) => item !== condition) })} /><span>{t(condition)}</span></label>)}</div></Field>
+            <div className="guided-section"><strong>{t("Care services · select all that apply")}</strong>
+              {(["A", "B", "C"] as const).map((category) => <div key={category}><h4>{category === "A" ? t("A · Basic care") : category === "B" ? t("B · Doctor instruction required") : t("C · Non-clinical support")}</h4>{SERVICE_ITEMS.filter((item) => item.category === category).map((item) => <div className="guided-service-row" key={item.id}><label className="checkbox-row"><input type="checkbox" checked={structured.services.includes(item.id)} onChange={(e) => setStructured({ ...structured, services: e.target.checked ? [...structured.services, item.id] : structured.services.filter((id) => id !== item.id) })} /><span>{t(item.label)}<small>{t(item.zh)}</small></span></label>{structured.services.includes(item.id) && <><input aria-label={`${item.label} preferred times`} placeholder="08:00, 12:00" value={structured.serviceTimes[item.id] || ""} onChange={(e) => setStructured({ ...structured, serviceTimes: { ...structured.serviceTimes, [item.id]: e.target.value } })} /><label className="checkbox-row"><input type="checkbox" checked={structured.prn.includes(item.id)} onChange={(e) => setStructured({ ...structured, prn: e.target.checked ? [...structured.prn, item.id] : structured.prn.filter((id) => id !== item.id) })} /><span>{t("As needed (PRN)")}</span></label>{item.tubeOnly && <Select label={`${item.label} tube status`} value={structured.tubeStatus[item.id] || ""} onChange={(value) => setStructured({ ...structured, tubeStatus: { ...structured.tubeStatus, [item.id]: value } })} options={[{ value: "", label: "Tube status" }, "Existing", "First insertion", "Unsure"]} />}</>}</div>)}</div>)}
+            </div>
+            {structured.services.some((id) => SERVICE_ITEMS.find((item) => item.id === id)?.doctorOrderRequired) && <Field label={t("Doctor instruction / prescription") } required><Select label={t("Doctor instruction / prescription")} value={structured.doctorOrderStatus} onChange={(doctorOrderStatus) => setStructured({ ...structured, doctorOrderStatus })} options={[{ value: "", label: "Select" }, "Yes", "No", "Unsure"]} /></Field>}
+            <Field label={t("Visit period")} required><Select label={t("Visit period")} value={structured.timeCategory} onChange={(timeCategory) => setStructured({ ...structured, timeCategory: timeCategory as typeof structured.timeCategory, startTime: timeCategory === "Day" ? structured.startTime : "22:00", endTime: timeCategory === "Day" ? structured.endTime : timeCategory === "Night 10 hours" ? "08:00" : "10:00" })} options={["Day", "Night 10 hours", "Night 12 hours"]} /></Field>
+            <div className="form-grid"><Field label={t("Service date")} required><input type="date" aria-label={t("Service date")} value={structured.serviceDates[0]} onChange={(e) => setStructured({ ...structured, serviceDates: [e.target.value] })} /></Field><Field label={t("Start time")} required><input type="time" aria-label={t("Start time")} value={structured.startTime} disabled={structured.timeCategory !== "Day"} onChange={(e) => setStructured({ ...structured, startTime: e.target.value })} /></Field><Field label={t("End time")} required><input type="time" aria-label={t("End time")} value={structured.endTime} disabled={structured.timeCategory !== "Day"} onChange={(e) => setStructured({ ...structured, endTime: e.target.value })} /></Field></div>
+            <Field label={t("Other care need")}><input value={structured.other} onChange={(e) => setStructured({ ...structured, other: e.target.value })} placeholder={t("Optional; reviewed by staff")}/></Field>
+          </div>}
           <button className="sample-button" onClick={() => setText(SAMPLE)}>
             <MessageCircle size={14} />
             {t("Try a Cantonese example")} <ArrowRight size={13} />
@@ -285,6 +389,12 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
       ) : (
         extracted && (
           <div className="modal-body">
+            {guided && (() => {
+              try {
+                const quote = calculateQuote({ dates: structured.serviceDates, category: structured.timeCategory, start: structured.startTime, end: structured.endTime });
+                return <div className="info-callout quote-preview"><ShieldCheck size={17} /><p><strong>{t("Quote preview")}</strong><br />{quote.lines.map((line) => `${line.date} · HK$${line.subtotal.toLocaleString()} (${line.billableHours} hours)`).join(" · ")}<br /><small>{t("Materials and tools are supplied by the client. Remote travel allowance is paid by the platform, not added to your quote.")}</small></p></div>;
+              } catch { return null; }
+            })()}
             <div className="review-layout">
               <div>
                 <div className="subsection-label">
@@ -911,6 +1021,12 @@ function CaseModal({ id, onClose }: { id: string; onClose: () => void }) {
                   <Detail label={t("Contact details")} value={c.contact} />
                   <Detail label={t("Price / remuneration")} value={c.budget} />
                 </div>
+                {c.quoteTotal !== undefined && (
+                  <div className="info-callout quote-preview">
+                    <ShieldCheck size={17} />
+                    <p><strong>{t("Quotation")}: HK${c.quoteTotal.toLocaleString()}</strong><br /><small>{t("Materials and tools are supplied by the client. Remote travel allowance is paid by the platform, not added to your quote.")}</small></p>
+                  </div>
+                )}
                 {c.notes && (
                   <div className="case-notes">
                     <strong>
