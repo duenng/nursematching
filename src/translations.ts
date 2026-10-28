@@ -669,14 +669,16 @@ HOW IT WORKS · 服務流程|服務流程
 From “where do I start?”|從「應該怎樣開始？」
 to a helping hand at your door.|到安心享用上門支援。
 A clear next step, every step of the way.|每一步，都有清晰方向。
-Tell us your story|告訴我們你的需要
-Share what you need in English or Chinese. We’ll help organise the details.|以繁體中文或英文說明需要，我們會協助整理資料。
-Make a plan together|一起制定計劃
-The care team reviews your needs. You review the service, price and schedule.|護理團隊審閱你的需要，由你核對服務、費用及日程。
-Meet your care provider|認識你的護理人員
-The team checks credentials, relevant skills and availability before confirming.|確認委派前，團隊會核對資格、相關技能及可服務時間。
-Feel supported at home|在家安心接受照顧
-See your agreed visits, request changes and keep your care journey connected.|查看已同意的到訪、提出更改，掌握護理旅程每一步。
+Start an enquiry|開始查詢
+Tell us who needs support, your district and the building or estate. Unit details are collected privately later.|告訴我們誰需要支援、所在區域及大廈／屋苑。單位號碼會在稍後透過私人 WhatsApp 收集。
+AI organises details, you check|AI 整理資料，你核對
+AI structures the tick-box services, preferred times and visit details. You review everything before a quotation is prepared.|AI 會整理勾選的服務、偏好時間及到訪資料；報價前由你核對全部內容。
+Confirm the quote and pay|確認報價及付款
+After you confirm the quotation, full payment is due within 24 hours. A 30-hour package is HK$8,650, saving HK$500.|確認報價後，須於 24 小時內付清全數。30 小時套餐為 HK$8,650，節省 HK$500。
+Paid first, then first-come dispatch|先付款，後按先到先得派單
+The platform sends the paid case to eligible nurses. The first nurse to accept is assigned; no clinical decision is made by AI.|平台收妥款項後向合資格護士派單，先接受者獲安排；AI 不會作臨床判斷。
+Confirm privately and schedule|私人確認資料及安排日程
+After both sides confirm, the unit number is collected through private WhatsApp and the Care Schedule is arranged.|雙方確認後，透過私人 WhatsApp 收集單位號碼，並安排護理日程。
 YOUR CARE, AT A GLANCE|你的護理一覽
 MON|週一
 Home care visit|上門護理到訪

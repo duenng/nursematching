@@ -174,23 +174,28 @@ export function PatientPortal() {
                   {[
                     {
                       icon: MessageCircle,
-                      title: "Tell us your story",
-                      text: "Share what you need in English or Chinese. We’ll help organise the details.",
+                      title: "Start an enquiry",
+                      text: "Tell us who needs support, your district and the building or estate. Unit details are collected privately later.",
                     },
                     {
                       icon: ClipboardCheck,
-                      title: "Make a plan together",
-                      text: "The care team reviews your needs. You review the service, price and schedule.",
+                      title: "AI organises details, you check",
+                      text: "AI structures the tick-box services, preferred times and visit details. You review everything before a quotation is prepared.",
                     },
                     {
                       icon: HeartHandshake,
-                      title: "Meet your care provider",
-                      text: "The team checks credentials, relevant skills and availability before confirming.",
+                      title: "Confirm the quote and pay",
+                      text: "After you confirm the quotation, full payment is due within 24 hours. A 30-hour package is HK$8,650, saving HK$500.",
                     },
                     {
                       icon: House,
-                      title: "Feel supported at home",
-                      text: "See your agreed visits, request changes and keep your care journey connected.",
+                      title: "Paid first, then first-come dispatch",
+                      text: "The platform sends the paid case to eligible nurses. The first nurse to accept is assigned; no clinical decision is made by AI.",
+                    },
+                    {
+                      icon: ShieldCheck,
+                      title: "Confirm privately and schedule",
+                      text: "After both sides confirm, the unit number is collected through private WhatsApp and the Care Schedule is arranged.",
                     },
                   ].map((step, i) => (
                     <div className="patient-process-step" key={step.title}>

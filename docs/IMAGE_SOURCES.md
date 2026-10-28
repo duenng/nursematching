@@ -2,14 +2,16 @@
 
 Photos are stored locally in `public/images/` so the prototype does not depend on third-party image requests. They illustrate care situations and do not depict actual Kindred Care staff, clients or partners. The CUHK-inspired palette does not imply university affiliation.
 
-| Local asset          | Source                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `hero-care.jpg`      | [Unsplash · stethoscope](https://images.unsplash.com/photo-1505751172876-fa1923c5c528) · image ID `photo-1505751172876-fa1923c5c528` |
-| `care-team.jpg`      | [Unsplash image](https://images.unsplash.com/photo-1576091160399-112ba8d25d1d) · image ID `photo-1576091160399-112ba8d25d1d`         |
-| `home-care.jpg`      | [Pexels · home care](https://www.pexels.com/photo/7551667/)                                                                          |
-| `nursing-care.jpg`   | [Unsplash image](https://images.unsplash.com/photo-1576091160550-2173dba999ef) · image ID `photo-1576091160550-2173dba999ef`         |
-| `companion-care.jpg` | [Unsplash image](https://images.unsplash.com/photo-1573497620053-ea5300f94f21) · image ID `photo-1573497620053-ea5300f94f21`         |
-| `welcome-care.jpg`   | [Unsplash image](https://images.unsplash.com/photo-1584515933487-779824d29309) · image ID `photo-1584515933487-779824d29309`         |
-| `care-provider.jpg`  | [Unsplash image](https://images.unsplash.com/photo-1559839734-2b71ea197ec2) · image ID `photo-1559839734-2b71ea197ec2`               |
+The patient homepage now uses Asian-focused or people-free visuals. The replacement candidates below were downloaded for this prototype and should have their final source, licence and attribution confirmed before a production launch.
 
-Sources: [Unsplash licence](https://unsplash.com/license) and [Pexels licence](https://www.pexels.com/license/).
+| Local asset | Use in the prototype |
+| --- | --- |
+| `hero-care.jpg` | Original stethoscope still-life; no person shown |
+| `care-team.jpg` | Supportive hands / care detail; no face shown |
+| `home-care.jpg` | Asian woman portrait used as a warm welcome visual |
+| `nursing-care.jpg` | Laptop and stethoscope care detail; no face shown |
+| `companion-care.jpg` | Asian woman portrait used for the companion-support tile |
+| `welcome-care.jpg` | Supportive hands / care detail; no face shown |
+| `care-provider.jpg` | Asian-focused nurse and doctor line illustration |
+
+Do not treat these illustrative assets as real staff or patient photographs. Confirm the final stock or commissioned photography licence before publishing commercially.
