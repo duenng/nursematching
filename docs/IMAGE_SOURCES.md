@@ -1,6 +1,6 @@
 # Prototype photography
 
-Photos are stored locally in `public/images/` so the prototype does not depend on third-party image requests. They illustrate care settings and Hong Kong context; they do not depict actual Kindred Care staff, clients or partners. The patient homepage uses distinct, uncluttered visuals with no crowd scenes. Confirm final photography licences and attribution before production.
+Photos are stored locally in `public/images/` so the prototype does not depend on third-party image requests. They illustrate care settings and Hong Kong context; they do not depict actual CareKoala staff, clients or partners. The patient homepage uses distinct, uncluttered visuals with no crowd scenes. Confirm final photography licences and attribution before production.
 
 | Local asset | Use in the prototype | Source and licence |
 | --- | --- | --- |

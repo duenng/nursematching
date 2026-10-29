@@ -13,8 +13,6 @@ import type { CareCase } from "./types";
 import { initials, localDate, today } from "./lib/workflow";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
-  const { t } = useLocale();
-
   return (
     <div className="brand">
       <span className="brand-mark">
@@ -33,9 +31,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span>
-          {t("kindred")}
-          <span className="brand-care">{t("care")}</span>
-          <span className="brand-dot">.</span>
+          Care<span className="brand-care">Koala</span>
         </span>
       )}
     </div>

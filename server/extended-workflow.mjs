@@ -72,7 +72,7 @@ const policyDefaults = {
   package_low_balance_hours: 4,
   nurse_travel_allowance: 150,
   max_drop_strikes: 3,
-  sender_name: "上門護理配對（測試）",
+  sender_name: "CareKoala",
 };
 const available = (p) => p.hours_total - p.hours_used - p.hours_reserved;
 export const hasRedFlag = (input) =>
@@ -89,6 +89,8 @@ export const extendWorkflow = (Base) =>
       this.bankAccountName = args[1]?.bankAccountName?.trim() || "";
       this.bankAccountNumber = args[1]?.bankAccountNumber?.trim() || "";
       this.state.settings = { ...policyDefaults, ...this.state.settings };
+      if (this.state.settings.sender_name === "上門護理配對（測試）")
+        this.state.settings.sender_name = "CareKoala";
       for (const c of this.state.cases) if (hasRedFlag(c)) c.red_flag = true;
       for (const key of [
         "packages",

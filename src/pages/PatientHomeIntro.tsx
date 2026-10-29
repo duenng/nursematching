@@ -104,7 +104,7 @@ export function PatientHomeIntro({
         <div className="patient-container clinic-split">
           <div className="clinic-welcome-copy">
             <span className="clinic-eyebrow">
-              {t("WELCOME TO KINDRED CARE")}
+              {t("WELCOME TO CAREKOALA")}
             </span>
             <h2>
               {t("A helping hand.")}

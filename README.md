@@ -1,4 +1,4 @@
-# Kindred Care
+# CareKoala
 
 A responsive, interactive **prototype with a server-backed TRL 3 email validation workspace** for the Hong Kong home-nursing care navigation and coordination platform in the supplied development brief. Built with React, TypeScript and Vite. All profiles and initial records are fictional.
 
@@ -19,7 +19,7 @@ The default page is the **patient and family website**. Open [My care](http://lo
 
 The [staff demo](http://localhost:5173/#staff) remains available from the link above the patient navigation. Switching views demonstrates roles; it is not authentication.
 
-The public service structure takes inspiration from the user-provided [CARE U elderly-care reference](https://www.careu.com.hk/我們的服務/長者護理/): service descriptions, the enquiry journey and FAQs. Kindred Care uses its own text, illustrations and visual design. CARE U pricing, professional-scope claims and contact information are not used.
+The public service structure takes inspiration from the user-provided [CARE U elderly-care reference](https://www.careu.com.hk/我們的服務/長者護理/): service descriptions, the enquiry journey and FAQs. CareKoala uses its own text, illustrations and visual design. CARE U pricing, professional-scope claims and contact information are not used.
 
 The patient homepage follows the supplied visual reference with a centred photographic hero, a welcome section, five photographic service tiles and a care-provider section. It uses a CUHK-inspired purple palette, warm peach accents and larger type. Service tiles reveal further information and open the enquiry flow. Stock photos are illustrative; [image sources](docs/IMAGE_SOURCES.md) are recorded separately.
 

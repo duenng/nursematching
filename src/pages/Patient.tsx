@@ -115,7 +115,7 @@ export function PatientPortal() {
           <button
             className="patient-brand-button"
             onClick={() => go("home")}
-            aria-label={t("Kindred Care home")}
+            aria-label={t("CareKoala home")}
           >
             <Logo />
           </button>
@@ -655,7 +655,7 @@ export function PatientPortal() {
             </div>
           </div>
           <div className="patient-footer-bottom">
-            <span>{t("Kindred Care · Frontend prototype")}</span>
+            <span>{t("CareKoala · Frontend prototype")}</span>
             <span>
               {t(
                 "Not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.",

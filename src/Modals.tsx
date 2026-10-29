@@ -2901,7 +2901,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalFrame
       title={t("Care, connected. One step at a time.")}
-      eyebrow={t("WELCOME TO KINDRED CARE")}
+      eyebrow={t("WELCOME TO CAREKOALA")}
       onClose={onClose}
     >
       <div className="modal-body">

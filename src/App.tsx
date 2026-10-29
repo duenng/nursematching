@@ -131,7 +131,7 @@ function Shell() {
         <button
           className="brand-button"
           onClick={() => go("Overview")}
-          aria-label={t("Kindred Care home")}
+          aria-label={t("CareKoala home")}
         >
           <Logo />
         </button>
@@ -512,7 +512,7 @@ function Overview() {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `kindred-care-overview-${today()}.csv`;
+    a.download = `carekoala-overview-${today()}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast("Overview report downloaded.");

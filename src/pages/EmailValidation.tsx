@@ -951,7 +951,7 @@ function AdminWorkspace({
       <div className="email-validation ev-public">
         <div className="ev-heading">
           <div>
-            <p className="eyebrow">Kindred Care</p>
+            <p className="eyebrow">CareKoala</p>
             <h1>{text("上門護理查詢", "Home nursing enquiry")}</h1>
             <p>
               {text(
