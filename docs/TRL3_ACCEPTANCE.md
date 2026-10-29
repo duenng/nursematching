@@ -24,7 +24,7 @@
 | F15      | 預留防超賣、只扣一次、24h餘額、≤4h通知一次、0h用完                    | 套餐瀏覽器完整演練                      |
 | F16–F17  | 狀態防呆、假期計價                                                    | 非必要                                  |
 
-登入附加驗證：OAuth state／PKCE／nonce、token 驗簽、到期、名單、CSRF、角色限制、臨床資料投影、登出及獨立執行人紀錄由 `auth*.test.mjs` 驗證；真實 Google 雙帳戶登入待記錄。家屬 `/#enquire` 不需登入、提交不回傳連結或其他個案資料。
+登入附加驗證：OAuth state／PKCE／nonce、token 驗簽、到期、名單、CSRF、角色限制、臨床資料投影、登出及獨立執行人紀錄由 `auth*.test.mjs` 驗證；真實 Google 雙帳戶登入待記錄。家屬 `/#enquire` 不需登入、提交不回傳連結或其他個案資料。程式使用 `report_fps` 命名以兼容舊測試，但 `bank_transfer` 部署中該連結只記錄一般銀行轉帳聲明。
 
 自動測試入口：`npm run test:workflow`（引擎＋HTTP＋人手轉帳回歸）、`npm test`（完整瀏覽器人手轉帳套餐及原有流程）、`npm run build`。測試結果以執行輸出為準。
 
