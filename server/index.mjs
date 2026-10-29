@@ -23,6 +23,7 @@ import { ACTION_LABELS, emailHtml } from "./templates.mjs";
 import { EXPERIMENT_POLICIES } from "./extended-workflow.mjs";
 
 const port = Number(process.env.API_PORT || process.env.PORT || 3000);
+const host = process.env.HOST || "0.0.0.0";
 const mode = process.env.PAYMENT_MODE || "bank_transfer";
 if (!["bank_transfer", "fps_test", "mock", "stripe_test"].includes(mode))
   throw new Error("Unsupported PAYMENT_MODE");
@@ -820,9 +821,9 @@ const server = http.createServer(async (req, res) => {
 for (const mail of workflow.state.emails.filter((x) => x.status === "sending"))
   mail.status = "delivery_unknown";
 workflow.save();
-server.listen(port, () =>
+server.listen(port, host, () =>
   console.log(
-    `TRL 3 workflow server listening on ${port}; email=${mailer ? "SMTP allowlist" : "local inbox"}; payment=${mode}`,
+    `TRL 3 workflow server listening on ${host}:${port}; email=${mailer ? "SMTP allowlist" : "local inbox"}; payment=${mode}`,
   ),
 );
 const interval = setInterval(
