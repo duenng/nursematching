@@ -152,6 +152,7 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
       c = { ...c, schedule: [{ time: "12:00", item: "生命表徵" }] };
     if (input.action === "schedule_edit") {
       expect(input.reason).toBe("家屬更正時間");
+      expect(input.schedule).toEqual([{ time: "13:00", item: "生命表徵" }]);
       c = { ...c, schedule: input.schedule, schedule_status: "PENDING_REVIEW" };
     }
     if (input.action === "nurse") {
@@ -188,12 +189,23 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
     .getByText("Edit schedule (requires reapproval)", { exact: true })
     .click();
   await page.getByRole("button", { name: "Load draft", exact: true }).click();
+  await page.getByLabel("Time 1", { exact: true }).fill("13:00");
   await page
-    .getByLabel("Schedule JSON")
-    .fill(JSON.stringify([{ time: "13:00", item: "生命表徵" }]));
+    .getByRole("checkbox", { name: "As needed (PRN)", exact: true })
+    .check();
+  await expect(page.getByLabel("Time 1", { exact: true })).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: "As needed (PRN)", exact: true })
+    .uncheck();
+  await page.getByLabel("Time 1", { exact: true }).fill("13:00");
+  await expect(page.getByLabel("Care task 1", { exact: true })).toHaveValue(
+    "生命表徵",
+  );
   await page.getByLabel("Review / edit reason").fill("家屬更正時間");
   await page.getByRole("button", { name: "Record edit", exact: true }).click();
-  await expect(page.locator("pre").last()).toContainText("13:00");
+  await expect(
+    page.getByRole("region", { name: "Care schedule", exact: true }),
+  ).toContainText("13:00");
   await expect(
     page.getByRole("link", { name: "Download doctor-order document" }),
   ).toHaveAttribute("href", "/api/doctor-document/DOC-FIXTURE");
@@ -205,7 +217,7 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
   await page
     .getByRole("button", { name: "Confirm senior nurse review", exact: true })
     .click();
-  await expect(page.locator(".ev-state")).toContainText("NURSE_REVIEWED");
+  await expect(page.locator(".ev-state")).toContainText("Nurse reviewed");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
@@ -227,4 +239,78 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
   await expect(page.locator(".sidebar, .topbar, .content-footer")).toHaveCount(
     0,
   );
+});
+
+test("clinical summary handles missing patient details and a confirmed non-doctor service without raw JSON", async ({
+  page,
+}, testInfo) => {
+  await page.route("**/auth/session", (route) =>
+    route.fulfill({ json: session("SENIOR_NURSE") }),
+  );
+  await page.route("**/api/workflow", (route) =>
+    route.fulfill({
+      json: {
+        cases: [
+          {
+            id: "C2026-0001",
+            status: "READY",
+            schedule_status: "CONFIRMED",
+            date: "2026-12-01",
+            start: "10:00",
+            end: "14:00",
+            doctor_order: "NA",
+            services: [
+              {
+                id: "vitals",
+                label: "檢測生命表徵",
+                times: ["12:00"],
+                prn: false,
+              },
+            ],
+            schedule: [{ time: "12:00", item: "檢測生命表徵" }],
+          },
+        ],
+      },
+    }),
+  );
+  await openWorkspace(page);
+  const summary = page.locator(".ev-clinical-case");
+  await expect(summary.getByRole("heading", { level: 2 })).toHaveText(
+    "C2026-0001",
+  );
+  await expect(summary.locator(".ev-state")).toContainText("Ready for service");
+  await expect(summary.locator(".ev-state")).toContainText(
+    "Schedule confirmed",
+  );
+  await expect(summary.locator("pre")).toHaveCount(0);
+  await expect(summary).not.toContainText('"services"');
+  await expect(summary).not.toContainText("Download the uploaded");
+  await expect(summary).toContainText("Not applicable");
+  await expect(summary.locator(".ev-clinical-facts")).toContainText(
+    "10:00 – 14:00",
+  );
+  await page.getByRole("button", { name: "繁中", exact: true }).click();
+  await expect(summary.locator(".ev-state")).toContainText("待服務");
+  await expect(summary.locator(".ev-clinical-facts")).toContainText(
+    "2026年12月1日",
+  );
+  await expect(summary.locator(".ev-clinical-facts")).toContainText("未提供");
+  await page.screenshot({
+    path: testInfo.outputPath("clinical-summary-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(summary.getByRole("heading", { level: 2 })).toBeVisible();
+  await page
+    .locator(".sidebar")
+    .evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page.screenshot({
+    path: testInfo.outputPath("clinical-summary-mobile.png"),
+    fullPage: true,
+  });
 });

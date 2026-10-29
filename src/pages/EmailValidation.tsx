@@ -40,7 +40,13 @@ type Case = {
   nurse_pay_total?: number;
   payment_amount?: number;
   payment_review_status?: string;
-  services?: { label: string; times: string[]; prn: boolean }[];
+  services?: {
+    id?: string;
+    label: string;
+    times: string[];
+    prn: boolean;
+    doctor_order_required?: boolean;
+  }[];
 };
 type Email = {
   id: string;
@@ -2205,11 +2211,12 @@ function AdminWorkspace({
 
 type ClinicalCase = Case & {
   patient_ref?: string;
-  age?: number;
+  age?: number | string;
   gender?: string;
   medical_history?: string;
   remarks?: string;
   doctor_order?: string;
+  doctor_order_status?: string;
   doctor_order_file?: string;
   doctor_document?: {
     id: string;
@@ -2226,7 +2233,9 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
   const text = (zh: string, en: string) => (language === "zh-HK" ? zh : en);
   const [cases, setCases] = useState<ClinicalCase[]>([]);
   const [selected, setSelected] = useState("");
-  const [schedule, setSchedule] = useState("");
+  const [schedule, setSchedule] = useState<{ time: string; item: string }[]>(
+    [],
+  );
   const [reason, setReason] = useState("");
   const [documentVerified, setDocumentVerified] = useState("");
   const [error, setError] = useState("");
@@ -2262,9 +2271,7 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
           reason,
           document_id: c.doctor_document?.id,
           document_verified: documentVerified === c.doctor_document?.id,
-          ...(action === "schedule_edit"
-            ? { schedule: JSON.parse(schedule) }
-            : {}),
+          ...(action === "schedule_edit" ? { schedule } : {}),
         }),
       });
       const data = await r.json();
@@ -2281,12 +2288,60 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
     }
   }
   const canReview = !!c && ["PAID", "POSTED", "MATCHED"].includes(c.status);
+  const missing = text("未提供", "Not provided");
+  const caseStatus = (value: string) =>
+    language === "zh-HK"
+      ? status[value] || text("待確認", "To confirm")
+      : {
+          PAID: "Paid",
+          POSTED: "Open for matching",
+          MATCHED: "Nurse matched",
+          READY: "Ready for service",
+          IN_SERVICE: "In service",
+          DONE: "Completed",
+          MANUAL: "Manual review",
+          CANCELLED: "Cancelled",
+        }[value] || "To confirm";
+  const scheduleStatus = (value: string) =>
+    ({
+      PENDING_REVIEW: text("待護士覆核", "Awaiting nurse review"),
+      NURSE_REVIEWED: text("護士已覆核", "Nurse reviewed"),
+      CONFIRMED: text("已確認時間表", "Schedule confirmed"),
+    })[value] || text("待確認", "To confirm");
+  const doctorStatus = (value?: string) =>
+    ({
+      NA: text("不適用", "Not applicable"),
+      YES: text(
+        "家屬表示已有，待核對",
+        "Reported available; verification required",
+      ),
+      NO: text("暫未有醫生指示", "Not yet available"),
+      UNSURE: text("家屬未能確認", "Unconfirmed"),
+      VERIFIED: text("已核對", "Verified"),
+    })[value || ""] || missing;
+  const dateLabel =
+    c?.date && /^\d{4}-\d{2}-\d{2}$/.test(c.date)
+      ? new Intl.DateTimeFormat(language, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          timeZone: "Asia/Hong_Kong",
+        }).format(new Date(`${c.date}T12:00:00+08:00`))
+      : missing;
+  const needsDoctorOrder =
+    !!c?.doctor_document ||
+    c?.services?.some(
+      (service) =>
+        service.doctor_order_required ||
+        catalog.find((item) => item.id === service.id)?.doctor_order_required,
+    ) ||
+    (c?.doctor_order && c.doctor_order !== "NA");
   return (
     <div className="email-validation">
       <div className="ev-heading">
         <div>
           <p className="eyebrow">
-            TRL 3 · {text("資深護士覆核", "Clinical review")}
+            CareKoala · {text("資深護士覆核", "Clinical review")}
           </p>
           <h1>{text("護理時間表覆核", "Care schedule review")}</h1>
           <p>
@@ -2302,136 +2357,249 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
           {error}
         </p>
       )}
-      <button
-        className="button secondary"
-        onClick={() => void refresh().catch((e) => setError(e.message))}
-      >
-        {text("重新整理", "Refresh")}
-      </button>
-      <label>
-        {text("選擇覆核個案", "Select clinical case")}
-        <select
-          value={c?.id || ""}
-          onChange={(e) => {
-            setSelected(e.target.value);
-            setSchedule("");
-            setReason("");
-          }}
+      <div className="ev-clinical-toolbar">
+        <button
+          className="button secondary"
+          onClick={() => void refresh().catch((e) => setError(e.message))}
         >
-          {!c && <option value="">{text("暫未有個案", "No cases yet")}</option>}
-          {cases.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.id} · {c.status} · {c.schedule_status}
-            </option>
-          ))}
-        </select>
-      </label>
+          {text("重新整理", "Refresh")}
+        </button>
+        <label>
+          {text("選擇覆核個案", "Select clinical case")}
+          <select
+            value={c?.id || ""}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              setSchedule([]);
+              setReason("");
+              setDocumentVerified("");
+            }}
+          >
+            {!c && (
+              <option value="">{text("暫未有個案", "No cases yet")}</option>
+            )}
+            {cases.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.id} · {caseStatus(c.status)} ·{" "}
+                {scheduleStatus(c.schedule_status)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {c && (
-        <section className="panel ev-panel">
-          <h2>
-            {c.id} · {c.patient_ref}
-          </h2>
-          <div className="ev-state">
-            <strong>{c.status}</strong>
-            <span>{c.schedule_status}</span>
-          </div>
-          <p>
-            {c.date} {c.start}–{c.end} · {text("年齡", "Age")} {c.age ?? "—"} ·{" "}
-            {c.gender}
-          </p>
-          <pre>
-            {JSON.stringify(
-              {
-                patient_ref: c.patient_ref,
-                services: c.services,
-                medical_history: c.medical_history,
-                remarks: c.remarks,
-                doctor_order: c.doctor_order,
-                doctor_order_file: c.doctor_order_file,
-              },
-              null,
-              2,
-            )}
-          </pre>
-          <p>
-            {text(
-              "請下載及檢閱家屬上載嘅醫生指示文件。系統記錄文件版本，內容必須由護士核對。",
-              "Download and review the uploaded doctor-order document. The system records the file version; a nurse must verify its contents.",
-            )}
-          </p>
-          {c.doctor_document && (
-            <div className="ev-gates">
-              <strong>
-                {text("醫生指示文件版本", "Doctor-order document version")}
-              </strong>
-              <span>{c.doctor_document.id}</span>
-              <span>SHA-256: {c.doctor_document.sha256}</span>
-              <a
-                className="button secondary"
-                href={`/api/doctor-document/${c.doctor_document.id}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {text("下載醫生指示文件", "Download doctor-order document")}
-              </a>
-              <label className="ev-check">
-                <input
-                  type="checkbox"
-                  checked={documentVerified === c.doctor_document.id}
-                  onChange={(e) =>
-                    setDocumentVerified(
-                      e.target.checked ? c.doctor_document!.id : "",
-                    )
-                  }
-                />
-                {text(
-                  "已檢閱此版本文件並核對醫生指示",
-                  "I reviewed this document version and verified the doctor order",
-                )}
-              </label>
+        <section className="panel ev-panel ev-clinical-case">
+          <div className="ev-clinical-title">
+            <div>
+              <p className="eyebrow">{text("個案", "Case")}</p>
+              <h2>{c.id}</h2>
             </div>
-          )}
-          {c.schedule && (
-            <pre>{c.schedule.map((r) => `${r.time} ${r.item}`).join("\n")}</pre>
-          )}
-          <label>
-            {text("覆核／修改原因", "Review / edit reason")}
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </label>
-          <div className="ev-actions">
-            <button
-              className="button secondary"
-              disabled={busy || !canReview || !!c.schedule}
-              onClick={() => void act("draft")}
-            >
-              {text("產生規則草稿", "Generate rules draft")}
-            </button>
-            <button
-              className="button primary"
-              disabled={
-                busy ||
-                !canReview ||
-                !c.schedule ||
-                c.schedule_status !== "PENDING_REVIEW"
-              }
-              onClick={() => void act("nurse")}
-            >
-              {text("確認資深護士覆核", "Confirm senior nurse review")}
-            </button>
-            <button
-              className="button secondary"
-              disabled={busy || !canReview || !reason.trim()}
-              onClick={() => void act("doctor_failed")}
-            >
-              {text(
-                "醫生指示核對失敗，交人手",
-                "Doctor order failed; manual review",
-              )}
-            </button>
+            <div className="ev-state">
+              <strong>{caseStatus(c.status)}</strong>
+              <span>{scheduleStatus(c.schedule_status)}</span>
+            </div>
           </div>
+          <dl className="ev-clinical-facts">
+            <div>
+              <dt>{text("服務日期", "Service date")}</dt>
+              <dd>{dateLabel}</dd>
+            </div>
+            <div>
+              <dt>{text("服務時間（香港時間）", "Service time (HKT)")}</dt>
+              <dd>{c.start && c.end ? `${c.start} – ${c.end}` : missing}</dd>
+            </div>
+            <div>
+              <dt>{text("病人代號", "Patient reference")}</dt>
+              <dd>{c.patient_ref || missing}</dd>
+            </div>
+            <div>
+              <dt>{text("年齡", "Age")}</dt>
+              <dd>
+                {c.age != null && c.age !== ""
+                  ? `${c.age}${text(" 歲", " years")}`
+                  : missing}
+              </dd>
+            </div>
+            <div>
+              <dt>{text("性別", "Gender")}</dt>
+              <dd>
+                {c.gender === "M"
+                  ? text("男", "Male")
+                  : c.gender === "F"
+                    ? text("女", "Female")
+                    : missing}
+              </dd>
+            </div>
+          </dl>
+          <section
+            className="ev-clinical-section"
+            aria-label={text("護理項目", "Care tasks")}
+          >
+            <h3>{text("護理項目", "Care tasks")}</h3>
+            {c.services?.length ? (
+              <ul className="ev-clinical-services">
+                {c.services.map((service, index) => (
+                  <li key={`${service.id || service.label}-${index}`}>
+                    <strong>{service.label}</strong>
+                    <span>
+                      {service.prn
+                        ? text("按需要（PRN）", "As needed (PRN)")
+                        : service.times?.length
+                          ? service.times.join(" · ")
+                          : text("時間待確認", "Time to confirm")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>{missing}</p>
+            )}
+          </section>
+          <div className="ev-clinical-notes">
+            <section>
+              <h3>{text("病史", "Medical history")}</h3>
+              <p>{c.medical_history?.trim() || missing}</p>
+            </section>
+            <section>
+              <h3>{text("補充資料", "Additional notes")}</h3>
+              <p>{c.remarks?.trim() || missing}</p>
+            </section>
+          </div>
+          <section className="ev-clinical-section">
+            <h3>{text("醫生指示", "Doctor order")}</h3>
+            <p>
+              {doctorStatus(
+                c.doctor_order_status === "VERIFIED"
+                  ? "VERIFIED"
+                  : c.doctor_order,
+              )}
+            </p>
+            {c.doctor_order_file && (
+              <p>
+                {text("文件參考", "Document reference")}: {c.doctor_order_file}
+              </p>
+            )}
+            {needsDoctorOrder && (
+              <p>
+                {text(
+                  c.doctor_document
+                    ? "請下載及檢閱家屬上載嘅文件，確認內容符合醫生指示。"
+                    : "此個案需要醫生指示，尚未收到上載文件，請跟進。",
+                  c.doctor_document
+                    ? "Download the uploaded document and verify its contents against the doctor order."
+                    : "This case requires a doctor order. No uploaded document is available; follow up before review.",
+                )}
+              </p>
+            )}
+            {c.doctor_document && (
+              <div className="ev-gates">
+                <strong>
+                  {text("醫生指示文件版本", "Doctor-order document version")}
+                </strong>
+                <details>
+                  <summary>
+                    {text("查看文件版本資料", "View document version details")}
+                  </summary>
+                  <p>{c.doctor_document.id}</p>
+                  <p>SHA-256: {c.doctor_document.sha256}</p>
+                </details>
+                <a
+                  className="button secondary"
+                  href={`/api/doctor-document/${c.doctor_document.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {text("下載醫生指示文件", "Download doctor-order document")}
+                </a>
+                <label className="ev-check">
+                  <input
+                    type="checkbox"
+                    checked={documentVerified === c.doctor_document.id}
+                    onChange={(e) =>
+                      setDocumentVerified(
+                        e.target.checked ? c.doctor_document!.id : "",
+                      )
+                    }
+                  />
+                  {text(
+                    "已檢閱此版本文件並核對醫生指示",
+                    "I reviewed this document version and verified the doctor order",
+                  )}
+                </label>
+              </div>
+            )}
+          </section>
+          <section
+            className="ev-clinical-section"
+            aria-label={text("護理時間表", "Care schedule")}
+          >
+            <h3>{text("護理時間表", "Care schedule")}</h3>
+            {c.schedule?.length ? (
+              <div className="ev-clinical-schedule">
+                {c.schedule.map((row, index) => (
+                  <div key={index}>
+                    <time>
+                      {row.time === "PRN"
+                        ? text("按需要", "As needed")
+                        : row.time}
+                    </time>
+                    <span>{row.item}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>
+                {text(
+                  "尚未建立時間表，請先產生草稿。",
+                  "No schedule yet. Generate a draft to begin.",
+                )}
+              </p>
+            )}
+          </section>
+          {canReview && (
+            <>
+              <label>
+                {text("覆核／修改原因", "Review / edit reason")}
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </label>
+              <div className="ev-actions">
+                <button
+                  className="button secondary"
+                  disabled={busy || !canReview || !!c.schedule}
+                  onClick={() => void act("draft")}
+                >
+                  {text("產生規則草稿", "Generate rules draft")}
+                </button>
+                <button
+                  className="button primary"
+                  disabled={
+                    busy ||
+                    !canReview ||
+                    !c.schedule ||
+                    c.schedule_status !== "PENDING_REVIEW"
+                  }
+                  onClick={() => void act("nurse")}
+                >
+                  {text("確認資深護士覆核", "Confirm senior nurse review")}
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={
+                    busy || !canReview || !needsDoctorOrder || !reason.trim()
+                  }
+                  onClick={() => void act("doctor_failed")}
+                >
+                  {text(
+                    "醫生指示核對失敗，交人手",
+                    "Doctor order failed; manual review",
+                  )}
+                </button>
+              </div>
+            </>
+          )}
           {c.schedule && canReview && (
             <details className="ev-admin">
               <summary>
@@ -2442,20 +2610,100 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
               </summary>
               <button
                 className="button secondary"
-                onClick={() => setSchedule(JSON.stringify(c.schedule, null, 2))}
+                onClick={() =>
+                  setSchedule(c.schedule!.map((row) => ({ ...row })))
+                }
               >
                 {text("載入現有草稿", "Load draft")}
               </button>
-              <label>
-                {text("時間表 JSON", "Schedule JSON")}
-                <textarea
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                />
-              </label>
+              {schedule.map((row, index) => (
+                <div className="ev-clinical-edit-row" key={index}>
+                  <label>
+                    {text("時間", "Time")} {index + 1}
+                    <input
+                      type="time"
+                      disabled={row.time === "PRN"}
+                      value={row.time === "PRN" ? "" : row.time}
+                      onChange={(e) =>
+                        setSchedule(
+                          schedule.map((item, i) =>
+                            i === index
+                              ? { ...item, time: e.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    {text("護理項目", "Care task")} {index + 1}
+                    <select
+                      aria-label={`${text("護理項目", "Care task")} ${index + 1}`}
+                      value={row.item}
+                      onChange={(e) =>
+                        setSchedule(
+                          schedule.map((item, i) =>
+                            i === index
+                              ? { ...item, item: e.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="">{text("請選擇", "Select")}</option>
+                      {c.services?.map((service) => (
+                        <option key={service.label} value={service.label}>
+                          {service.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="ev-check">
+                    <input
+                      type="checkbox"
+                      checked={row.time === "PRN"}
+                      onChange={(e) =>
+                        setSchedule(
+                          schedule.map((item, i) =>
+                            i === index
+                              ? { ...item, time: e.target.checked ? "PRN" : "" }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                    {text("按需要（PRN）", "As needed (PRN)")}
+                  </label>
+                  <button
+                    className="button secondary"
+                    aria-label={text(
+                      `移除項目 ${index + 1}`,
+                      `Remove task ${index + 1}`,
+                    )}
+                    onClick={() =>
+                      setSchedule(schedule.filter((_, i) => i !== index))
+                    }
+                  >
+                    {text("移除", "Remove")}
+                  </button>
+                </div>
+              ))}
               <button
                 className="button secondary"
-                disabled={busy || !reason.trim()}
+                onClick={() =>
+                  setSchedule([...schedule, { time: "", item: "" }])
+                }
+              >
+                {text("新增項目", "Add task")}
+              </button>
+              <button
+                className="button secondary"
+                disabled={
+                  busy ||
+                  !reason.trim() ||
+                  !schedule.length ||
+                  schedule.some((row) => !row.time || !row.item.trim())
+                }
                 onClick={() => void act("schedule_edit")}
               >
                 {text("記錄修改", "Record edit")}
