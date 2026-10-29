@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-const api = spawn(process.execPath, ["server/index.mjs"], {
+const api = spawn(process.execPath, ["--experimental-sqlite", "server/index.mjs"], {
   stdio: "inherit",
   env: { ...process.env, API_PORT: process.env.API_PORT || "3001" },
 });

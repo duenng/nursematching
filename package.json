@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "start": "node --experimental-sqlite --env-file-if-exists=.env server/index.mjs",
     "dev": "node --env-file-if-exists=.env scripts/dev.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "playwright test",
     "format": "prettier --write src tests server scripts *.ts *.json *.html docs/*.md README.md",
-    "test:workflow": "node --test server/*.test.mjs"
+    "test:workflow": "node --experimental-sqlite --test server/*.test.mjs"
   },
   "dependencies": {
     "busboy": "^1.6.0",
