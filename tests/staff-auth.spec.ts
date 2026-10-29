@@ -15,10 +15,12 @@ async function openWorkspace(page: import("@playwright/test").Page) {
   await page.addInitScript(() =>
     localStorage.setItem("kindred-language", "en"),
   );
-  await page.goto("/#staff");
+  await page.goto("/");
   await page
-    .getByRole("button", { name: "Email validation", exact: true })
+    .getByRole("button", { name: "Staff sign in", exact: true })
+    .first()
     .click();
+  await expect(page).toHaveURL(/#staff\/email$/);
 }
 
 test("logged-out Google mode shows staff sign-in and does not fetch workflow data", async ({

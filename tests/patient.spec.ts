@@ -98,7 +98,7 @@ test("patient approval and change requests flow through staff revision and patie
     "Confirmed",
   );
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Explore the staff demo" }).click();
+  await page.goto("/#staff");
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "Care schedule", exact: true })
@@ -164,7 +164,7 @@ test("patient corrections require fresh care-team review and questions reach the
   await dialog.getByRole("button", { name: "Save my question" }).click();
   await expect(dialog).toContainText("no message has been sent");
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Explore the staff demo" }).click();
+  await page.goto("/#staff");
   await expect(page.locator(".activity-list")).toContainText(
     "Patient has a question",
   );

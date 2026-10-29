@@ -113,7 +113,6 @@ Use free-text enquiry|使用自由文字查詢
 Quote preview|報價預覽
 Quotation|報價
 Materials and tools are supplied by the client. Remote travel allowance is paid by the platform, not added to your quote.|工具及物料由客人自備。偏遠交通津貼由平台支付，不會加在客人報價內。
-Frontend prototype|前端示範版本
 All cases|所有個案
 This week|本週
 Good morning|早晨
@@ -728,7 +727,7 @@ Your care provider is confirmed|已確認你的護理人員
 Your care is underway|你的護理服務進行中
 Your care is complete|你的護理服務已完成
 Thoughtful home care, across Hong Kong.|用心上門照顧，服務遍及香港。
-Explore the staff demo|探索職員示範介面
+Staff sign in|職員登入
 Patient navigation|服務對象選單
 Home|首頁
 Our services|我們的服務
@@ -827,8 +826,6 @@ Common questions|常見問題
 Your care journey|你的護理旅程
 Start an enquiry|開始查詢
 My care & schedule|我的護理及日程
-Staff demo workspace|職員示範工作區
-CareKoala · Frontend prototype|CareKoala · 前端示範版本
 Not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.|本網站無人監察緊急求助。如在香港遇到緊急情況，請致電 999。
 Time change requested · awaiting the team|已要求更改時間 · 等候團隊處理
 Review visit|核對到訪

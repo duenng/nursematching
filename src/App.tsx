@@ -399,7 +399,7 @@ function Shell() {
               {t("Hong Kong")} <span className="footer-dot">·</span>{" "}
               {t("All times in HKT (UTC+8)")}
               <span className="footer-dot">·</span>
-              {t("Frontend prototype")}
+              CareKoala
             </span>
           </footer>
         </main>

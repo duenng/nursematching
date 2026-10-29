@@ -58,8 +58,7 @@ export function patientStatus(c: CareCase) {
 export function PatientPortal() {
   const { t, language } = useLocale();
 
-  const { data, setModal, switchView, notification, patientClientId } =
-    useApp();
+  const { data, setModal, notification, patientClientId } = useApp();
   const [section, setSection] = useState(
     window.location.hash.includes("/care") ? "care" : "home",
   );
@@ -105,8 +104,8 @@ export function PatientPortal() {
           <a href="/#enquire">
             {language === "zh-HK" ? "護理查詢" : "Care enquiry"}
           </a>
-          <button onClick={() => switchView("staff")}>
-            {t("Explore the staff demo")} <ArrowRight size={12} />
+          <button onClick={() => (window.location.hash = "staff/email")}>
+            {t("Staff sign in")} <ArrowRight size={12} />
           </button>
         </div>
       </div>
@@ -649,13 +648,13 @@ export function PatientPortal() {
               <button onClick={() => go("care")}>
                 {t("My care & schedule")}
               </button>
-              <button onClick={() => switchView("staff")}>
-                {t("Staff demo workspace")} <ArrowRight size={12} />
+              <button onClick={() => (window.location.hash = "staff/email")}>
+                {t("Staff sign in")} <ArrowRight size={12} />
               </button>
             </div>
           </div>
           <div className="patient-footer-bottom">
-            <span>{t("CareKoala · Frontend prototype")}</span>
+            <span>{t("CareKoala · Hong Kong")}</span>
             <span>
               {t(
                 "Not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.",

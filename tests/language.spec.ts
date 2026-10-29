@@ -23,7 +23,7 @@ test("Traditional Chinese is the default and language selection persists across 
   await expect(
     page.getByRole("button", { name: "EN", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Explore the staff demo" }).click();
+  await page.goto("/#staff");
   await expect(page.getByLabel("Search workspace")).toBeVisible();
   await page.getByRole("button", { name: "繁中", exact: true }).click();
   await expect(page.getByLabel("搜尋工作區")).toBeVisible();
@@ -125,7 +125,7 @@ test("switching languages preserves expanded services and mobile pages fit the s
     ),
   ).toBe(true);
   await page.getByRole("button", { name: "關閉對話框" }).click();
-  await page.getByRole("button", { name: "探索職員示範介面" }).click();
+  await page.goto("/#staff");
   await expect(
     page.getByRole("button", { name: "EN", exact: true }),
   ).toBeVisible();
