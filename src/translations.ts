@@ -35,7 +35,7 @@ Ready for service|待服務
 Full refund|全額退款
 Partial refund|扣費退款
 Cancelled|已取消
-CareKoala home|CareKoala 首頁
+CareKnock home|CareKnock 首頁
 Care coordination|護理協調
 Hong Kong workspace|香港工作區
 Main navigation|主選單
@@ -483,7 +483,7 @@ Competencies & approved categories|技能及核准類別
 This is a fictional profile. Real registration details, identity checks, competency verification and explicit availability are required before any live assignment.|此為虛構檔案。實際委派前，必須核實註冊資料、身分、技能及可服務時間。
 Sensitive registration details are never broadcast.|廣播不會包含敏感註冊資料。
 Care, connected. One step at a time.|連繫關懷，一步一步同行。
-WELCOME TO CAREKOALA|歡迎來到 CAREKOALA
+WELCOME TO CAREKNOCK|歡迎來到 CAREKNOCK
 An interactive frontend prototype for home nursing navigation and coordination in Hong Kong.|香港上門護理導航及協調互動示範網站。
 Start with an enquiry|從查詢開始
 Enter a message in English or Traditional Chinese. Review extracted fields and keep unknown details unconfirmed.|以繁體中文或英文輸入訊息，核對整理結果，未知資料保留為待確認。
@@ -686,7 +686,7 @@ A WORKSPACE THAT WORKS FOR YOU.|配合你需要的工作區。
 A clear view of what’s connected, what’s local, and what comes next.|清楚掌握已連接功能、本機資料及下一步安排。
 Workspace details|工作區詳情
 Home-care navigation & coordination|上門護理導航及協調
-CareKoala · Hong Kong|CareKoala · 香港
+CareKnock · Hong Kong|CareKnock · 香港
 Time zone|時區
 All scheduled visits use local care-team time|所有到訪均使用護理團隊本地時間
 Asia/Hong_Kong · UTC+8|香港時間 · UTC+8

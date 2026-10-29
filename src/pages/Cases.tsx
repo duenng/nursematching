@@ -204,7 +204,7 @@ function downloadCases(cases: CareCase[]) {
   );
   const a = document.createElement("a");
   a.href = url;
-  a.download = `carekoala-records-${today()}.csv`;
+  a.download = `careknock-records-${today()}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

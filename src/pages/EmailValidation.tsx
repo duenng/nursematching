@@ -959,7 +959,7 @@ function AdminWorkspace({
       <div className="email-validation ev-public">
         <div className="ev-heading">
           <div>
-            <p className="eyebrow">CareKoala</p>
+            <p className="eyebrow">CareKnock</p>
             <h1>{text("上門護理查詢", "Home nursing enquiry")}</h1>
             <p>
               {text(
@@ -2341,7 +2341,7 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
       <div className="ev-heading">
         <div>
           <p className="eyebrow">
-            CareKoala · {text("資深護士覆核", "Clinical review")}
+            CareKnock · {text("資深護士覆核", "Clinical review")}
           </p>
           <h1>{text("護理時間表覆核", "Care schedule review")}</h1>
           <p>

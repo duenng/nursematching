@@ -81,15 +81,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = language;
     document.title =
       language === "zh-HK"
-        ? "CareKoala · 連繫每一份關懷"
-        : "CareKoala · Care, connected.";
+        ? "CareKnock · 連繫每一份關懷"
+        : "CareKnock · Care, connected.";
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute(
         "content",
         language === "zh-HK"
-          ? "CareKoala — 香港上門護理導航、陪診支援及護理協調。"
-          : "CareKoala — a thoughtful home for home-care coordination in Hong Kong.",
+          ? "CareKnock — 香港上門護理導航、陪診支援及護理協調。"
+          : "CareKnock — a thoughtful home for home-care coordination in Hong Kong.",
       );
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, language);

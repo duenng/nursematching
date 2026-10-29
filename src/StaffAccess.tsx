@@ -147,8 +147,8 @@ export function StaffAccess({ children }: { children: ReactNode }) {
           <>
             <p>
               {text(
-                "請使用獲准嘅職員帳戶登入 CareKoala。",
-                "Sign in to CareKoala with an approved staff account.",
+                "請使用獲准嘅職員帳戶登入 CareKnock。",
+                "Sign in to CareKnock with an approved staff account.",
               )}
             </p>
             {session?.mode === "google" && (

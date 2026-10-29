@@ -550,7 +550,7 @@ export function SettingsPage() {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `carekoala-demo-${today()}.json`;
+    a.download = `careknock-demo-${today()}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast("Demo workspace backup downloaded.");
@@ -589,7 +589,7 @@ export function SettingsPage() {
               <strong>{t("Workspace")}</strong>
               <small>{t("Home-care navigation & coordination")}</small>
             </span>
-            <span>{t("CareKoala · Hong Kong")}</span>
+            <span>{t("CareKnock · Hong Kong")}</span>
           </div>
           <div className="settings-row">
             <span>

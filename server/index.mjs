@@ -122,7 +122,7 @@ const escape = (s) =>
   );
 const names = ACTION_LABELS;
 const html = (title, body) =>
-  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKoala</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKoala · TRL 3</small><h1>${escape(title)}</h1>${body}<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p></main></html>`;
+  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKnock · TRL 3</small><h1>${escape(title)}</h1>${body}<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p></main></html>`;
 function reply(res, status, body, type = "application/json") {
   res.writeHead(status, {
     "Content-Type": `${type}; charset=utf-8`,
@@ -324,7 +324,7 @@ async function integrations() {
             mail.links
               .map((l) => `${names[l.label] || l.label}: ${l.url}`)
               .join("\n"),
-          messageId: `<${mail.id}@carekoala.local>`,
+          messageId: `<${mail.id}@careknock.local>`,
         });
         mail.status = "sent";
         mail.provider_id = info.messageId;
