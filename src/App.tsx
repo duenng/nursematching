@@ -54,6 +54,7 @@ import { Modals } from "./Modals";
 import { CareIllustration } from "./CareIllustration";
 import { EmailValidation, PublicEmailEnquiry } from "./pages/EmailValidation";
 import { PatientPortal } from "./pages/Patient";
+import { StaffAccess } from "./StaffAccess";
 
 const navItems: { label: Page; icon: LucideIcon; group: string }[] = [
   { label: "Overview", icon: LayoutDashboard, group: "WORKSPACE" },
@@ -1089,5 +1090,11 @@ function PortalView() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   if (publicEnquiry) return <PublicEmailEnquiry />;
-  return view === "staff" ? <Shell /> : <PatientPortal />;
+  return view === "staff" ? (
+    <StaffAccess>
+      <Shell />
+    </StaffAccess>
+  ) : (
+    <PatientPortal />
+  );
 }

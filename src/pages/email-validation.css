@@ -3,6 +3,34 @@
   margin: auto;
   color: var(--text, #30283a);
 }
+.staff-access {
+  width: min(620px, 100%);
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+.staff-access-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+.staff-access .ev-panel {
+  padding: 28px;
+  overflow-wrap: anywhere;
+}
+.staff-access .brand {
+  font-size: 28px;
+}
+.staff-access form {
+  display: grid;
+  gap: 16px;
+}
+.staff-access label {
+  display: grid;
+  gap: 8px;
+}
 .ev-heading {
   display: flex;
   justify-content: space-between;

@@ -8,6 +8,8 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import { useLocale } from "../i18n";
+import { useStaffAccess } from "../StaffAccess";
+import type { StaffSession } from "../StaffAccess";
 import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
 
@@ -2201,18 +2203,6 @@ function AdminWorkspace({
   );
 }
 
-type StaffSession = {
-  id: string;
-  email?: string;
-  role: "ADMIN" | "SENIOR_NURSE";
-  method: "google" | "shared_key" | "loopback";
-  csrf?: string;
-};
-type SessionInfo = {
-  mode: "google" | "local";
-  user: StaffSession | null;
-  login_url: string | null;
-};
 type ClinicalCase = Case & {
   patient_ref?: string;
   age?: number;
@@ -2485,78 +2475,7 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
 export function EmailValidation() {
   const { language } = useLocale();
   const text = (zh: string, en: string) => (language === "zh-HK" ? zh : en);
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [error, setError] = useState("");
-  async function load() {
-    const r = await fetch("/auth/session");
-    if (!r.ok)
-      throw new Error(
-        text(
-          "登入服務未能連線，請啟動 API 伺服器。",
-          "Cannot reach login service. Start the API server.",
-        ),
-      );
-    setSession(await r.json());
-  }
-  useEffect(() => {
-    void load().catch((e) => setError(e.message));
-    const expired = () => {
-      setSession(null);
-      void load().catch((e) => setError(e.message));
-    };
-    window.addEventListener("staff-session-expired", expired);
-    return () => window.removeEventListener("staff-session-expired", expired);
-  }, []);
-  async function logout() {
-    try {
-      const r = await fetch("/auth/logout", {
-        method: "POST",
-        headers: { "X-CSRF-Token": session?.user?.csrf || "" },
-      });
-      if (!r.ok)
-        throw new Error(
-          text(
-            "登出失敗，請重新整理。",
-            "Logout failed. Refresh and try again.",
-          ),
-        );
-      setSession(null);
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-  if (!session || (session.mode === "google" && !session.user))
-    return (
-      <section className="email-validation panel ev-panel">
-        <LockKeyhole size={28} />
-        <h1>{text("職員登入", "Staff sign in")}</h1>
-        <p>
-          {text(
-            "使用獲准嘅 Google／Workspace 職員帳戶進入電郵流程驗證台。",
-            "Use an approved Google / Workspace staff account to enter the email validation workspace.",
-          )}
-        </p>
-        {error && (
-          <p role="alert" className="ev-error">
-            {error}
-          </p>
-        )}
-        {session?.login_url && (
-          <a className="button primary" href={session.login_url}>
-            {text("使用 Google 登入", "Sign in with Google")}
-          </a>
-        )}
-        {!session && (
-          <button
-            className="button secondary"
-            onClick={() => void load().catch((e) => setError(e.message))}
-          >
-            {text("重新連線", "Retry connection")}
-          </button>
-        )}
-      </section>
-    );
+  const { session, logout, error } = useStaffAccess();
   return (
     <>
       <div className="email-validation ev-auth-bar">

@@ -39,6 +39,20 @@ test("logged-out Google mode shows staff sign-in and does not fetch workflow dat
     page.getByRole("link", { name: "Sign in with Google" }),
   ).toHaveAttribute("href", "/auth/google");
   await expect(page.getByLabel("Admin key")).toHaveCount(0);
+  await expect(page.locator(".sidebar, .topbar, .content-footer")).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("Search workspace")).toHaveCount(0);
+  await expect(page.getByText("Mr. Chan", { exact: true })).toHaveCount(0);
+  expect(workflowReads).toBe(0);
+  for (const hash of ["#staff", "#staff/requests", "#staff/email"]) {
+    await page.goto("/" + hash);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Staff sign in" }),
+    ).toBeVisible();
+    await expect(page.locator(".sidebar, .topbar")).toHaveCount(0);
+  }
   expect(workflowReads).toBe(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
@@ -46,6 +60,56 @@ test("logged-out Google mode shows staff sign-in and does not fetch workflow dat
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBeTruthy();
+});
+
+test("staff shell stays unmounted while checking access and after a session failure", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/auth/session", async (route) => {
+    await pending;
+    await route.fulfill({ status: 503, json: { error: "Unavailable" } });
+  });
+  await page.goto("/#staff");
+  await expect(page.getByRole("status")).toContainText("Checking staff access");
+  await expect(page.locator(".sidebar, .topbar")).toHaveCount(0);
+  release();
+  await expect(page.getByRole("alert")).toContainText(
+    "Cannot verify staff session",
+  );
+  await expect(page.locator(".sidebar, .topbar")).toHaveCount(0);
+});
+
+test("a revoked session removes the entire staff shell on revalidation", async ({
+  page,
+}) => {
+  let signedIn = true;
+  await page.route("**/auth/session", (route) =>
+    route.fulfill({
+      json: signedIn
+        ? session("ADMIN")
+        : { mode: "google", user: null, login_url: "/auth/google" },
+    }),
+  );
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
+  await page.goto("/#staff");
+  await expect(page.locator(".sidebar")).toBeVisible();
+  signedIn = false;
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event("staff-session-expired")),
+  );
+  await expect(
+    page.getByRole("heading", { name: "Staff sign in" }),
+  ).toBeVisible();
+  await expect(page.locator(".sidebar, .topbar")).toHaveCount(0);
 });
 
 test("senior nurse worklist supports draft, edit, review and logout without finance or family links", async ({
@@ -160,4 +224,7 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
     page.getByRole("heading", { name: "Staff sign in" }),
   ).toBeVisible();
   await expect(page.getByText("虛構病史", { exact: false })).toHaveCount(0);
+  await expect(page.locator(".sidebar, .topbar, .content-footer")).toHaveCount(
+    0,
+  );
 });
