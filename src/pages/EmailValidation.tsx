@@ -18,6 +18,7 @@ type Case = {
   email: string;
   status: string;
   manual_reason?: string;
+  red_flag?: boolean;
   date: string;
   start: string;
   end: string;
@@ -329,6 +330,7 @@ function AdminWorkspace({
     URL.revokeObjectURL(url);
   }
   const [adminReason, setAdminReason] = useState("");
+  const [redFlagResolution, setRedFlagResolution] = useState("");
   const [fps, setFps] = useState({
     submission_id: "",
     bank_reference: "",
@@ -367,6 +369,8 @@ function AdminWorkspace({
         action,
         reason: adminReason,
         tier: remoteTier,
+        red_flag_resolved: redFlagResolution.trim().length >= 10,
+        red_flag_resolution: redFlagResolution,
         ...(action === "schedule_edit"
           ? { schedule: JSON.parse(scheduleEdit) }
           : {}),
@@ -1491,6 +1495,19 @@ function AdminWorkspace({
                       onChange={(e) => setAdminReason(e.target.value)}
                     />
                   </label>
+                  {c.red_flag && (
+                    <label>
+                      {text(
+                        "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
+                        "Red-flag resolution / referral (at least 10 characters; required before quoting)",
+                      )}
+                      <textarea
+                        value={redFlagResolution}
+                        onChange={(e) => setRedFlagResolution(e.target.value)}
+                        minLength={10}
+                      />
+                    </label>
+                  )}
                   <label>
                     {text(
                       "偏遠分類（只影響護士交通津貼）",

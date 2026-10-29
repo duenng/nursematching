@@ -195,6 +195,11 @@ class BaseWorkflow {
     this.event("email.queued", c, { template_id });
   }
   token(c, actor, action, ref) {
+    const serviceStart = Date.parse(`${c.date}T${c.start}:00+08:00`);
+    const genericExpiry = Math.max(
+      this.now() + 7 * 86400000,
+      Date.parse(`${c.date}T23:59:00+08:00`) + 7 * 86400000,
+    );
     const t = {
       token: randomBytes(24).toString("hex"),
       case_id: c.id,
@@ -204,10 +209,9 @@ class BaseWorkflow {
       quote_version: c.quote_version,
       created_at: this.stamp(),
       expires_at: new Date(
-        Math.max(
-          this.now() + 7 * 86400000,
-          Date.parse(`${c.date}T23:59:00+08:00`) + 7 * 86400000,
-        ),
+        action === "take_case" && Number.isFinite(serviceStart)
+          ? serviceStart
+          : genericExpiry,
       ).toISOString(),
     };
     this.state.tokens.push(t);
@@ -378,8 +382,9 @@ class BaseWorkflow {
       const quote = price(c, this.state.settings);
       const risk =
         /胸口痛|胸痛|氣促|呼吸困難|昏迷|叫唔醒|抽筋|中風|大量出血|流血唔止|高燒|自殺|跌親撞頭|流膿|流緊膿|胰島素|劑量|幾多單位|加藥|減藥|發炎|簡單定複雜|唔收附加費|chest pain|shortness of breath|unconscious|seizure|stroke|bleeding|insulin|dosage|dose|diagnos|pus|waive/i.test(
-          `${input.remarks || ""} ${input.other || ""}`,
+          `${input.remarks || ""} ${input.other || ""} ${input.medical_history || ""}`,
         );
+      c.red_flag = risk;
       const lead = Date.parse(`${c.date}T${c.start}:00+08:00`) - this.now();
       const reason =
         b &&

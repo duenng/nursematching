@@ -1348,6 +1348,23 @@ ${instructions}
             );
           if (c.status !== "MANUAL" || !i.reason?.trim())
             throw new Error("請填寫人工處理原因");
+          if (c.red_flag) {
+            if (
+              i.red_flag_resolved !== true ||
+              typeof i.red_flag_resolution !== "string" ||
+              i.red_flag_resolution.trim().length < 10
+            )
+              throw new Error(
+                "紅旗個案必須先記錄至少 10 字嘅臨床處置／轉介結果，並明確確認已解除報價阻擋",
+              );
+            c.red_flag_resolution = i.red_flag_resolution.trim();
+            c.red_flag_resolved_at = this.stamp();
+            c.red_flag_resolved_by = this.operatorId("admin");
+            this.event("clinical.red_flag_resolved", c, {
+              actor: "admin",
+              reason: c.red_flag_resolution,
+            });
+          }
           if (
             c.services.some((s) => s.pending) ||
             (c.services.some((s) => s.doctor_order_required) &&

@@ -394,6 +394,40 @@ test("remote B requires explicit admin allowance review and uses T14g", (t) => {
   assert.equal(c.quote.total, 1220);
 });
 
+test("nurse claim links expire at service start even before the worker runs", (t) => {
+  const { w, set } = setup(t);
+  const c = w.create(base({ date: "2026-11-10" }));
+  paid(w, c);
+  w.dispatch(c);
+  const claim = token(w, c, "take_case", "N01");
+  set("2026-11-10T09:59:59+08:00");
+  assert.doesNotThrow(() => w.inspect(claim));
+  set("2026-11-10T10:00:00+08:00");
+  assert.throws(() => w.act(claim), /失效/);
+  assert.equal(c.status, "POSTED");
+});
+
+test("red-flag manual cases require a recorded clinical resolution before quoting", (t) => {
+  const { w } = setup(t);
+  const c = w.create(base({ remarks: "胸痛，呼吸困難" }));
+  assert.equal(c.status, "MANUAL");
+  assert.equal(c.red_flag, true);
+  assert.throws(
+    () => w.adminCase(c, "issue_quote", { reason: "資料核實" }),
+    /紅旗個案/,
+  );
+  w.adminCase(c, "issue_quote", {
+    reason: "臨床覆核",
+    red_flag_resolved: true,
+    red_flag_resolution: "已聯絡家屬安排急症評估，確認不進行一般上門報價。",
+  });
+  assert.equal(c.status, "QUOTED");
+  assert.equal(c.red_flag_resolved_by, "admin");
+  assert.ok(
+    w.state.events.some((e) => e.event === "clinical.red_flag_resolved"),
+  );
+});
+
 test("paid manual cases can request refund without bypassing approval; reserved package cannot be closed unpaid", (t) => {
   const { w } = setup(t);
   const c = w.create(base());
