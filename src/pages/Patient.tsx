@@ -56,7 +56,7 @@ export function patientStatus(c: CareCase) {
 }
 
 export function PatientPortal() {
-  const { t } = useLocale();
+  const { t, language } = useLocale();
 
   const { data, setModal, switchView, notification, patientClientId } =
     useApp();
@@ -102,6 +102,9 @@ export function PatientPortal() {
         </span>
         <div className="patient-top-actions">
           <LanguageSwitcher />
+          <a href="/#enquire">
+            {language === "zh-HK" ? "電郵流程測試查詢" : "Email test enquiry"}
+          </a>
           <button onClick={() => switchView("staff")}>
             {t("Explore the staff demo")} <ArrowRight size={12} />
           </button>
@@ -210,7 +213,7 @@ export function PatientPortal() {
                     {
                       icon: ShieldCheck,
                       title: "Confirm privately and schedule",
-                      text: "After both sides confirm, the unit number is collected through private WhatsApp and the Care Schedule is arranged.",
+                      text: "After a nurse accepts, an email links to the private unit form; the Care Schedule is reviewed before details are released.",
                     },
                   ].map((step, i) => (
                     <div className="patient-process-step" key={step.title}>
@@ -317,7 +320,7 @@ export function PatientPortal() {
                   ],
                   [
                     "Is this taking real bookings?",
-                    "This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no WhatsApp message is sent.",
+                    "This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no email message is sent.",
                   ],
                 ].map(([question, answer]) => (
                   <details key={question}>

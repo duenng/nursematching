@@ -1,10 +1,10 @@
 # Kindred Care
 
-A responsive, interactive **frontend prototype** for the Hong Kong home-nursing care navigation and coordination platform in the supplied development brief. Built with React, TypeScript and Vite. All profiles and initial records are fictional.
+A responsive, interactive **prototype with a server-backed TRL 3 email validation workspace** for the Hong Kong home-nursing care navigation and coordination platform in the supplied development brief. Built with React, TypeScript and Vite. All profiles and initial records are fictional.
 
 ## Run locally
 
-Requires Node.js 22+.
+Requires Node.js **22.16+** (built-in SQLite).
 
 ```sh
 npm install
@@ -25,8 +25,9 @@ The patient homepage follows the supplied visual reference with a centred photog
 
 ```sh
 npm run build     # Type checking and production build
-npm run preview   # Preview the production build
+npm run preview   # Static-only preview; use npm start for email validation
 npm test          # Browser workflow tests
+npm run test:workflow # Engine and HTTP/concurrency tests
 ```
 
 Local browser tests use installed Google Chrome. On CI, install Chromium with `npx playwright install --with-deps chromium` and set `CI=1`.
@@ -34,13 +35,13 @@ Local browser tests use installed Google Chrome. On CI, install Chromium with `n
 ## Deploy with Dokploy (Nixpacks)
 
 The repository includes `nixpacks.toml`. It installs the dependencies, builds
-`dist`, and starts a production static server on `0.0.0.0:3000` by default.
+`dist`, and starts the Node workflow/API and static server on `0.0.0.0:3000` by default.
 
 1. Select **Nixpacks** as the application's Build Type, using the repository root.
 2. Use Install Command `npm ci --include=dev`, Build Command `npm run build`,
    and Start Command `npm start` if entering overrides in Dokploy. Otherwise the
    checked-in Nixpacks configuration supplies them.
-3. Set environment variable `PORT=3000` in Dokploy.
+3. Set `PORT=3000`, `BASE_URL=https://nursematching.duen.ng` and [Google staff login settings](docs/STAFF_LOGIN.md) in Dokploy (`AUTH_MODE=google`, client ID/secret and two separate role allowlists). Mount a persistent volume at `/app/data` and run **one replica**. The workflow server rejects a second process opening the same database.
 4. In Domains, set Host to `nursematching.duen.ng`, Path and Internal Path to `/`,
    and **Container Port to `3000`**. Leave Strip Path and Custom Entrypoint off.
 5. Point DNS to the Dokploy server, configure HTTPS with a valid certificate,
@@ -48,7 +49,7 @@ The repository includes `nixpacks.toml`. It installs the dependencies, builds
 
 The domain's container port must match `PORT`. A 502 means the proxy could not
 get a valid upstream response. Check deployment logs for a successful build and
-runtime logs for the static server listening on port 3000. Changing only the
+runtime logs for the workflow server listening on port 3000. Changing only the
 Domain port cannot start a stopped container. No Vite development server is
 needed for this deployment.
 
@@ -76,7 +77,11 @@ All visit dates and display times use Hong Kong time. Initial records use the cu
 
 ## Scope and limits
 
-This is the **frontend-first stage** requested by the user. There is no server, authentication, live AI call or WhatsApp connection. The navigator uses an inspectable rules-based extractor; it is labelled as a demo throughout. Message delivery, registration verification and staff/family/provider roles are simulated. There is no autonomous reminder worker: reminders are explicitly simulated from a confirmed visit. Use fictional information only; browser storage is not an appropriate store for real clinical or identifying data.
+The original patient and coordination demos still use browser storage. The new **Email validation / 電郵流程驗證** page, available in the staff sidebar and Settings, uses server-side SQLite, confirmation links, a minute worker and append-only workflow events. These are separate experimental records: original demo cases do not automatically become server cases. All records must be fictional.
+
+Run `npm run dev`, open `/#staff` and select **電郵流程驗證**. Open test settings, confirm experimental nurse rates, and create a fictional enquiry. The test inbox lets you follow customer/nurse links in new tabs. Refresh the workspace after each external confirmation. Without credentials, email is captured locally. Payment now defaults to **FPS with manual reconciliation**: a customer report never marks a case paid; an administrator independently verifies the fictional bank record before dispatch. Configure team Gmail SMTP in `.env` for external test email; no Stripe account is needed. Families can submit directly at `/#enquire`; individual staff Google login is available with separate administrator and senior-nurse permissions. See [email validation setup and evidence limits](docs/TRL3_EMAIL.md).
+
+No live AI is connected. Care Schedule drafts are generated deterministically from chosen items/times; Google login separates senior-nurse review from administrator approval; local/shared-key rehearsal remains explicitly labelled. The workspace also covers packages, completion/deduction, rematching, cancellation and manual FPS refunds, with explicit experiment-policy switches. Automated tests do not replace Gmail receipt, true 24-hour experiments or formal TRL review.
 
 The UI organises confirmed tasks. It does not diagnose, prescribe, decide clinical frequency, determine RN/EN scope autonomously, or generate treatment instructions.
 

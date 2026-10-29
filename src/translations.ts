@@ -1,5 +1,14 @@
 // English source text maps to Traditional Chinese; stored records keep their original values.
 const entries = `
+Email validation|電郵流程驗證
+Email address|電郵地址
+Phone (optional, 8 digits)|電話（選填，8 位數字）
+After a nurse accepts, an email links to the private unit form; the Care Schedule is reviewed before details are released.|護士接單後，家屬經電郵連結提供單位；Care Schedule 經覆核確認後才交予得標護士。
+Legacy previews stay in this browser. Open Email validation for the server workflow.|此頁預覽只存於瀏覽器；伺服器流程請使用「電郵流程驗證」。
+Email validation available|電郵驗證台已提供
+Test email|測試電郵
+Use Email validation for individual test emails, confirmation links and server event records. SMTP delivery requires test recipient settings.|使用「電郵流程驗證」測試個人電郵、確認連結及伺服器事件紀錄；SMTP 寄信須先設定測試收件人。
+
 Overview|總覽
 WORKSPACE|工作區
 Care enquiries|護理查詢
@@ -47,7 +56,7 @@ No matching records.|找不到符合的紀錄。
 Prototype|示範版本
 Mock integrations sandbox|Mock 整合服務沙盒
 MOCK ONLY|只限 Mock 示範
-Run the v2 payment, WhatsApp, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.|在瀏覽器內測試 v2 付款、WhatsApp、派單、退款及護士入職流程；不會真正發送或扣款。
+Run the v2 payment, email, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.|在瀏覽器內測試 v2 付款、電郵、派單、退款及護士入職流程；不會真正發送或扣款。
 Demo case|示範個案
 Demo nurse|示範護士
 No payment yet|尚未付款
@@ -57,12 +66,12 @@ Strikes|違規次數
 1 · Generate mock quote|1・產生 Mock 報價
 2 · Mark mock payment paid|2・標記 Mock 付款成功
 Expire 24-hour payment|模擬 24 小時付款逾時
-3 · Send mock WhatsApp dispatch|3・發送 Mock WhatsApp 派單
+3 · Send mock email dispatch|3・發送 Mock email 派單
 4 · First eligible nurse accepts|4・第一位合資格護士接單
 Mock nurse cancels / rematch|模擬護士放飛／重新配對
 Mock full refund|模擬全額退款
 Mock interview + i-Learn pass|模擬面試＋i-Learn 通過
-Mock checkout: 24-hour deadline · Mock WhatsApp: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.|Mock checkout：24 小時期限；Mock WhatsApp：只寫入訊息紀錄；Mock 退款：只修改瀏覽器資料；護士三次放飛後會暫停。
+Mock checkout: 24-hour deadline · Mock email: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.|Mock checkout：24 小時期限；Mock email：只寫入訊息紀錄；Mock 退款：只修改瀏覽器資料；護士三次放飛後會暫停。
 Notifications|通知
 WORKSPACE ACTIVITY|工作區動態
 Profile menu|個人選單
@@ -79,7 +88,6 @@ District|地區
 Building / estate / village|大廈／屋苑／村名
 Weight (kg)|體重（公斤）
 Height (cm)|身高（厘米）
-WhatsApp phone (8 digits)|WhatsApp 電話（8 位數字）
 Mobility|行動能力
 Someone at home during service|服務時間內屋企有冇其他人陪伴
 Recent conditions in the last 3 months|近三個月情況
@@ -265,7 +273,7 @@ Complete the care details and all review checks before publishing.|請完成護�
 Broadcast|個案廣播
 Simulated|模擬
 Case broadcast prepared|已準備個案廣播
-Case published in the demo. WhatsApp broadcast simulated.|個案已於示範中發布，WhatsApp 廣播為模擬操作。
+Case published in the demo. email dispatch simulated.|個案已於示範中發布，電郵派單為模擬操作。
 Select a provider and confirm availability for this case.|請選擇人員並確認其可提供此個案所需服務。
 This provider does not meet the current category, district, competency or consent requirements.|此人員未符合目前的類別、地區、技能或同意要求。
 This provider has already applied.|此人員已提交申請。
@@ -318,7 +326,7 @@ Company approval to publish this case|公司已批准發布此個案
 Use Edit details to confirm the required provider category after professional review.|完成專業審核後，請在「編輯資料」確認所需人員類別。
 Provider broadcast · privacy preview|人員廣播 · 私隱預覽
 Copy message|複製訊息
-Simulated · no WhatsApp delivery|模擬操作 · 未傳送 WhatsApp
+Simulated · no Email delivery|模擬操作 · 未傳送電郵
 The care plan, at a glance.|護理計劃一覽。
 Proposed visits are distinct from family-approved visits.|建議到訪須經家人同意後才可確認。
 Propose visits|建議到訪安排
@@ -487,7 +495,7 @@ Propose visits from confirmed tasks. Families can approve or request a change, w
 Bring the right people together|連繫合適人員
 Preview a provider broadcast, simulate an application and confirm an eligible provider assignment.|預覽人員廣播、模擬申請，並確認合資格人員委派。
 What’s simulated:|模擬功能：
-AI extraction uses deterministic rules. WhatsApp delivery, credentials and staff roles are demonstrations. Browser storage, editing, approval, conflict checks and exports are functional.|資料整理採用預設規則。WhatsApp 傳送、資格及職員角色為示範；瀏覽器儲存、編輯、審批、時間衝突檢查及匯出功能可供操作。
+AI extraction uses deterministic rules. Email delivery, credentials and staff roles are demonstrations. Browser storage, editing, approval, conflict checks and exports are functional.|資料整理採用預設規則。電郵傳送、資格及職員角色為示範；瀏覽器儲存、編輯、審批、時間衝突檢查及匯出功能可供操作。
 Use fictional data. This prototype is not monitored for emergencies. For an immediate emergency in Hong Kong, call 999.|請使用虛構資料。本示範網站無人監察緊急求助；如在香港遇到緊急情況，請致電 999。
 Built around people, supported by technology.|以人為本，科技支援。
 Let’s get started|開始使用
@@ -662,8 +670,6 @@ Integration settings|連接設定
 SIMULATED IN THIS PROTOTYPE|此示範中的模擬功能
 A familiar channel for better coordination.|透過熟悉的渠道，協調更順暢。
 Preview privacy-conscious case broadcasts and visit reminders.|預覽保障私隱的個案廣播及到訪提醒。
-No WhatsApp messages are sent from this frontend prototype.|此前端示範版本不會傳送 WhatsApp 訊息。
-WhatsApp not connected|未連接 WhatsApp
 Message activity|訊息動態
 Message type|訊息類型
 Provider case broadcast|人員個案廣播
@@ -675,7 +681,7 @@ Copy text|複製文字
 Good communication starts here|良好溝通，從這裡開始
 Publish an approved care request or simulate a confirmed visit reminder to see it here.|發布已核准的護理申請，或模擬已確認到訪提醒，即可在此查看。
 Designed for an authorised messaging integration.|為獲授權訊息連接而設。
-A production connection will need WhatsApp Business setup, opt-in records, approved templates, secure webhooks, delivery tracking and retries. Group automation is not assumed.|正式連接需要設定 WhatsApp Business、同意紀錄、核准範本、安全 webhook、傳送追蹤及重試機制。不預設支援群組自動操作。
+Use Email validation for individual test emails, confirmation links and server event records. SMTP delivery requires test recipient settings.|正式連接需要設定 Test email、同意紀錄、核准範本、安全 webhook、傳送追蹤及重試機制。不預設支援群組自動操作。
 Demo workspace backup downloaded.|已下載示範工作區備份。
 A WORKSPACE THAT WORKS FOR YOU.|配合你需要的工作區。
 A clear view of what’s connected, what’s local, and what comes next.|清楚掌握已連接功能、本機資料及下一步安排。
@@ -736,7 +742,7 @@ From “where do I start?”|從「應該怎樣開始？」
 to a helping hand at your door.|到安心享用上門支援。
 A clear next step, every step of the way.|每一步，都有清晰方向。
 Start an enquiry|開始查詢
-Tell us who needs support, your district and the building or estate. Unit details are collected privately later.|告訴我們誰需要支援、所在區域及大廈／屋苑。單位號碼會在稍後透過私人 WhatsApp 收集。
+Tell us who needs support, your district and the building or estate. Unit details are collected privately later.|告訴我們誰需要支援、所在區域及大廈／屋苑。單位號碼會在稍後透過私人電郵表格 收集。
 An Asian care worker speaking with an older adult during a private care visit|亞洲照護人員在私人護理探訪中與長者交流
 AI organises details, you check|AI 整理資料，你核對
 AI structures the tick-box services, preferred times and visit details. You review everything before a quotation is prepared.|AI 會整理勾選的服務、偏好時間及到訪資料；報價前由你核對全部內容。
@@ -745,7 +751,6 @@ After you confirm the quotation, full payment is due within 24 hours. A 30-hour 
 Paid first, then first-come dispatch|先付款，後按先到先得派單
 The platform sends the paid case to eligible nurses. The first nurse to accept is assigned; no clinical decision is made by AI.|平台收妥款項後向合資格護士派單，先接受者獲安排；AI 不會作臨床判斷。
 Confirm privately and schedule|私人確認資料及安排日程
-After both sides confirm, the unit number is collected through private WhatsApp and the Care Schedule is arranged.|雙方確認後，透過私人 WhatsApp 收集單位號碼，並安排護理日程。
 YOUR CARE, AT A GLANCE|你的護理一覽
 MON|週一
 Home care visit|上門護理到訪
@@ -773,7 +778,7 @@ The price depends on confirmed care needs, the professional requirements, visit 
 Can I change a proposed visit?|我可以更改建議到訪時間嗎？
 Yes. In My care, open a visit and request another time. The team checks the change with your provider. A revised proposal needs your approval before it becomes confirmed.|可以。在「我的護理」開啟到訪詳情，提出其他時間。團隊會與人員核對更改，修訂建議須經你同意後才會確認。
 Is this taking real bookings?|這裡接受真實預約嗎？
-This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no WhatsApp message is sent.|這是前端示範網站，查詢及日程操作與虛構資料一同儲存在此瀏覽器，不會預約真實護士、收取費用或傳送 WhatsApp 訊息。
+This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no email message is sent.|這是前端示範網站，查詢及日程操作與虛構資料一同儲存在此瀏覽器，不會預約真實護士、收取費用或傳送電郵訊息。
 YOU DON’T HAVE TO FIGURE IT ALL OUT ALONE.|安排護理，你毋須獨自面對。
 Let’s find your next step, together.|讓我們一起，安排下一步。
 Tell us a little. We’ll help make things clearer.|說說你的需要，我們協助理清安排。

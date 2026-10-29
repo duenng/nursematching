@@ -1,5 +1,7 @@
 # Prototype capability map
 
+The October 2026 update adds a separate server-backed **Email validation** workspace for the TRL 3 email experiment. The table below describes the original browser demo; see [TRL 3 email implementation and remaining evidence](TRL3_EMAIL.md) for the new server workflow. WhatsApp API is deferred.
+
 | Capability       | Frontend implementation                                                                                   | Production work remaining                                                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Enquiry intake   | English / Traditional Chinese free text, editable extraction, missing fields, follow-up input             | Replaceable hosted or local model adapter; structured-output validation; representative extraction evaluation            |
@@ -8,7 +10,7 @@
 | Scheduling       | Explicit requirements, week/list UI, proposals, conflict checks, family approval, revision versions       | Provider availability calendars, authentication for families, timezone-safe backend scheduling                           |
 | Provider records | Fictional RN/EN/companion profiles, districts, skills, demo verification                                  | Verified registration and identity processes, secure consent records                                                     |
 | Applications     | Voluntary demo application, timestamp, availability acknowledgement, eligibility checks, staff assignment | Authenticated application links, real provider consent, concurrency controls                                             |
-| Case broadcasts  | Minimum-information text preview, copy control, simulated message log                                     | Authorised WhatsApp Business setup and supported delivery route; ordinary group control is not assumed                   |
+| Case broadcasts  | Minimum-information text preview, copy control, simulated message log                                     | Use the separate email validation workflow; WhatsApp API is deferred                                                     |
 | Reminders        | Confirmed-visit simulation; separate delivery and completion; explicit provider response; issue log       | Background scheduler, opt-in, approved templates, messaging-window rules, signed webhooks, retries and real staff alerts |
 | CRM              | Browser persistence, explicit repeat-client linking, status/activity timestamps, CSV/JSON export          | PostgreSQL or equivalent, access controls, encryption, audit retention and backup                                        |
 | Dashboard        | Derived statistics, activity, search, filters and daily schedule                                          | Live server data and authenticated roles                                                                                 |

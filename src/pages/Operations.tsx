@@ -14,6 +14,7 @@ import {
   HeartHandshake,
   LockKeyhole,
   MapPin,
+  Mail,
   MessageCircle,
   RotateCcw,
   Search,
@@ -213,7 +214,7 @@ export function MessagesPage() {
         </button>
       </PageTitle>
       <section className="messaging-banner">
-        <span className="whatsapp-icon">
+        <span className="email-icon">
           <MessageCircle size={29} />
         </span>
         <div>
@@ -226,12 +227,14 @@ export function MessagesPage() {
               "Preview privacy-conscious case broadcasts and visit reminders.",
             )}
             <br />
-            {t("No WhatsApp messages are sent from this frontend prototype.")}
+            {t(
+              "Legacy previews stay in this browser. Open Email validation for the server workflow.",
+            )}
           </p>
         </div>
         <div className="connection-label">
           <span />
-          {t("WhatsApp not connected")}
+          {t("Email validation available")}
         </div>
       </section>
       <div className="section-bar">
@@ -334,7 +337,7 @@ export function MessagesPage() {
           </strong>
           <p>
             {t(
-              "A production connection will need WhatsApp Business setup, opt-in records, approved templates, secure webhooks, delivery tracking and retries. Group automation is not assumed.",
+              "Use Email validation for individual test emails, confirmation links and server event records. SMTP delivery requires test recipient settings.",
             )}
           </p>
         </div>
@@ -345,11 +348,15 @@ export function MessagesPage() {
 export function SettingsPage() {
   const { t } = useLocale();
 
-  const { data, setModal, toast, update } = useApp();
+  const { data, setModal, toast, update, navigate } = useApp();
   const [mockCaseId, setMockCaseId] = useState(data.cases[0]?.id || "");
-  const [mockProviderId, setMockProviderId] = useState(data.providers[0]?.id || "");
+  const [mockProviderId, setMockProviderId] = useState(
+    data.providers[0]?.id || "",
+  );
   const mockCase = data.cases.find((item) => item.id === mockCaseId);
-  const mockProvider = data.providers.find((item) => item.id === mockProviderId);
+  const mockProvider = data.providers.find(
+    (item) => item.id === mockProviderId,
+  );
   function mockQuote() {
     if (!mockCase) return;
     update((next) => {
@@ -358,7 +365,12 @@ export function SettingsPage() {
       c.quoteVersion = (c.quoteVersion ?? 0) + 1;
       c.paymentStatus = "Quoted";
       c.status = "Quoted";
-      logEvent(next, "Mock quotation generated", `${c.id} · HK$${c.quoteTotal}`, "case");
+      logEvent(
+        next,
+        "Mock quotation generated",
+        `${c.id} · HK$${c.quoteTotal}`,
+        "case",
+      );
     });
     toast("Mock quotation generated — no real customer message sent.");
   }
@@ -367,7 +379,9 @@ export function SettingsPage() {
     update((next) => {
       const c = next.cases.find((item) => item.id === mockCase.id)!;
       const now = new Date();
-      const deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      const deadline = new Date(
+        now.getTime() + 24 * 60 * 60 * 1000,
+      ).toISOString();
       c.quoteTotal = c.quoteTotal ?? 1220;
       c.paymentStatus = "Paid";
       c.paymentLink = `mock://checkout/${c.id}`;
@@ -377,8 +391,21 @@ export function SettingsPage() {
       c.amountPaid = c.quoteTotal;
       c.status = "Paid";
       next.mockPayments = next.mockPayments ?? [];
-      next.mockPayments.unshift({ id: uid(), caseId: c.id, amount: c.quoteTotal, status: "Paid", createdAt: now.toISOString(), deadline, provider: "Mock checkout" });
-      logEvent(next, "Mock payment received", `${c.id} · HK$${c.amountPaid}`, "case");
+      next.mockPayments.unshift({
+        id: uid(),
+        caseId: c.id,
+        amount: c.quoteTotal,
+        status: "Paid",
+        createdAt: now.toISOString(),
+        deadline,
+        provider: "Mock checkout",
+      });
+      logEvent(
+        next,
+        "Mock payment received",
+        `${c.id} · HK$${c.amountPaid}`,
+        "case",
+      );
     });
     toast("Mock payment marked paid. No real money was charged.");
   }
@@ -389,8 +416,17 @@ export function SettingsPage() {
       c.paymentStatus = "Payment expired";
       c.status = "Payment expired";
       c.cancellationType = "Payment timeout";
-      next.mockPayments = (next.mockPayments ?? []).map((payment) => payment.caseId === c.id ? { ...payment, status: "Expired" as const } : payment);
-      logEvent(next, "Mock payment expired", `${c.id} · automatic cancellation`, "case");
+      next.mockPayments = (next.mockPayments ?? []).map((payment) =>
+        payment.caseId === c.id
+          ? { ...payment, status: "Expired" as const }
+          : payment,
+      );
+      logEvent(
+        next,
+        "Mock payment expired",
+        `${c.id} · automatic cancellation`,
+        "case",
+      );
     });
     toast("Mock 24-hour payment expiry applied.");
   }
@@ -403,8 +439,17 @@ export function SettingsPage() {
       c.paymentStatus = "Not quoted";
       c.status = "Full refund";
       c.cancellationType = "Mock no provider / cancellation";
-      next.mockPayments = (next.mockPayments ?? []).map((payment) => payment.caseId === c.id ? { ...payment, status: "Refunded" as const } : payment);
-      logEvent(next, "Mock full refund completed", `${c.id} · HK$${c.refundAmount}`, "case");
+      next.mockPayments = (next.mockPayments ?? []).map((payment) =>
+        payment.caseId === c.id
+          ? { ...payment, status: "Refunded" as const }
+          : payment,
+      );
+      logEvent(
+        next,
+        "Mock full refund completed",
+        `${c.id} · HK$${c.refundAmount}`,
+        "case",
+      );
     });
     toast("Mock refund completed. No real payment was reversed.");
   }
@@ -416,10 +461,22 @@ export function SettingsPage() {
       c.dispatchStatus = "Posted";
       c.postedAt = new Date().toISOString();
       c.repostCount = (c.repostCount ?? 0) + 1;
-      next.messages.unshift({ id: uid(), caseId: c.id, content: `[MOCK WHATSAPP]\n${broadcastText(c)}`, createdAt: new Date().toISOString(), type: "Broadcast", status: "Simulated" });
-      logEvent(next, "Mock WhatsApp dispatch sent", `${c.id} · verified nurse sandbox`, "message");
+      next.messages.unshift({
+        id: uid(),
+        caseId: c.id,
+        content: `[MOCK EMAIL]\n${broadcastText(c)}`,
+        createdAt: new Date().toISOString(),
+        type: "Broadcast",
+        status: "Simulated",
+      });
+      logEvent(
+        next,
+        "Mock email dispatch sent",
+        `${c.id} · verified nurse sandbox`,
+        "message",
+      );
     });
-    toast("Mock WhatsApp dispatch recorded in Messages.");
+    toast("Mock email dispatch recorded in Messages.");
   }
   function mockAssign() {
     if (!mockCase || !mockProvider) return;
@@ -432,7 +489,12 @@ export function SettingsPage() {
       c.status = "Matched";
       c.dispatchStatus = "Assigned";
       c.addressStatus = "Requested privately";
-      logEvent(next, "Mock first-come provider assigned", `${c.id} · ${p.name}`, "provider");
+      logEvent(
+        next,
+        "Mock first-come provider assigned",
+        `${c.id} · ${p.name}`,
+        "provider",
+      );
     });
     toast("Mock first eligible provider assigned.");
   }
@@ -442,12 +504,24 @@ export function SettingsPage() {
       const c = next.cases.find((item) => item.id === mockCase.id)!;
       const p = next.providers.find((item) => item.id === mockProvider.id)!;
       p.dropCount = (p.dropCount ?? 0) + 1;
-      p.dropLog = [...(p.dropLog ?? []), { caseId: c.id, at: new Date().toISOString(), reason: "Mock nurse cancellation" }];
+      p.dropLog = [
+        ...(p.dropLog ?? []),
+        {
+          caseId: c.id,
+          at: new Date().toISOString(),
+          reason: "Mock nurse cancellation",
+        },
+      ];
       if ((p.dropCount ?? 0) >= 3) p.nurseStatus = "暫停";
       c.status = "Rematching";
       c.dispatchStatus = "Posted";
       c.providerId = undefined;
-      logEvent(next, "Mock nurse cancellation; rematch started", `${c.id} · ${p.name} · strike ${p.dropCount}`, "provider");
+      logEvent(
+        next,
+        "Mock nurse cancellation; rematch started",
+        `${c.id} · ${p.name} · strike ${p.dropCount}`,
+        "provider",
+      );
     });
     toast("Mock nurse drop recorded; rematching started.");
   }
@@ -461,7 +535,12 @@ export function SettingsPage() {
       p.rnVerifiedAt = new Date().toISOString();
       p.interviewResult = "通過";
       p.interviewDate = today();
-      logEvent(next, "Mock RN onboarding verified", `${p.id} · interview + i-Learn checked`, "provider");
+      logEvent(
+        next,
+        "Mock RN onboarding verified",
+        `${p.id} · interview + i-Learn checked`,
+        "provider",
+      );
     });
     toast("Mock nurse interview and i-Learn verification passed.");
   }
@@ -485,6 +564,23 @@ export function SettingsPage() {
           "A clear view of what’s connected, what’s local, and what comes next.",
         )}
       />
+      <div className="info-callout" style={{ marginBottom: 24 }}>
+        <Mail size={24} />
+        <div>
+          <strong>{t("Email validation")}</strong>
+          <p>
+            {t(
+              "Use Email validation for individual test emails, confirmation links and server event records. SMTP delivery requires test recipient settings.",
+            )}
+          </p>
+        </div>
+        <button
+          className="button primary"
+          onClick={() => navigate("Email validation")}
+        >
+          {t("Email validation")} <ArrowRight size={16} />
+        </button>
+      </div>
       <div className="settings-layout">
         <section className="panel settings-panel">
           <h2>{t("Workspace details")}</h2>
@@ -556,7 +652,7 @@ export function SettingsPage() {
               <MessageCircle size={22} />
             </span>
             <div>
-              <strong>{t("WhatsApp Business")}</strong>
+              <strong>{t("Test email")}</strong>
               <p>{t("Message previews and reminder simulation only.")}</p>
             </div>
             <Badge dot={false}>{t("Not connected")}</Badge>
@@ -605,33 +701,93 @@ export function SettingsPage() {
         <section className="panel settings-panel mock-sandbox">
           <div className="mock-sandbox-heading">
             <div>
-              <h2><CreditCard size={19} /> {t("Mock integrations sandbox")}</h2>
-              <p>{t("Run the v2 payment, WhatsApp, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.")}</p>
+              <h2>
+                <CreditCard size={19} /> {t("Mock integrations sandbox")}
+              </h2>
+              <p>
+                {t(
+                  "Run the v2 payment, email, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.",
+                )}
+              </p>
             </div>
-            <Badge tone="amber" dot={false}>{t("MOCK ONLY")}</Badge>
+            <Badge tone="amber" dot={false}>
+              {t("MOCK ONLY")}
+            </Badge>
           </div>
           <div className="form-grid mock-controls">
-            <label className="field"><span>{t("Demo case")}</span><select aria-label={t("Demo case")} value={mockCaseId} onChange={(e) => setMockCaseId(e.target.value)}>{data.cases.map((c) => <option key={c.id} value={c.id}>{c.id} · {c.name}</option>)}</select></label>
-            <label className="field"><span>{t("Demo nurse")}</span><select aria-label={t("Demo nurse")} value={mockProviderId} onChange={(e) => setMockProviderId(e.target.value)}>{data.providers.map((p) => <option key={p.id} value={p.id}>{p.id} · {p.name}</option>)}</select></label>
+            <label className="field">
+              <span>{t("Demo case")}</span>
+              <select
+                aria-label={t("Demo case")}
+                value={mockCaseId}
+                onChange={(e) => setMockCaseId(e.target.value)}
+              >
+                {data.cases.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} · {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>{t("Demo nurse")}</span>
+              <select
+                aria-label={t("Demo nurse")}
+                value={mockProviderId}
+                onChange={(e) => setMockProviderId(e.target.value)}
+              >
+                {data.providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id} · {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="mock-flow-status">
-            <Badge tone="purple" dot={false}>{mockCase?.status || "—"}</Badge>
+            <Badge tone="purple" dot={false}>
+              {mockCase?.status || "—"}
+            </Badge>
             <span>{mockCase?.paymentStatus || t("No payment yet")}</span>
             <span>{mockCase?.dispatchStatus || t("Not posted")}</span>
             <span>{mockProvider?.nurseStatus || t("Status not recorded")}</span>
-            {mockProvider && <span>{t("Strikes")}: {mockProvider.dropCount ?? 0}/3</span>}
+            {mockProvider && (
+              <span>
+                {t("Strikes")}: {mockProvider.dropCount ?? 0}/3
+              </span>
+            )}
           </div>
           <div className="mock-action-grid">
-            <button className="button secondary" onClick={mockQuote}>{t("1 · Generate mock quote")}</button>
-            <button className="button secondary" onClick={mockPayment}>{t("2 · Mark mock payment paid")}</button>
-            <button className="button secondary" onClick={mockExpire}>{t("Expire 24-hour payment")}</button>
-            <button className="button secondary" onClick={mockDispatch}>{t("3 · Send mock WhatsApp dispatch")}</button>
-            <button className="button secondary" onClick={mockAssign}>{t("4 · First eligible nurse accepts")}</button>
-            <button className="button secondary" onClick={mockDrop}>{t("Mock nurse cancels / rematch")}</button>
-            <button className="button secondary" onClick={mockRefund}>{t("Mock full refund")}</button>
-            <button className="button secondary" onClick={mockVerifyNurse}>{t("Mock interview + i-Learn pass")}</button>
+            <button className="button secondary" onClick={mockQuote}>
+              {t("1 · Generate mock quote")}
+            </button>
+            <button className="button secondary" onClick={mockPayment}>
+              {t("2 · Mark mock payment paid")}
+            </button>
+            <button className="button secondary" onClick={mockExpire}>
+              {t("Expire 24-hour payment")}
+            </button>
+            <button className="button secondary" onClick={mockDispatch}>
+              {t("3 · Send mock email dispatch")}
+            </button>
+            <button className="button secondary" onClick={mockAssign}>
+              {t("4 · First eligible nurse accepts")}
+            </button>
+            <button className="button secondary" onClick={mockDrop}>
+              {t("Mock nurse cancels / rematch")}
+            </button>
+            <button className="button secondary" onClick={mockRefund}>
+              {t("Mock full refund")}
+            </button>
+            <button className="button secondary" onClick={mockVerifyNurse}>
+              {t("Mock interview + i-Learn pass")}
+            </button>
           </div>
-          <p className="form-hint">{t("Mock checkout: 24-hour deadline · Mock WhatsApp: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.")}</p>
+          <p className="form-hint">
+            {t(
+              "Mock checkout: 24-hour deadline · Mock email: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.",
+            )}
+          </p>
         </section>
       </div>
       <div className="inline-note">

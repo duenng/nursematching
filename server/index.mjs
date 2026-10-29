@@ -1,0 +1,841 @@
+import http from "node:http";
+import { readFile } from "node:fs/promises";
+import {
+  openSync,
+  readFileSync,
+  writeFileSync,
+  closeSync,
+  unlinkSync,
+  mkdirSync,
+} from "node:fs";
+import { dirname } from "node:path";
+import { resolve, extname } from "node:path";
+import {
+  documentStore,
+  readSampleUpload,
+  storeSample,
+} from "./doctor-documents.mjs";
+import { publicIntake, createIntakeLimiter } from "./public-intake.mjs";
+import { StaffAuth, canAccess, clinicalWorkspace } from "./auth.mjs";
+import nodemailer from "nodemailer";
+import { Workflow } from "./workflow.mjs";
+import { ACTION_LABELS, emailHtml } from "./templates.mjs";
+import { EXPERIMENT_POLICIES } from "./extended-workflow.mjs";
+
+const port = Number(process.env.API_PORT || process.env.PORT || 3000);
+const mode = process.env.PAYMENT_MODE || "bank_transfer";
+if (!["bank_transfer", "fps_test", "mock", "stripe_test"].includes(mode))
+  throw new Error("Unsupported PAYMENT_MODE");
+if (mode === "stripe_test" && !process.env.STRIPE_SECRET_KEY)
+  throw new Error("Stripe test key missing");
+if (
+  process.env.STRIPE_SECRET_KEY &&
+  !process.env.STRIPE_SECRET_KEY.startsWith("sk_test_")
+)
+  throw new Error("Only Stripe test keys are supported");
+const dbPath = process.env.WORKFLOW_DB || "data/workflow.sqlite";
+mkdirSync(dirname(dbPath), { recursive: true });
+const lockPath = dbPath + ".lock";
+try {
+  const previous = Number(readFileSync(lockPath, "utf8"));
+  if (previous) {
+    try {
+      process.kill(previous, 0);
+      throw new Error(
+        "Workflow database already in use; run exactly one server instance",
+      );
+    } catch (error) {
+      if (error.code !== "ESRCH") throw error;
+      unlinkSync(lockPath);
+    }
+  }
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+const lock = openSync(lockPath, "wx");
+writeFileSync(lock, String(process.pid));
+closeSync(lock);
+process.on("exit", () => {
+  try {
+    unlinkSync(lockPath);
+  } catch {}
+});
+const workflow = new Workflow(dbPath, {
+  baseUrl:
+    process.env.BASE_URL ||
+    `http://localhost:${process.env.API_PORT ? "5173" : port}`,
+  paymentMode: mode,
+  fpsRecipient: process.env.FPS_TEST_RECIPIENT || "",
+  fpsAccountName: process.env.FPS_TEST_ACCOUNT_NAME || "",
+  bankName: process.env.BANK_NAME || "",
+  bankAccountName: process.env.BANK_ACCOUNT_NAME || "",
+  bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "",
+});
+if (
+  ["bank_transfer", "stripe_test"].includes(mode) &&
+  (workflow.state.settings.time_scale !== 1 || workflow.state.clock_offset_ms)
+)
+  throw new Error(
+    "Real payment modes require time_scale=1 and no virtual clock offset; use a separate WORKFLOW_DB",
+  );
+documentStore(workflow.db);
+const auth = new StaffAuth(workflow.db, {
+  baseUrl: workflow.baseUrl,
+  audit: (event, detail) => {
+    workflow.event(event, null, detail);
+    workflow.save();
+  },
+});
+const realNow = Date.now;
+workflow.now = () => realNow() + (workflow.state.clock_offset_ms || 0);
+const testClock =
+  process.env.ENABLE_TEST_CLOCK === "true" &&
+  !process.env.SMTP_HOST &&
+  !["stripe_test", "bank_transfer"].includes(mode);
+const allowed = new Set(
+  (process.env.TEST_EMAIL_ALLOWLIST || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+const mailer = process.env.SMTP_HOST
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_PORT === "465",
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    })
+  : null;
+const escape = (s) =>
+  String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+const names = ACTION_LABELS;
+const html = (title, body) =>
+  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · Kindred Care</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>Kindred Care · TRL 3</small><h1>${escape(title)}</h1>${body}<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p></main></html>`;
+function reply(res, status, body, type = "application/json") {
+  res.writeHead(status, {
+    "Content-Type": `${type}; charset=utf-8`,
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy":
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+  });
+  res.end(type === "application/json" ? JSON.stringify(body) : body);
+}
+async function body(req) {
+  let text = "";
+  for await (const part of req) {
+    text += part;
+    if (text.length > 64000) throw new Error("Request too large");
+  }
+  return req.headers["content-type"]?.includes("application/json")
+    ? JSON.parse(text || "{}")
+    : Object.fromEntries(new URLSearchParams(text));
+}
+async function stripe(path, fields, method = "POST", idempotency) {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method,
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      ...(method === "POST"
+        ? { "Content-Type": "application/x-www-form-urlencoded" }
+        : {}),
+      ...(idempotency ? { "Idempotency-Key": idempotency } : {}),
+    },
+    ...(method === "POST" ? { body: new URLSearchParams(fields) } : {}),
+  });
+  const data = await response.json();
+  if (!response.ok)
+    throw new Error(data.error?.message || "Stripe test request failed");
+  return data;
+}
+let working = false;
+async function integrations() {
+  if (working) return;
+  working = true;
+  try {
+    for (const c of workflow.state.cases) {
+      try {
+        if (
+          mode === "stripe_test" &&
+          c.checkout_pending &&
+          c.status === "PENDING_PAY"
+        ) {
+          const session = await stripe(
+            "checkout/sessions",
+            {
+              mode: "payment",
+              "line_items[0][price_data][currency]": "hkd",
+              "line_items[0][price_data][product_data][name]": `TEST ${c.id}`,
+              "line_items[0][price_data][unit_amount]": String(
+                (c.payment_amount ?? c.quote.total) * 100,
+              ),
+              "line_items[0][quantity]": "1",
+              client_reference_id: c.id,
+              "metadata[case_id]": c.id,
+              expires_at: String(
+                Math.floor(Date.parse(c.payment_deadline) / 1000),
+              ),
+              success_url: `${workflow.baseUrl}/payment-return`,
+              cancel_url: `${workflow.baseUrl}/payment-return`,
+            },
+            "POST",
+            `checkout-${c.id}-${c.created_at}`,
+          );
+          c.stripe_session = session.id;
+          c.checkout_url = session.url;
+          c.stripe_payment_intent = session.payment_intent;
+          c.checkout_pending = false;
+          if (c.status === "PENDING_PAY") workflow.paymentEmail(c);
+          else c.checkout_expire_pending = true;
+          workflow.save();
+        }
+        if (
+          mode === "stripe_test" &&
+          c.stripe_session &&
+          c.status === "PENDING_PAY"
+        ) {
+          const session = await stripe(
+            `checkout/sessions/${encodeURIComponent(c.stripe_session)}`,
+            {},
+            "GET",
+          );
+          if (
+            session.payment_status === "paid" &&
+            session.amount_total ===
+              (c.payment_amount ?? c.quote.total) * 100 &&
+            session.currency === "hkd" &&
+            session.client_reference_id === c.id &&
+            session.livemode === false
+          ) {
+            if (Date.parse(c.payment_deadline) > workflow.now()) {
+              c.stripe_payment_intent = session.payment_intent;
+              workflow.paid(c);
+            } else {
+              workflow.event("payment.late_received", c, {
+                reason: "需人手核對，不自動派單",
+              });
+              c.late_payment = true;
+            }
+          }
+        }
+        if (
+          mode === "stripe_test" &&
+          c.refund_pending &&
+          c.refund_status === "APPROVED"
+        ) {
+          if (!c.stripe_payment_intent)
+            throw new Error("Stripe test payment intent missing");
+          const refund = await stripe(
+            "refunds",
+            {
+              payment_intent: c.stripe_payment_intent,
+              amount: String(c.refund_amount * 100),
+            },
+            "POST",
+            `refund-${c.id}-${c.created_at}`,
+          );
+          if (refund.status === "succeeded") {
+            workflow.finishRefund(c, "stripe_test", refund.id);
+            c.refund_pending = false;
+            workflow.save();
+          } else {
+            c.stripe_refund_id = refund.id;
+            c.refund_pending = false;
+            c.refund_processing = true;
+            workflow.save();
+          }
+        }
+        if (mode === "stripe_test" && c.refund_processing) {
+          const refund = await stripe(
+            `refunds/${encodeURIComponent(c.stripe_refund_id)}`,
+            {},
+            "GET",
+          );
+          if (refund.status === "succeeded") {
+            workflow.finishRefund(c, "stripe_test", refund.id);
+            c.refund_processing = false;
+            workflow.save();
+          }
+        }
+        if (mode === "stripe_test" && c.checkout_expire_pending) {
+          await stripe(
+            `checkout/sessions/${encodeURIComponent(c.stripe_session)}/expire`,
+            {},
+          );
+          c.checkout_expire_pending = false;
+          workflow.save();
+        }
+      } catch (error) {
+        workflow.event("integration.error", c, { reason: error.message });
+        workflow.save();
+      }
+    }
+    // Poll Stripe before expiry so a payment made just before the deadline is observed first.
+    workflow.tick();
+    for (const mail of workflow.state.emails.filter(
+      (x) => x.status === "queued",
+    )) {
+      if (!mailer) {
+        mail.status = "captured";
+        workflow.event(
+          "email.captured",
+          { id: mail.case_id },
+          { template_id: mail.template_id },
+        );
+        continue;
+      }
+      if (!allowed.has(mail.to.toLowerCase())) {
+        mail.status = "blocked";
+        mail.error = "Recipient is not in TEST_EMAIL_ALLOWLIST";
+        continue;
+      }
+      mail.status = "sending";
+      mail.attempts++;
+      workflow.save();
+      try {
+        const info = await mailer.sendMail({
+          from: process.env.SMTP_FROM,
+          to: mail.to,
+          subject: mail.subject,
+          html: emailHtml(mail),
+          replyTo: workflow.state.admin_email,
+          text:
+            mail.body +
+            "\n\n" +
+            mail.links
+              .map((l) => `${names[l.label] || l.label}: ${l.url}`)
+              .join("\n"),
+          messageId: `<${mail.id}@kindred-test.local>`,
+        });
+        mail.status = "sent";
+        mail.provider_id = info.messageId;
+        mail.sent_at = workflow.stamp();
+        workflow.event(
+          "email.smtp_accepted",
+          { id: mail.case_id },
+          { template_id: mail.template_id },
+        );
+      } catch (error) {
+        mail.status = "failed";
+        mail.error = error.message;
+      }
+    }
+    workflow.save();
+  } finally {
+    working = false;
+  }
+}
+const intakeAllowed = createIntakeLimiter();
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://localhost");
+  try {
+    if (url.pathname === "/api/enquiries" && req.method === "POST") {
+      if (
+        req.headers.origin !== new URL(workflow.baseUrl).origin ||
+        !req.headers["content-type"]?.includes("application/json")
+      )
+        return reply(res, 403, { error: "Origin or content type not allowed" });
+      if (!intakeAllowed(req.socket.remoteAddress))
+        return reply(res, 429, { error: "查詢過於頻密，請稍後再試" });
+      const c = workflow.create(publicIntake(await body(req)));
+      void integrations().catch((error) => console.error(error.message));
+      return reply(res, 200, {
+        id: c.id,
+        status: c.status,
+        ...(c.status === "QUOTED" ? { quote: c.quote } : {}),
+      });
+    }
+    if (url.pathname === "/api/health")
+      return reply(res, 200, {
+        ok: true,
+        email: mailer ? "smtp_test" : "local_inbox",
+        payment: mode,
+        auth:
+          auth.mode === "google"
+            ? "google"
+            : process.env.WORKFLOW_ADMIN_KEY
+              ? "shared_key"
+              : "loopback_only",
+      });
+    if (url.pathname === "/auth/session" && req.method === "GET") {
+      const user = auth.current(req);
+      return reply(res, 200, {
+        mode: auth.mode,
+        user,
+        login_url: auth.mode === "google" ? "/auth/google" : null,
+      });
+    }
+    if (url.pathname === "/auth/google" && req.method === "GET") {
+      const login = await auth.begin();
+      res.writeHead(302, {
+        Location: login.location,
+        "Set-Cookie": login.cookie,
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+      });
+      return res.end();
+    }
+    if (url.pathname === "/auth/google/callback" && req.method === "GET") {
+      const login = await auth.finish(req, url);
+      res.writeHead(303, {
+        Location: "/#staff/email",
+        "Set-Cookie": login.cookies,
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+      });
+      return res.end();
+    }
+    if (url.pathname === "/auth/logout" && req.method === "POST") {
+      const user = auth.current(req);
+      if (!user || !auth.verifyMutation(req, user))
+        return reply(res, 403, { error: "Invalid session or CSRF token" });
+      res.setHeader("Set-Cookie", auth.logout(req));
+      return reply(res, 200, { ok: true });
+    }
+    if (url.pathname === "/a") {
+      const token = url.searchParams.get("t");
+      if (req.method === "GET") {
+        const { t, c } = workflow.inspect(token);
+        if (t.action === "upload_doctor")
+          return reply(
+            res,
+            200,
+            html(
+              "上載虛構醫生指示樣本",
+              `<p>Case ${escape(c.id)}。只用虛構樣本，PDF／PNG／JPEG，最多 2 MB。文件只供受權職員覆核。</p><form method="POST" enctype="multipart/form-data" action="/a?t=${escape(token)}"><label>樣本文件<input type="file" name="sample" accept="application/pdf,image/png,image/jpeg" required></label><label><input type="checkbox" name="fictional" value="yes" required>我確認是虛構醫生指示樣本</label><button type="submit">確認上載</button></form>`,
+            ),
+            "text/html",
+          );
+        return reply(
+          res,
+          200,
+          html(
+            names[t.action] || "確認操作",
+            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位（只限虛構資料）<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
+          ),
+          "text/html",
+        );
+      }
+      if (req.method === "POST") {
+        const t = workflow.state.tokens.find((t) => t.token === token);
+        if (t?.action === "upload_doctor") {
+          const c = workflow.state.cases.find((c) => c.id === t.case_id);
+          workflow.valid(t, c);
+          if (
+            req.headers.origin &&
+            req.headers.origin !== new URL(workflow.baseUrl).origin
+          )
+            return reply(res, 403, { error: "Origin not allowed" });
+          storeSample(workflow, token, await readSampleUpload(req));
+          return reply(
+            res,
+            200,
+            html(
+              "已收到樣本文件",
+              "<p>文件已保存，仍待資深護士核對；上載不代表已通過。</p>",
+            ),
+            "text/html",
+          );
+        }
+        const result = workflow.act(token, await body(req));
+        void integrations().catch((error) => console.error(error.message));
+        return reply(
+          res,
+          200,
+          html("操作結果", `<p>${escape(result)}</p>`),
+          "text/html",
+        );
+      }
+      return reply(res, 405, { error: "Method not allowed" });
+    }
+    if (url.pathname === "/payment-return")
+      return reply(
+        res,
+        200,
+        html(
+          "付款狀態核對中",
+          "<p>系統會向 Stripe test mode 核實付款；返回此頁本身不會標記已付款。請返回驗證台查看。</p>",
+        ),
+        "text/html",
+      );
+    if (url.pathname.startsWith("/api/")) {
+      const user = auth.current(req);
+      if (!user)
+        return reply(res, 401, {
+          error:
+            auth.mode === "google"
+              ? "請先使用獲准職員 Google 帳戶登入"
+              : "請輸入 WORKFLOW_ADMIN_KEY；未設定時只容許本機管理",
+        });
+      if (req.method !== "GET" && !auth.verifyMutation(req, user))
+        return reply(res, 403, { error: "Origin or CSRF token not allowed" });
+      if (
+        url.pathname.startsWith("/api/doctor-document/") &&
+        req.method === "GET"
+      ) {
+        const id = url.pathname.slice("/api/doctor-document/".length);
+        const doc = workflow.db
+          .prepare("SELECT * FROM doctor_documents WHERE id=?")
+          .get(id);
+        if (!doc) return reply(res, 404, { error: "找不到樣本文件" });
+        workflow.asOperator(user, () => {
+          workflow.event(
+            "doctor_document.viewed",
+            { id: doc.case_id },
+            { document_id: id, sha256: doc.sha256 },
+          );
+          workflow.save();
+        });
+        res.writeHead(200, {
+          "Content-Type": doc.media_type,
+          "Content-Length": doc.content.length,
+          "Content-Disposition": `attachment; filename="fictional-order-${doc.id}.${doc.media_type === "application/pdf" ? "pdf" : doc.media_type === "image/png" ? "png" : "jpg"}"`,
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "sandbox; default-src 'none'",
+          "Referrer-Policy": "no-referrer",
+        });
+        return res.end(Buffer.from(doc.content));
+      }
+      if (url.pathname === "/api/workflow" && req.method === "GET")
+        return reply(res, 200, {
+          ...(user.role === "SENIOR_NURSE"
+            ? clinicalWorkspace(workflow.state)
+            : workflow.state),
+          staff: { id: user.id, role: user.role, method: user.method },
+          capabilities: {
+            email: mailer ? "smtp_test" : "local_inbox",
+            payment: mode,
+            live_ai: false,
+            bank_transfer_configured: workflow.bankTransferConfigured(),
+            fps_configured: !!(
+              process.env.FPS_TEST_RECIPIENT &&
+              process.env.FPS_TEST_ACCOUNT_NAME
+            ),
+            clock_offset_ms: workflow.state.clock_offset_ms || 0,
+            test_clock: testClock,
+            server_now: workflow.stamp(),
+          },
+        });
+      const input = await body(req);
+      if (!canAccess(user, url.pathname, req.method, input))
+        return reply(res, 403, {
+          error: "此職員角色無權執行操作；護士覆核與管理員批核須由相應角色操作",
+        });
+      return await workflow.asOperator(user, async () => {
+        let result;
+        if (url.pathname === "/api/cases" && req.method === "POST")
+          result = workflow.create(input);
+        else if (url.pathname === "/api/settings" && req.method === "POST") {
+          if (
+            workflow.state.cases.some(
+              (c) =>
+                ![
+                  "MANUAL",
+                  "NO_DR_ORDER",
+                  "NO_FIRST_INSERT",
+                  "CANCELLED",
+                  "PAY_TIMEOUT",
+                  "EXPIRED",
+                  "DONE",
+                ].includes(c.status),
+            )
+          )
+            throw new Error("有進行中個案，請保留設定以免改變計時／薪酬");
+          const scale = Number(input.time_scale);
+          if (
+            ![1, 60].includes(scale) ||
+            (["bank_transfer", "stripe_test"].includes(mode) && scale !== 1)
+          )
+            throw new Error(
+              "人手轉帳及 Stripe 必須使用真實時間；本機模擬可選 1 或 60",
+            );
+          for (const key of ["nurse_day_rate", "nurse_night_rate"])
+            if (
+              !Number.isInteger(Number(input[key])) ||
+              Number(input[key]) <= 0
+            )
+              throw new Error("請確認正整數護士測試薪酬");
+          for (const n of workflow.state.nurses) {
+            const email = input.nurses?.find((x) => x.id === n.id)?.email;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || ""))
+              throw new Error("護士電郵無效");
+          }
+          workflow.transaction(() => {
+            for (const [name, defaultValue] of Object.entries(
+              EXPERIMENT_POLICIES,
+            )) {
+              if (input.policies && name in input.policies) {
+                const value = input.policies[name];
+                if (
+                  typeof defaultValue === "boolean" &&
+                  typeof value !== "boolean"
+                )
+                  throw new Error("Policy value invalid");
+                if (
+                  name === "package_offer_rule" &&
+                  !["MANUAL", "WEEKDAY_DAY_LE30"].includes(value)
+                )
+                  throw new Error("套餐設定無效");
+                workflow.state.settings[name] = value;
+              }
+            }
+            workflow.state.settings.time_scale = scale;
+            workflow.state.settings.nurse_day_rate = Number(
+              input.nurse_day_rate,
+            );
+            workflow.state.settings.nurse_night_rate = Number(
+              input.nurse_night_rate,
+            );
+            workflow.state.nurses.forEach(
+              (n) => (n.email = input.nurses.find((x) => x.id === n.id).email),
+            );
+            workflow.state.admin_email =
+              input.admin_email || "admin@example.test";
+            workflow.event("settings.confirmed", null, { actor: "admin" });
+            workflow.save();
+          });
+          result = { ok: true };
+        } else if (
+          url.pathname === "/api/case-action" &&
+          req.method === "POST"
+        ) {
+          const c = workflow.state.cases.find((c) => c.id === input.id);
+          if (!c) throw new Error("找不到個案");
+          if (input.action === "mock_paid") {
+            if (mode !== "mock")
+              throw new Error(
+                "人手轉帳須先對數；Stripe 須等待 test 付款，不可直接標記",
+              );
+            workflow.paid(c);
+          } else if (input.action === "dispatch") workflow.dispatch(c);
+          else if (["draft", "nurse", "admin"].includes(input.action))
+            workflow.review(c, input.action, input);
+          else if (input.action === "reject_fps") workflow.rejectFPS(c, input);
+          else if (input.action === "reconcile_fps")
+            workflow.reconcileFPS(c, input);
+          else if (input.action === "record_fps_refund")
+            workflow.recordFPSRefund(c, input);
+          else workflow.adminCase(c, input.action, input);
+          result = c;
+        } else if (
+          url.pathname === "/api/nurse-action" &&
+          req.method === "POST"
+        ) {
+          const n = workflow.state.nurses.find((n) => n.id === input.id);
+          if (
+            !n ||
+            n.status !== "SUSPENDED" ||
+            input.action !== "blacklist" ||
+            !input.reason?.trim()
+          )
+            throw new Error("只能批核已暫停護士，並須提供原因");
+          n.status = "BLACKLISTED";
+          n.blacklisted_at = workflow.stamp();
+          n.blacklisted_by = user.id;
+          workflow.event("nurse.blacklisted", null, {
+            actor: "admin",
+            nurse: n.id,
+          });
+          const c = workflow.state.cases.find(
+            (c) => c.id === n.drop_log?.at(-1)?.case_id,
+          );
+          if (c)
+            workflow.email(
+              c,
+              "T23",
+              n.email,
+              "接單資格取消",
+              "你好，由於累計放飛 3 次，你嘅接單資格已取消。如有疑問請聯絡管理員。",
+            );
+          workflow.save();
+          result = { ok: true };
+        } else if (
+          url.pathname === "/api/remote-import" &&
+          req.method === "POST"
+        ) {
+          if (
+            !input.version?.trim() ||
+            !Array.isArray(input.rows) ||
+            input.rows.some(
+              (r) =>
+                !r.place ||
+                !["A", "B", "C", "ADMIN", "NOT_SERVED"].includes(r.tier),
+            )
+          )
+            throw new Error("偏遠名單格式無效");
+          workflow.state.remote_list = input.rows.map((r) => ({
+            place: r.place,
+            tier: r.tier,
+            district: r.district || "",
+            list_version: input.version,
+          }));
+          workflow.event("remote.imported", null, {
+            actor: "admin",
+            count: input.rows.length,
+            version: input.version,
+          });
+          workflow.save();
+          result = { ok: true };
+        } else if (url.pathname === "/api/evidence" && req.method === "POST") {
+          if (
+            !input.requirement ||
+            !["PASS", "FAIL", "PENDING"].includes(input.result) ||
+            !input.note?.trim()
+          )
+            throw new Error("請填驗收項目、結果及證據說明");
+          workflow.state.evidence.push({
+            id: crypto.randomUUID(),
+            requirement: input.requirement,
+            result: input.result,
+            note: input.note,
+            artifact: input.artifact || "",
+            at: workflow.stamp(),
+            actor: user.id,
+            payment_mode: mode,
+            email_mode: mailer ? "smtp_test" : "local_inbox",
+            time_scale: workflow.state.settings.time_scale,
+          });
+          workflow.event("evidence.recorded", null, {
+            actor: "admin",
+            requirement: input.requirement,
+            result: input.result,
+          });
+          workflow.save();
+          result = { ok: true };
+        } else if (
+          url.pathname === "/api/email-receipt" &&
+          req.method === "POST"
+        ) {
+          const m = workflow.state.emails.find((m) => m.id === input.id);
+          if (!m || m.status !== "sent" || !input.note?.trim())
+            throw new Error("只可記錄已寄出測試信件的人工收件確認");
+          m.receipt_confirmed_at = workflow.stamp();
+          m.receipt_confirmed_by = user.id;
+          workflow.event(
+            "email.receipt_confirmed",
+            { id: m.case_id },
+            { actor: "admin", template_id: m.template_id },
+          );
+          workflow.save();
+          result = { ok: true };
+        } else if (
+          url.pathname === "/api/test-clock" &&
+          req.method === "POST"
+        ) {
+          if (!testClock)
+            throw new Error(
+              "虛擬時鐘未啟用；只可本機虛構實驗、停用外部寄信時使用",
+            );
+          const to = Date.parse(input.to);
+          if (
+            !Number.isFinite(to) ||
+            to < workflow.now() ||
+            to - workflow.now() > 90 * 86400000
+          )
+            throw new Error("只可向前推進最多 90 天");
+          workflow.state.clock_offset_ms = to - realNow();
+          workflow.event("experiment.clock_advanced", null, {
+            actor: "admin",
+            to: new Date(to).toISOString(),
+            clock: "VIRTUAL_NOT_WALL_TIME",
+          });
+          workflow.tick();
+          workflow.save();
+          result = { ok: true };
+        } else if (url.pathname === "/api/tick" && req.method === "POST") {
+          await workflow.asOperator(null, integrations);
+          result = { ok: true };
+        } else return reply(res, 404, { error: "Not found" });
+        void workflow
+          .asOperator(null, integrations)
+          .catch((error) => console.error(error.message));
+        return reply(
+          res,
+          200,
+          user.role === "SENIOR_NURSE" && url.pathname === "/api/case-action"
+            ? clinicalWorkspace({ cases: [result] }).cases[0]
+            : result,
+        );
+      });
+    }
+    if (process.env.API_PORT)
+      return reply(res, 404, { error: "Use the Vite frontend on port 5173" });
+    if (req.method !== "GET")
+      return reply(res, 405, { error: "Method not allowed" });
+    const root = resolve("dist");
+    const path = resolve(root, "." + decodeURIComponent(url.pathname));
+    if (!path.startsWith(root + "/") && path !== root)
+      return reply(res, 403, { error: "Forbidden" });
+    const types = {
+      ".js": "application/javascript",
+      ".css": "text/css",
+      ".svg": "image/svg+xml",
+      ".jpg": "image/jpeg",
+      ".png": "image/png",
+      ".ico": "image/x-icon",
+    };
+    try {
+      const file = await readFile(path);
+      res.writeHead(200, {
+        "Content-Type": types[extname(path)] || "application/octet-stream",
+      });
+      res.end(file);
+    } catch {
+      reply(
+        res,
+        200,
+        await readFile(resolve(root, "index.html"), "utf8"),
+        "text/html",
+      );
+    }
+  } catch (error) {
+    workflow.save();
+    reply(
+      res,
+      400,
+      url.pathname === "/a" || url.pathname.startsWith("/auth/")
+        ? html("連結已失效／操作未完成", `<p>${escape(error.message)}</p>`)
+        : { error: error.message },
+      url.pathname === "/a" || url.pathname.startsWith("/auth/")
+        ? "text/html"
+        : "application/json",
+    );
+  }
+});
+// Interrupted deliveries need explicit inspection; never resend automatically after a crash.
+for (const mail of workflow.state.emails.filter((x) => x.status === "sending"))
+  mail.status = "delivery_unknown";
+workflow.save();
+server.listen(port, () =>
+  console.log(
+    `TRL 3 workflow server listening on ${port}; email=${mailer ? "SMTP allowlist" : "local inbox"}; payment=${mode}`,
+  ),
+);
+const interval = setInterval(
+  () => void integrations().catch((error) => console.error(error.message)),
+  60000,
+);
+interval.unref();
+void integrations().catch((error) => console.error(error.message));
+for (const sig of ["SIGINT", "SIGTERM"])
+  process.on(sig, () => {
+    clearInterval(interval);
+    server.close(() => {
+      workflow.db.close();
+      process.exit(0);
+    });
+  });

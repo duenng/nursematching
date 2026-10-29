@@ -1,0 +1,182 @@
+[
+  {
+    "id": "vitals",
+    "code": "A_VITALS",
+    "category": "A",
+    "label": "檢測生命表徵（血壓、脈搏、體溫、血氧）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "glucose",
+    "code": "A_GLUCOSE",
+    "category": "A",
+    "label": "血糖監測（篤手指度血糖）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "simple-wound",
+    "code": "A_WOUND_SIMPLE",
+    "category": "A",
+    "label": "簡單傷口護理（細小傷口清洗換敷料）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "stoma",
+    "code": "A_STOMA",
+    "category": "A",
+    "label": "造口護理（腸造口清潔、換袋）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "catheter-care",
+    "code": "A_CATHETER_CARE",
+    "category": "A",
+    "label": "現有尿喉日常護理（清潔、倒尿袋，唔包括更換尿喉）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "tube-feeding",
+    "code": "A_TUBE_FEEDING",
+    "category": "A",
+    "label": "管道餵食（經現有鼻胃喉／胃造口喉／空腸喉，唔包括插／換喉）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "suction",
+    "code": "A_SUCTION",
+    "category": "A",
+    "label": "抽痰（包括按需要抽痰、拍痰）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "tracheostomy",
+    "code": "A_TRACHEOSTOMY",
+    "category": "A",
+    "label": "氣管造口護理",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "peritoneal",
+    "code": "A_PD",
+    "category": "A",
+    "label": "腹膜透析（洗肚）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "tpn",
+    "code": "B_TPN",
+    "category": "B",
+    "label": "TPN（靜脈營養）",
+    "doctor_order_required": true,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "picc",
+    "code": "B_PICC",
+    "category": "B",
+    "label": "PICC（中央靜脈導管）護理",
+    "doctor_order_required": true,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "iv",
+    "code": "B_IV",
+    "category": "B",
+    "label": "靜脈注射",
+    "doctor_order_required": true,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "ng-change",
+    "code": "B_NG_CHANGE",
+    "category": "B",
+    "label": "更換鼻胃喉（只限更換現有喉管，不做首次插入）",
+    "doctor_order_required": true,
+    "replace_only": true,
+    "pending": false
+  },
+  {
+    "id": "peg-change",
+    "code": "B_PEG_CHANGE",
+    "category": "B",
+    "label": "更換胃造口喉（只限更換現有胃造口喉，不做首次插入）【分類暫列 B，待確認】",
+    "doctor_order_required": true,
+    "replace_only": true,
+    "pending": true
+  },
+  {
+    "id": "urinary-change",
+    "code": "B_CATHETER_CHANGE",
+    "category": "B",
+    "label": "更換尿喉（只限更換現有尿喉，不做首次插入）",
+    "doctor_order_required": true,
+    "replace_only": true,
+    "pending": false
+  },
+  {
+    "id": "medication",
+    "code": "B_MEDICATION",
+    "category": "B",
+    "label": "藥物或注射（包括派藥、皮下／肌肉注射）",
+    "doctor_order_required": true,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "complex-wound",
+    "code": "B_WOUND_COMPLEX",
+    "category": "B",
+    "label": "複雜傷口護理",
+    "doctor_order_required": true,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "mobility",
+    "code": "C_MOBILITY",
+    "category": "C",
+    "label": "行動協助（扶抱、轉位、行路）",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "companionship",
+    "code": "C_COMPANION",
+    "category": "C",
+    "label": "陪伴",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  },
+  {
+    "id": "appointment",
+    "code": "C_ESCORT",
+    "category": "C",
+    "label": "陪診",
+    "doctor_order_required": false,
+    "replace_only": false,
+    "pending": false
+  }
+]

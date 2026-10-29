@@ -53,7 +53,9 @@ export function logEvent(
 }
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState(readStore);
-  const [page, setPage] = useState<Page>("Overview");
+  const [page, setPage] = useState<Page>(
+    window.location.hash === "#staff/email" ? "Email validation" : "Overview",
+  );
   const [modal, setModal] = useState<Modal>(null);
   const [notification, setNotification] = useState("");
   const [storageError, setStorageError] = useState(false);
@@ -71,6 +73,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const change = () => {
       setModal(null);
       setView(window.location.hash.startsWith("#staff") ? "staff" : "patient");
+      if (window.location.hash === "#staff/email") setPage("Email validation");
       window.scrollTo({ top: 0 });
     };
     window.addEventListener("hashchange", change);

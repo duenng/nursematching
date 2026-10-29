@@ -1,0 +1,432 @@
+.email-validation {
+  max-width: 1400px;
+  margin: auto;
+  color: var(--text, #30283a);
+}
+.ev-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin: 8px 0 24px;
+}
+.ev-heading h1 {
+  font-size: 32px;
+  letter-spacing: -0.8px;
+  margin: 8px 0;
+}
+.ev-heading p {
+  max-width: 760px;
+  line-height: 1.7;
+}
+.ev-heading > svg {
+  color: #74418e;
+  flex-shrink: 0;
+}
+.ev-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.ev-capabilities span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  background: #efe8f6;
+  color: #60397b;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.ev-config {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.ev-config summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.ev-config > p {
+  line-height: 1.7;
+  color: #6b6272;
+}
+.ev-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 22px 0;
+}
+.ev-toolbar [role="tablist"] {
+  display: flex;
+  gap: 5px;
+  margin-right: auto;
+}
+.ev-toolbar [role="tab"] {
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ev-toolbar [aria-selected="true"] {
+  background: #6e4389;
+  color: white;
+}
+.ev-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.ev-panel {
+  padding: 26px;
+  min-width: 0;
+}
+.ev-panel h2 {
+  font-size: 20px;
+  margin: 0 0 20px;
+}
+.email-validation label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.email-validation input:not([type="checkbox"]),
+.email-validation select,
+.email-validation textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #dcd5e2;
+  background: white;
+  color: #30283a;
+  border-radius: 9px;
+  font: inherit;
+  min-width: 0;
+}
+.email-validation input:focus,
+.email-validation select:focus,
+.email-validation textarea:focus {
+  outline: 2px solid #a480bc;
+  outline-offset: 2px;
+}
+.email-validation textarea {
+  min-height: 75px;
+  resize: vertical;
+}
+.ev-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.email-validation .ev-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.6;
+}
+.ev-check input {
+  margin-top: 5px;
+  accent-color: #72458b;
+}
+.email-validation fieldset {
+  border: 1px solid #e4dce9;
+  border-radius: 12px;
+  padding: 15px;
+  margin: 12px 0 20px;
+}
+.email-validation legend {
+  font-size: 14px;
+  padding: 0 6px;
+}
+.ev-service {
+  padding: 9px 0;
+  border-bottom: 1px solid #f0ebf4;
+}
+.ev-service:last-child {
+  border-bottom: 0;
+}
+.ev-service > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.ev-service > div > input {
+  flex: 1;
+}
+.ev-service .ev-check {
+  margin: 0;
+}
+.ev-case-select {
+  max-width: 420px;
+}
+.ev-state {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f1eaf6;
+}
+.ev-state span {
+  font-size: 13px;
+  color: #72458b;
+}
+.ev-steps {
+  padding-left: 23px;
+  line-height: 1.8;
+}
+.ev-steps li {
+  padding: 8px 0;
+}
+.ev-steps li > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.ev-steps .button {
+  font-size: 12px;
+  padding: 9px 12px;
+}
+.ev-steps summary {
+  cursor: pointer;
+  color: #72458b;
+  font-size: 13px;
+}
+.ev-gates {
+  display: grid;
+  gap: 9px;
+  background: #f6f3f8;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 13px;
+}
+.ev-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ev-panel pre {
+  font: 14px/1.9 system-ui;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #faf8fc;
+  border: 1px solid #eee7f3;
+  padding: 18px;
+  border-radius: 12px;
+}
+.ev-error {
+  background: #fff0ed;
+  border: 1px solid #e8b5ac;
+  color: #913a2b;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin: 14px 0;
+}
+.ev-inbox {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.ev-mail-list {
+  padding: 18px;
+  max-height: 850px;
+  overflow: auto;
+}
+.ev-mail-list h2 {
+  font-size: 19px;
+}
+.ev-mail-list > button {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: 1px solid #e7e0ed;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 9px 0;
+  cursor: pointer;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.ev-mail-list > button.active {
+  background: #f2ebf7;
+  border-color: #9469ae;
+}
+.ev-mail-list > button span {
+  font-size: 12px;
+}
+.ev-mail-list small {
+  color: #766783;
+}
+.ev-event-table {
+  overflow: auto;
+  margin: 20px 0;
+}
+.ev-event-table table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.ev-event-table td,
+.ev-event-table th {
+  text-align: left;
+  padding: 13px;
+  border-bottom: 1px solid #ebe5f0;
+}
+.ev-event-table td p {
+  white-space: normal;
+}
+.email-validation .button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.email-validation a.button {
+  text-decoration: none;
+}
+.email-validation .form-hint {
+  line-height: 1.7;
+}
+@media (max-width: 1100px) {
+  .ev-columns {
+    grid-template-columns: 1fr;
+  }
+  .ev-inbox {
+    grid-template-columns: 270px 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .ev-heading h1 {
+    font-size: 26px;
+  }
+  .ev-heading > svg {
+    display: none;
+  }
+  .ev-inbox {
+    grid-template-columns: 1fr;
+  }
+  .ev-mail-list {
+    max-height: 320px;
+  }
+  .ev-panel {
+    padding: 19px;
+  }
+  .ev-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .ev-toolbar [role="tablist"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .ev-toolbar [role="tab"] {
+    flex: 1;
+    padding: 10px;
+  }
+  .ev-toolbar .button {
+    font-size: 12px;
+  }
+  .ev-capabilities {
+    gap: 6px;
+  }
+  .ev-capabilities span {
+    font-size: 11px;
+    padding: 7px;
+  }
+}
+.ev-admin {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #e4dce9;
+  border-radius: 12px;
+}
+.ev-admin summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.ev-gates h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.ev-gates p {
+  line-height: 1.7;
+  margin: 5px 0;
+}
+.ev-toolbar [role="tablist"] {
+  flex-wrap: wrap;
+}
+.ev-panel > .ev-gates {
+  margin: 14px 0;
+}
+.email-validation textarea[aria-label="Schedule JSON"] {
+  min-height: 180px;
+  font-family: monospace;
+}
+.ev-review-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #21102e66;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.ev-review {
+  width: min(650px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: white;
+  box-shadow: 0 20px 90px #27103644;
+}
+.ev-auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #ddd1e7;
+  border-radius: 12px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.ev-auth-bar > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ev-auth-bar p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.ev-public {
+  max-width: 850px;
+  padding: 32px 20px;
+}
+.ev-public > .ev-panel {
+  margin-bottom: 22px;
+}
+.ev-gates {
+  overflow-wrap: anywhere;
+}

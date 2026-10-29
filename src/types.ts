@@ -6,7 +6,8 @@ export type Page =
   | "Care providers"
   | "Messages"
   | "Client records"
-  | "Settings";
+  | "Settings"
+  | "Email validation";
 export type CaseStatus =
   | "Information required"
   | "Under review"
@@ -82,7 +83,10 @@ export interface CareCase {
   serviceDates?: string[];
   startTime?: string;
   endTime?: string;
-  paymentStatus?: "Not quoted" | "Quoted" | "Awaiting payment" | "Paid" | "Payment expired";
+  email?: string;
+  phone?: string;
+  paymentStatus?:
+    "Not quoted" | "Quoted" | "Awaiting payment" | "Paid" | "Payment expired";
   paymentDeadline?: string;
   quoteTotal?: number;
   packageChoice?: "Single visit" | "30-hour package";
@@ -150,10 +154,17 @@ export interface PackageLedger {
   hoursReserved: number;
   price: number;
   discount: number;
-  status: "Pending payment" | "Active" | "Used up" | "Payment expired" | "Refunded";
+  status:
+    "Pending payment" | "Active" | "Used up" | "Payment expired" | "Refunded";
   paymentDeadline?: string;
   paidAt?: string;
-  entries: { at: string; type: string; hours: number; caseId?: string; reason?: string }[];
+  entries: {
+    at: string;
+    type: string;
+    hours: number;
+    caseId?: string;
+    reason?: string;
+  }[];
 }
 export interface Provider {
   id: string;

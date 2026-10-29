@@ -2598,7 +2598,7 @@ h1 {
   border-radius: 9px;
   background: #f7f2f9;
 }
-.whatsapp-icon {
+.email-icon {
   width: 58px;
   height: 58px;
   background: #f0e6f4;
@@ -6341,12 +6341,12 @@ h1 {
     gap: 16px;
     align-items: flex-start;
   }
-  .whatsapp-icon {
+  .email-icon {
     width: 43px;
     height: 43px;
     border-radius: 13px;
   }
-  .whatsapp-icon svg {
+  .email-icon svg {
     width: 24px;
   }
   .messaging-banner .badge {

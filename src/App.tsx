@@ -12,6 +12,7 @@ import {
   CircleHelp,
   ClipboardList,
   FolderHeart,
+  FlaskConical,
   Heart,
   HeartHandshake,
   LayoutDashboard,
@@ -51,6 +52,7 @@ import { SchedulePage } from "./pages/Schedule";
 import { ProvidersPage, MessagesPage, SettingsPage } from "./pages/Operations";
 import { Modals } from "./Modals";
 import { CareIllustration } from "./CareIllustration";
+import { EmailValidation, PublicEmailEnquiry } from "./pages/EmailValidation";
 import { PatientPortal } from "./pages/Patient";
 
 const navItems: { label: Page; icon: LucideIcon; group: string }[] = [
@@ -59,6 +61,7 @@ const navItems: { label: Page; icon: LucideIcon; group: string }[] = [
   { label: "Care requests", icon: ClipboardList, group: "WORKSPACE" },
   { label: "Care schedule", icon: CalendarDays, group: "WORKSPACE" },
   { label: "Care providers", icon: HeartHandshake, group: "MANAGE" },
+  { label: "Email validation", icon: FlaskConical, group: "MANAGE" },
   { label: "Messages", icon: MessageCircle, group: "MANAGE" },
   { label: "Client records", icon: FolderHeart, group: "MANAGE" },
 ];
@@ -378,6 +381,8 @@ function Shell() {
             <SchedulePage />
           ) : page === "Care providers" ? (
             <ProvidersPage />
+          ) : page === "Email validation" ? (
+            <EmailValidation />
           ) : page === "Messages" ? (
             <MessagesPage />
           ) : page === "Client records" ? (
@@ -1074,5 +1079,15 @@ export default function App() {
 
 function PortalView() {
   const { view } = useApp();
+  const [publicEnquiry, setPublicEnquiry] = useState(
+    window.location.hash.startsWith("#enquire"),
+  );
+  useEffect(() => {
+    const change = () =>
+      setPublicEnquiry(window.location.hash.startsWith("#enquire"));
+    window.addEventListener("hashchange", change);
+    return () => window.removeEventListener("hashchange", change);
+  }, []);
+  if (publicEnquiry) return <PublicEmailEnquiry />;
   return view === "staff" ? <Shell /> : <PatientPortal />;
 }

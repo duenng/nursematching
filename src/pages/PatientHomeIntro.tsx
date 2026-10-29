@@ -7,7 +7,7 @@ const services = [
     title: "Nursing care at home",
     chinese: "上門護士護理",
     image: "/images/care-team.jpg",
-    alt: "A medical professional with a stethoscope",
+    alt: "A Hong Kong integrated home-care service team centre entrance",
     description:
       "Nursing support for needs such as wound care, based on confirmed professional instructions. The team reviews the appropriate RN or EN scope and relevant skills before arranging care.",
   },
@@ -15,7 +15,7 @@ const services = [
     title: "Support after hospital",
     chinese: "出院護理支援",
     image: "/images/home-care.jpg",
-    alt: "A caregiver supporting an older adult at home",
+    alt: "The entrance to a Hong Kong geriatric day hospital",
     description:
       "Make the move from hospital to home more manageable. Share your discharge instructions so the team can help coordinate the right support and a visit schedule you agree to.",
   },
@@ -23,7 +23,7 @@ const services = [
     title: "Health monitoring",
     chinese: "健康監察支援",
     image: "/images/nursing-care.jpg",
-    alt: "A stethoscope beside a care professional’s laptop",
+    alt: "A Hong Kong elderly day-care centre shuttle bus outside the centre",
     description:
       "Ask about support with tasks such as blood pressure or blood glucose monitoring. A qualified reviewer confirms the requested tasks, professional requirements and visit frequency with you.",
   },
@@ -31,7 +31,7 @@ const services = [
     title: "Appointment companions",
     chinese: "陪診及覆診支援",
     image: "/images/companion-care.jpg",
-    alt: "Two women talking together at a table",
+    alt: "An older Hong Kong woman walking with a cane through an open urban plaza",
     description:
       "Non-clinical support at hospital and clinic appointments, from finding your way to keeping your family informed. The team checks district coverage and companion availability.",
   },
@@ -39,7 +39,7 @@ const services = [
     title: "A plan built around you",
     chinese: "個人化護理安排",
     image: "/images/welcome-care.jpg",
-    alt: "Hands held together in support",
+    alt: "A Hong Kong community park beside high-rise residential buildings",
     description:
       "Not sure which service to choose? Tell us what day-to-day life looks like for you. The team helps clarify your needs, explains the options and reviews the proposed plan with you.",
   },
@@ -132,7 +132,7 @@ export function PatientHomeIntro({
             <img
               src="/images/home-care.jpg"
               alt={t(
-                "A caregiver helping an older adult sit comfortably at home",
+                "The entrance to a Hong Kong geriatric day hospital",
               )}
               width="1400"
               height="933"
@@ -248,7 +248,7 @@ export function PatientHomeIntro({
           <div className="clinic-provider-image">
             <img
               src="/images/care-provider.jpg"
-              alt={t("A Hong Kong senior-care volunteer supporting an older adult indoors")}
+              alt={t("A Hong Kong integrated home-care service centre")}
               loading="lazy"
               width="1400"
               height="933"
