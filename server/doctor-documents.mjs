@@ -9,7 +9,7 @@ export function documentStore(db) {
 }
 export function validateSample(buffer) {
   if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > MAX_FILE)
-    throw new Error("測試文件不可超過 2 MB");
+    throw new Error("文件不可為空或超過 2 MB");
   if (
     buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
   )
@@ -17,9 +17,9 @@ export function validateSample(buffer) {
   if (buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255)
     return "image/jpeg";
   if (buffer.subarray(0, 5).toString() === "%PDF-") return "application/pdf";
-  throw new Error("只接受 PDF、PNG 或 JPEG 虛構樣本文件");
+  throw new Error("只接受 PDF、PNG 或 JPEG 文件");
 }
-export function readSampleUpload(req) {
+export function readSampleUpload(req, { live = false } = {}) {
   return new Promise((resolve, reject) => {
     let parser;
     try {
@@ -38,10 +38,11 @@ export function readSampleUpload(req) {
       return;
     }
     let file,
-      fictional = false,
+      acknowledged = false,
       invalid = false;
     parser.on("field", (name, value) => {
-      if (name === "fictional" && value === "yes") fictional = true;
+      if (name === (live ? "consent" : "fictional") && value === "yes")
+        acknowledged = true;
       else invalid = true;
     });
     parser.on("file", (name, stream) => {
@@ -62,9 +63,13 @@ export function readSampleUpload(req) {
     parser.on("error", reject);
     req.on("aborted", () => reject(new Error("文件上載中斷")));
     parser.on("close", () => {
-      if (invalid || !fictional || !file)
+      if (invalid || !acknowledged || !file)
         return reject(
-          new Error("請確認虛構樣本；只可上載一個不超過 2 MB 的文件"),
+          new Error(
+            live
+              ? "請確認有權提交文件；只可上載一個不超過 2 MB 的文件"
+              : "請確認虛構樣本；只可上載一個不超過 2 MB 的文件",
+          ),
         );
       try {
         resolve({ content: file, media_type: validateSample(file) });

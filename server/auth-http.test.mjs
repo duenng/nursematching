@@ -247,7 +247,8 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
     shift: "DAY",
     start: "15:00",
     end: "19:00",
-    fictional: true,
+    intake_mode: "LIVE",
+    consent: true,
     doctor_order: "YES",
     existing_tube: "YES",
     services: [{ id: "ng-change", times: ["16:00"] }],
@@ -267,7 +268,10 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
   const upload = state.emails
     .find((m) => m.case_id === clinicalCase.id && m.template_id === "T9")
     .links.find((l) => l.label === "upload_doctor").url;
-  assert.match(await (await fetch(upload)).text(), /multipart\/form-data/);
+  const uploadPage = await (await fetch(upload)).text();
+  assert.match(uploadPage, /multipart\/form-data/);
+  assert.match(uploadPage, /name="consent"/);
+  assert.doesNotMatch(uploadPage, /虛構/);
   const form = new FormData();
   form.set("fictional", "yes");
   form.set(
@@ -277,6 +281,14 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
     }),
     "fixture.pdf",
   );
+  const rejected = await fetch(upload, {
+    method: "POST",
+    headers: { Origin: base },
+    body: form,
+  });
+  assert.equal(rejected.status, 400);
+  form.delete("fictional");
+  form.set("consent", "yes");
   const uploaded = await fetch(upload, {
     method: "POST",
     headers: { Origin: base },
@@ -326,7 +338,7 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
       shift: "DAY",
       start: "10:00",
       end: "14:00",
-      fictional: true,
+      consent: true,
       remote_confirmed: true,
       amount_paid: 1220,
       status: "PAID",

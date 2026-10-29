@@ -43,40 +43,27 @@ test("patients land on service pages and can explore their own care without staf
   expect(errors).toEqual([]);
 });
 
-test("patient enquiry opens My care for the new patient and persists without client directory access", async ({
+test("homepage enquiry uses the server form without a browser-only consent claim", async ({
   page,
 }) => {
   await page.goto("/#patient");
   await page.getByRole("button", { name: "Enquire now", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .getByLabel("How can we help?")
-    .fill(
-      "I am 70 years old and live in Sha Tin. I need an appointment companion on Monday morning for 2 weeks.",
-    );
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Organise enquiry" }).click();
-  await expect(dialog.getByLabel("Existing client")).toHaveCount(0);
-  await dialog.getByLabel("Patient name / alias").fill("Demo Patient");
-  await dialog.getByRole("button", { name: "Submit my care enquiry" }).click();
-  await expect(page).toHaveURL(/#patient\/care$/);
-  await expect(page.locator(".patient-request-person")).toContainText(
-    "Demo Patient",
-  );
-  await expect(page.locator("main")).not.toContainText("Mr. Chan");
-  await expect(page.locator(".patient-visits-card")).toContainText(
-    "Your schedule will appear here",
-  );
+  await expect(page).toHaveURL(/#enquire$/);
+  await expect(
+    page.getByRole("heading", { name: "Home nursing enquiry" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", {
+      name: /I agree that this information may be stored/,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/All data is fictional/)).toHaveCount(0);
+  await expect(page.getByLabel("Surname", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Email (required)")).toHaveValue("");
   await page.reload();
-  await expect(page.locator(".patient-request-person")).toContainText(
-    "Demo Patient",
-  );
-  await page.getByRole("button", { name: "Explore the staff demo" }).click();
-  await page.getByLabel("Search workspace").fill("Demo Patient");
-  await page.locator(".search-results").getByRole("button").click();
-  await expect(page.getByRole("dialog")).toContainText(
-    "Appointment accompaniment",
-  );
+  await expect(
+    page.getByRole("heading", { name: "Home nursing enquiry" }),
+  ).toBeVisible();
 });
 
 test("patient approval and change requests flow through staff revision and patient reapproval", async ({

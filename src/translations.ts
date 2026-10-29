@@ -777,6 +777,8 @@ How much will the service cost?|服務費用是多少？
 The price depends on confirmed care needs, the professional requirements, visit length and timing. The team confirms a quotation with you before the case is published. Enquiring here does not commit you to a service.|費用取決於已確認的護理需要、專業要求、到訪時長及時間。團隊會在發布個案前與你確認報價。提交查詢不代表承諾使用服務。
 Can I change a proposed visit?|我可以更改建議到訪時間嗎？
 Yes. In My care, open a visit and request another time. The team checks the change with your provider. A revised proposal needs your approval before it becomes confirmed.|可以。在「我的護理」開啟到訪詳情，提出其他時間。團隊會與人員核對更改，修訂建議須經你同意後才會確認。
+How is my enquiry handled?|查詢會點樣跟進？
+Your enquiry is stored on our server and followed up by email. We review the details and confirm a quotation. Dispatch starts after staff verify your bank transfer.|查詢會儲存在伺服器，由同事透過電郵跟進、核實資料及確認報價。銀行轉帳經同事核實入帳後，先安排派單。
 Is this taking real bookings?|這裡接受真實預約嗎？
 This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no email message is sent.|這是前端示範網站，查詢及日程操作與虛構資料一同儲存在此瀏覽器，不會預約真實護士、收取費用或傳送電郵訊息。
 YOU DON’T HAVE TO FIGURE IT ALL OUT ALONE.|安排護理，你毋須獨自面對。

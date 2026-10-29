@@ -10,20 +10,35 @@ test("family submits a server enquiry without staff login; privileged data stays
   page.on("request", (req) => {
     if (req.url().includes("/api/workflow")) staffReads++;
   });
-  await page.goto("/#enquire");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Enquire now", exact: true }).click();
+  await expect(page).toHaveURL(/#enquire$/);
   await expect(
-    page.getByRole("heading", { name: "Home nursing test enquiry" }),
+    page.getByRole("heading", { name: "Home nursing enquiry" }),
   ).toBeVisible();
   await expect(page.getByRole("tab", { name: /Test inbox/ })).toHaveCount(0);
   await expect(page.getByLabel("Admin key")).toHaveCount(0);
   await page.getByLabel("Email (required)").fill("family@example.test");
+  await page.getByLabel("Surname").fill("Li");
+  await page.getByLabel("Building (no unit at intake)").fill("Test Building");
+  await page.getByRole("combobox", { name: /^Gender/ }).selectOption("M");
+  await page.getByRole("spinbutton", { name: "Age" }).fill("78");
+  await page.getByRole("spinbutton", { name: "Weight kg" }).fill("65");
+  await page.getByRole("spinbutton", { name: "Height cm" }).fill("165");
+  await page.getByRole("combobox", { name: /^District/ }).selectOption("屯門");
+  await page.getByLabel("Mobility").selectOption({ index: 1 });
+  await page.getByLabel("Companion during service").selectOption({ index: 1 });
   await page
     .getByLabel("Patient reference (package owner)")
     .fill("PUBLIC-TEST-1");
   await page
     .getByLabel("Service date")
     .fill(new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10));
-  await page.getByRole("checkbox", { name: /All data is fictional/ }).check();
+  await page
+    .getByRole("checkbox", {
+      name: /I agree that this information may be stored/,
+    })
+    .check();
   await page
     .getByRole("button", { name: "Confirm details and submit", exact: true })
     .click();

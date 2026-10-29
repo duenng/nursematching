@@ -9,7 +9,7 @@ const fields = [
   "shift",
   "start",
   "end",
-  "fictional",
+  "consent",
   "gender",
   "age",
   "weight_kg",
@@ -31,6 +31,7 @@ export const publicIntake = (input) => ({
     fields.filter((k) => k in input).map((k) => [k, input[k]]),
   ),
   intake_version: "v3",
+  intake_mode: "LIVE",
 });
 export function createIntakeLimiter(now = Date.now) {
   const attempts = new Map();

@@ -148,7 +148,7 @@ test("email validation UI completes a real server workflow with safe confirmatio
   const familyPromise = context.waitForEvent("page");
   await page.getByRole("link", { name: "填寫單位" }).click();
   const family = await familyPromise;
-  await family.getByLabel("樓層及單位（只限虛構資料）").fill("38 樓 X 室");
+  await family.getByLabel("樓層及單位").fill("38 樓 X 室");
   await family.getByRole("button", { name: "確認：填寫單位" }).click();
   await family.close();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();

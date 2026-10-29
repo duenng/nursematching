@@ -63,53 +63,25 @@ test("Traditional Chinese is the default and language selection persists across 
   expect(errors).toEqual([]);
 });
 
-test("Chinese enquiry, corrections and visit approval retain their workflow values", async ({
+test("Chinese homepage opens the server enquiry with meaningful data-use consent", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "立即查詢", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "試用廣東話範例" }).click();
-  const enquiry = await dialog.getByLabel("你需要甚麼協助？").inputValue();
-  await dialog.getByRole("button", { name: "EN", exact: true }).click();
-  await expect(dialog.getByLabel("How can we help?")).toHaveValue(enquiry);
-  await dialog.getByRole("button", { name: "繁中", exact: true }).click();
-  await expect(dialog.getByLabel("你需要甚麼協助？")).toHaveValue(enquiry);
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "整理查詢" }).click();
-  await dialog.getByLabel("服務對象姓名／稱呼").fill("測試陳女士");
-  await dialog.getByLabel("查詢服務地區").selectOption("Sha Tin");
-  await expect(dialog.getByLabel("查詢服務地區")).toHaveValue("Sha Tin");
-  await dialog.getByRole("button", { name: "提交護理查詢" }).click();
-  await expect(page.locator(".patient-request-person")).toContainText(
-    "測試陳女士",
-  );
-  await expect(page.locator(".patient-request-person")).toContainText("沙田");
-  await expect(page.locator(".patient-request-details")).toContainText("週一");
-  await page.getByRole("button", { name: "核對或修正我的資料" }).click();
-  await dialog.getByLabel("期望到訪時間").fill("下午");
-  await dialog.getByRole("button", { name: "儲存我的修正" }).click();
-  await page.getByRole("button", { name: "EN", exact: true }).click();
-  await expect(page.locator(".patient-request-person")).toContainText(
-    "測試陳女士",
-  );
-  await expect(page.locator(".patient-request-details")).toContainText("下午");
+  await expect(
+    page.getByRole("heading", { name: "上門護理查詢", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "我同意將以上資料保存，用於跟進查詢、報價及安排服務。",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/我正使用虛構資料進行示範/)).toHaveCount(0);
+  await expect(page.getByLabel("姓氏", { exact: true })).toHaveValue("");
   await page.reload();
-  await expect(page.locator(".patient-request-person")).toContainText(
-    "測試陳女士",
-  );
-  await page.evaluate(() => localStorage.removeItem("kindred-patient-preview"));
-  await page.reload();
-  await page.getByRole("button", { name: "繁中", exact: true }).click();
-  await page.getByRole("button", { name: "查看建議到訪", exact: true }).click();
-  await expect(dialog.locator(".patient-dialog-date")).toContainText("月");
-  await dialog.getByRole("button", { name: "同意此次到訪" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("請確認已核對");
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "同意此次到訪" }).click();
-  await expect(dialog.locator(".patient-dialog-status .badge")).toHaveText(
-    "已確認",
-  );
+  await expect(
+    page.getByRole("heading", { name: "上門護理查詢", exact: true }),
+  ).toBeVisible();
 });
 
 test("switching languages preserves expanded services and mobile pages fit the screen", async ({

@@ -75,6 +75,10 @@ const policyDefaults = {
   sender_name: "上門護理配對（測試）",
 };
 const available = (p) => p.hours_total - p.hours_used - p.hours_reserved;
+export const hasRedFlag = (input) =>
+  /胸口痛|胸痛|氣促|呼吸困難|昏迷|叫唔醒|抽筋|中風|大量出血|流血唔止|高燒|自殺|跌親撞頭|流膿|流緊膿|胰島素|劑量|幾多單位|加藥|減藥|發炎|簡單定複雜|唔收附加費|chest pain|shortness of breath|unconscious|seizure|stroke|bleeding|insulin|dosage|dose|diagnos|pus|waive/i.test(
+    `${input.remarks || ""} ${input.other || input.other_need_text || ""} ${input.medical_history || ""}`,
+  );
 export const extendWorkflow = (Base) =>
   class extends Base {
     constructor(...args) {
@@ -85,6 +89,7 @@ export const extendWorkflow = (Base) =>
       this.bankAccountName = args[1]?.bankAccountName?.trim() || "";
       this.bankAccountNumber = args[1]?.bankAccountNumber?.trim() || "";
       this.state.settings = { ...policyDefaults, ...this.state.settings };
+      for (const c of this.state.cases) if (hasRedFlag(c)) c.red_flag = true;
       for (const key of [
         "packages",
         "ledger_entries",
@@ -140,7 +145,7 @@ export const extendWorkflow = (Base) =>
             !input.reason?.trim()
           )
             throw new Error(
-              "請檢閱已上載醫生指示樣本，確認文件版本並填覆核說明",
+              "請檢閱已上載醫生指示文件，確認文件版本並填覆核說明",
             );
           c.doctor_order_review = {
             document_id: c.doctor_document.id,
@@ -238,7 +243,12 @@ export const extendWorkflow = (Base) =>
       const actor =
         detail.actor || (detail.nurse ? "nurse" : actors[event]) || "system";
       super.event(event, c, {
-        env: "TEST",
+        env:
+          (c?.intake_mode ||
+            this.state.cases.find((item) => item.id === c?.id)?.intake_mode) ===
+          "LIVE"
+            ? "LIVE"
+            : "TEST",
         actor,
         actor_code:
           detail.nurse ||
@@ -260,6 +270,10 @@ export const extendWorkflow = (Base) =>
     intakeFields(i) {
       return {
         intake_version: i.intake_version || "legacy-test",
+        intake_mode: i.intake_mode === "LIVE" ? "LIVE" : "TEST",
+        fictional: i.intake_mode !== "LIVE",
+        consent_version:
+          i.intake_mode === "LIVE" ? "care-enquiry-v1" : "test-v1",
         patient_ref: i.patient_ref || i.surname,
         gender: i.gender,
         age: i.age,
@@ -271,7 +285,7 @@ export const extendWorkflow = (Base) =>
         companion: i.companion,
         remarks: i.remarks || "",
         other_need_text: i.other || "",
-        consent: i.fictional === true,
+        consent: i.consent === true || i.fictional === true,
         consent_at: this.stamp(),
         existing_tubes: i.existing_tubes || {},
         doctor_order_file: i.doctor_order_file || "",
@@ -337,7 +351,7 @@ export const extendWorkflow = (Base) =>
       return this.transaction(() => {
         if (i.intake_version === "v3") {
           if (!i.patient_ref?.trim() || i.patient_ref.length > 100)
-            throw new Error("請提供同一病人的固定測試代號");
+            throw new Error("請提供同一病人的固定代號");
           if (
             !["M", "F"].includes(i.gender) ||
             !Number.isInteger(Number(i.age)) ||
@@ -421,7 +435,9 @@ export const extendWorkflow = (Base) =>
       ) {
         links = [...links, this.token(c, "family", "upload_doctor")];
         body +=
-          "\n請透過以下連結上載虛構醫生指示樣本（PDF／PNG／JPEG，不超過 2 MB），供資深護士獨立核對。";
+          c.intake_mode === "LIVE"
+            ? "\n請透過以下連結上載醫生指示文件（PDF／PNG／JPEG，不超過 2 MB），供資深護士獨立核對。"
+            : "\n請透過以下連結上載虛構醫生指示樣本（PDF／PNG／JPEG，不超過 2 MB），供資深護士獨立核對。";
       }
       if (id === "T4c")
         links = [...links, this.token(c, c.assigned_nurse, "drop")];
@@ -446,6 +462,8 @@ export const extendWorkflow = (Base) =>
       mail.template_version = TEMPLATE_VERSION;
     }
     valid(t, c) {
+      if (t.action === "take_case" && this.startAt(c) <= this.now())
+        throw new Error("連結已失效");
       const own = {
         report_fps: ["PENDING_PAY"],
         upload_doctor: ["PAID", "POSTED", "MATCHED"],
@@ -1348,7 +1366,8 @@ ${instructions}
             );
           if (c.status !== "MANUAL" || !i.reason?.trim())
             throw new Error("請填寫人工處理原因");
-          if (c.red_flag) {
+          if (c.red_flag || hasRedFlag(c)) {
+            c.red_flag = true;
             if (
               i.red_flag_resolved !== true ||
               typeof i.red_flag_resolution !== "string" ||

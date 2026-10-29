@@ -400,6 +400,9 @@ test("nurse claim links expire at service start even before the worker runs", (t
   paid(w, c);
   w.dispatch(c);
   const claim = token(w, c, "take_case", "N01");
+  // A token persisted before the expiry fix must also be rejected at current service start.
+  w.state.tokens.find((t) => t.token === claim).expires_at =
+    "2026-12-01T00:00:00Z";
   set("2026-11-10T09:59:59+08:00");
   assert.doesNotThrow(() => w.inspect(claim));
   set("2026-11-10T10:00:00+08:00");
@@ -412,14 +415,23 @@ test("red-flag manual cases require a recorded clinical resolution before quotin
   const c = w.create(base({ remarks: "胸痛，呼吸困難" }));
   assert.equal(c.status, "MANUAL");
   assert.equal(c.red_flag, true);
+  delete c.red_flag; // Older persisted cases did not store this marker.
   assert.throws(
     () => w.adminCase(c, "issue_quote", { reason: "資料核實" }),
+    /紅旗個案/,
+  );
+  assert.throws(
+    () =>
+      w.adminCase(c, "issue_quote", {
+        reason: "臨床覆核",
+        red_flag_resolution: "已完成臨床評估，確認可以按原定服務重新報價。",
+      }),
     /紅旗個案/,
   );
   w.adminCase(c, "issue_quote", {
     reason: "臨床覆核",
     red_flag_resolved: true,
-    red_flag_resolution: "已聯絡家屬安排急症評估，確認不進行一般上門報價。",
+    red_flag_resolution: "已完成臨床評估，確認可以按原定服務重新報價。",
   });
   assert.equal(c.status, "QUOTED");
   assert.equal(c.red_flag_resolved_by, "admin");

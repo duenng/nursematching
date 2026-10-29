@@ -415,8 +415,10 @@ const server = http.createServer(async (req, res) => {
             res,
             200,
             html(
-              "上載虛構醫生指示樣本",
-              `<p>Case ${escape(c.id)}。只用虛構樣本，PDF／PNG／JPEG，最多 2 MB。文件只供受權職員覆核。</p><form method="POST" enctype="multipart/form-data" action="/a?t=${escape(token)}"><label>樣本文件<input type="file" name="sample" accept="application/pdf,image/png,image/jpeg" required></label><label><input type="checkbox" name="fictional" value="yes" required>我確認是虛構醫生指示樣本</label><button type="submit">確認上載</button></form>`,
+              c.intake_mode === "LIVE"
+                ? "上載醫生指示文件"
+                : "上載虛構醫生指示樣本",
+              `<p>Case ${escape(c.id)}。${c.intake_mode === "LIVE" ? "請上載醫生指示文件，" : "只用虛構樣本，"}PDF／PNG／JPEG，最多 2 MB。文件只供受權職員覆核。</p><form method="POST" enctype="multipart/form-data" action="/a?t=${escape(token)}"><label>文件<input type="file" name="sample" accept="application/pdf,image/png,image/jpeg" required></label><label><input type="checkbox" name="${c.intake_mode === "LIVE" ? "consent" : "fictional"}" value="yes" required>${c.intake_mode === "LIVE" ? "我確認有權提交此文件，並同意供受權職員核對及安排服務。" : "我確認是虛構醫生指示樣本"}</label><button type="submit">確認上載</button></form>`,
             ),
             "text/html",
           );
@@ -425,7 +427,7 @@ const server = http.createServer(async (req, res) => {
           200,
           html(
             names[t.action] || "確認操作",
-            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位（只限虛構資料）<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
+            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
           ),
           "text/html",
         );
@@ -440,12 +442,16 @@ const server = http.createServer(async (req, res) => {
             req.headers.origin !== new URL(workflow.baseUrl).origin
           )
             return reply(res, 403, { error: "Origin not allowed" });
-          storeSample(workflow, token, await readSampleUpload(req));
+          storeSample(
+            workflow,
+            token,
+            await readSampleUpload(req, { live: c.intake_mode === "LIVE" }),
+          );
           return reply(
             res,
             200,
             html(
-              "已收到樣本文件",
+              "已收到文件",
               "<p>文件已保存，仍待資深護士核對；上載不代表已通過。</p>",
             ),
             "text/html",
@@ -491,7 +497,7 @@ const server = http.createServer(async (req, res) => {
         const doc = workflow.db
           .prepare("SELECT * FROM doctor_documents WHERE id=?")
           .get(id);
-        if (!doc) return reply(res, 404, { error: "找不到樣本文件" });
+        if (!doc) return reply(res, 404, { error: "找不到文件" });
         workflow.asOperator(user, () => {
           workflow.event(
             "doctor_document.viewed",
@@ -503,7 +509,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, {
           "Content-Type": doc.media_type,
           "Content-Length": doc.content.length,
-          "Content-Disposition": `attachment; filename="fictional-order-${doc.id}.${doc.media_type === "application/pdf" ? "pdf" : doc.media_type === "image/png" ? "png" : "jpg"}"`,
+          "Content-Disposition": `attachment; filename="doctor-order-${doc.id}.${doc.media_type === "application/pdf" ? "pdf" : doc.media_type === "image/png" ? "png" : "jpg"}"`,
           "Cache-Control": "no-store",
           "X-Content-Type-Options": "nosniff",
           "Content-Security-Policy": "sandbox; default-src 'none'",

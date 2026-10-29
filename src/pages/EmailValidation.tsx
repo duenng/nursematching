@@ -135,7 +135,7 @@ type Workspace = {
 };
 const services = catalog;
 const labels: Record<string, string> = {
-  upload_doctor: "上載虛構醫生指示樣本",
+  upload_doctor: "上載醫生指示文件",
   report_fps: "提交轉帳資料",
   accept_single: "接受單次報價",
   accept_package: "30 小時套餐",
@@ -209,12 +209,14 @@ function AdminWorkspace({
     } as Record<string, boolean | string>,
   });
   const [form, setForm] = useState({
-    surname: "陳",
-    email: "family@example.test",
+    surname: publicIntake ? "" : "陳",
+    email: publicIntake ? "" : "family@example.test",
     phone: "",
-    district: "屯門",
-    building: "康樂大廈（虛構）",
-    date: "2026-11-10",
+    district: publicIntake ? "" : "屯門",
+    building: publicIntake ? "" : "康樂大廈（虛構）",
+    date: publicIntake
+      ? new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10)
+      : "2026-11-10",
     shift: "DAY",
     start: "10:00",
     end: "14:00",
@@ -223,13 +225,14 @@ function AdminWorkspace({
     remarks: "",
     other: "",
     fictional: false,
-    gender: "M",
-    age: "78",
-    weight_kg: "65",
-    height_cm: "165",
-    mobility: "需人輔助",
-    companion: "YES",
-    patient_ref: "TEST-PATIENT-01",
+    consent: false,
+    gender: publicIntake ? "" : "M",
+    age: publicIntake ? "" : "78",
+    weight_kg: publicIntake ? "" : "65",
+    height_cm: publicIntake ? "" : "165",
+    mobility: publicIntake ? "" : "需人輔助",
+    companion: publicIntake ? "" : "YES",
+    patient_ref: publicIntake ? "" : "TEST-PATIENT-01",
     medical_history: "",
     recent_3m: [] as string[],
     existing_tubes: {} as Record<string, string>,
@@ -331,6 +334,11 @@ function AdminWorkspace({
   }
   const [adminReason, setAdminReason] = useState("");
   const [redFlagResolution, setRedFlagResolution] = useState("");
+  const [redFlagConfirmed, setRedFlagConfirmed] = useState(false);
+  useEffect(() => {
+    setRedFlagResolution("");
+    setRedFlagConfirmed(false);
+  }, [c?.id]);
   const [fps, setFps] = useState({
     submission_id: "",
     bank_reference: "",
@@ -369,7 +377,7 @@ function AdminWorkspace({
         action,
         reason: adminReason,
         tier: remoteTier,
-        red_flag_resolved: redFlagResolution.trim().length >= 10,
+        red_flag_resolved: redFlagConfirmed,
         red_flag_resolution: redFlagResolution,
         ...(action === "schedule_edit"
           ? { schedule: JSON.parse(scheduleEdit) }
@@ -477,6 +485,7 @@ function AdminWorkspace({
                   publicIntake ? "/api/enquiries" : "/api/cases",
                   {
                     ...form,
+                    ...(publicIntake ? { fictional: undefined } : {}),
                     services: items,
                   },
                 );
@@ -494,7 +503,11 @@ function AdminWorkspace({
   );
   const intakePanel = (
     <section className="panel ev-panel">
-      <h2>{text("1. 建立虛構查詢", "1. Create a fictional enquiry")}</h2>
+      <h2>
+        {publicIntake
+          ? text("提交護理查詢", "Submit a care enquiry")
+          : text("1. 建立虛構查詢", "1. Create a fictional enquiry")}
+      </h2>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -518,9 +531,11 @@ function AdminWorkspace({
           <label>
             {text("性別", "Gender")}
             <select
+              required
               value={form.gender}
               onChange={(e) => setForm({ ...form, gender: e.target.value })}
             >
+              <option value="">{text("請選擇", "Select")}</option>
               <option value="M">男 / Male</option>
               <option value="F">女 / Female</option>
             </select>
@@ -547,9 +562,11 @@ function AdminWorkspace({
           <label>
             {text("行動能力", "Mobility")}
             <select
+              required
               value={form.mobility}
               onChange={(e) => setForm({ ...form, mobility: e.target.value })}
             >
+              <option value="">{text("請選擇", "Select")}</option>
               {["需人輔助", "臥床", "輪椅", "手推車", "行架", "可自行出門"].map(
                 (v) => (
                   <option key={v}>{v}</option>
@@ -560,9 +577,11 @@ function AdminWorkspace({
           <label>
             {text("服務時陪伴", "Companion during service")}
             <select
+              required
               value={form.companion}
               onChange={(e) => setForm({ ...form, companion: e.target.value })}
             >
+              <option value="">{text("請選擇", "Select")}</option>
               <option value="YES">有</option>
               <option value="NO">沒有</option>
               <option value="PARTIAL">部分時間</option>
@@ -596,9 +615,11 @@ function AdminWorkspace({
           <label>
             {text("地區", "District")}
             <select
+              required
               value={form.district}
               onChange={(e) => setForm({ ...form, district: e.target.value })}
             >
+              <option value="">{text("請選擇地區", "Select district")}</option>
               {[
                 "中西區",
                 "灣仔",
@@ -810,10 +831,15 @@ function AdminWorkspace({
             </label>
           ))}
         <label>
-          {text(
-            "醫生指示樣本文件代號（只用虛構樣本）",
-            "Doctor order sample reference (fictional)",
-          )}
+          {publicIntake
+            ? text(
+                "醫生指示文件代號（如有）",
+                "Doctor-order reference (if available)",
+              )
+            : text(
+                "醫生指示樣本文件代號（只用虛構樣本）",
+                "Doctor order sample reference (fictional)",
+              )}
           <input
             value={form.doctor_order_file}
             onChange={(e) =>
@@ -878,19 +904,36 @@ function AdminWorkspace({
           <input
             required
             type="checkbox"
-            checked={form.fictional}
-            onChange={(e) => setForm({ ...form, fictional: e.target.checked })}
+            checked={publicIntake ? form.consent : form.fictional}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                ...(publicIntake
+                  ? { consent: e.target.checked }
+                  : { fictional: e.target.checked }),
+              })
+            }
           />
-          {text(
-            "我確認以上全部為虛構資料，同意將地區、大廈及所選護理項目發送至測試護士。",
-            "All data is fictional; I agree to share district, building and chosen services with test nurses.",
-          )}
+          {publicIntake
+            ? text(
+                "我同意將以上資料保存，用於跟進查詢、報價及安排服務。",
+                "I agree that this information may be stored and used to follow up my enquiry, quote and arrange care.",
+              )
+            : text(
+                "我確認以上全部為虛構資料，同意將地區、大廈及所選護理項目發送至測試護士。",
+                "All data is fictional; I agree to share district, building and chosen services with test nurses.",
+              )}
         </label>
         <p className="form-hint">
-          {text(
-            "完整實驗表格。偏遠名單未配對時交管理員覆核；未確認政策以實驗設定控制。",
-            "Complete experimental intake. Unmatched remote locations require administrator review. Unconfirmed policies are explicit experiment settings.",
-          )}
+          {publicIntake
+            ? text(
+                "查詢會儲存在伺服器，由同事核實服務需要及地點後跟進。確認報價及收款後才安排派單。",
+                "Your enquiry is stored on the server. Staff review your care needs and location before following up. Dispatch follows quote acceptance and verified payment.",
+              )
+            : text(
+                "完整實驗表格。偏遠名單未配對時交管理員覆核；未確認政策以實驗設定控制。",
+                "Complete experimental intake. Unmatched remote locations require administrator review. Unconfirmed policies are explicit experiment settings.",
+              )}
         </p>
         <button
           className="button primary"
@@ -908,19 +951,19 @@ function AdminWorkspace({
       <div className="email-validation ev-public">
         <div className="ev-heading">
           <div>
-            <p className="eyebrow">Kindred Care · TRL 3</p>
-            <h1>{text("上門護理測試查詢", "Home nursing test enquiry")}</h1>
+            <p className="eyebrow">Kindred Care</p>
+            <h1>{text("上門護理查詢", "Home nursing enquiry")}</h1>
             <p>
               {text(
-                "模擬測試，請勿輸入真實病人資料。通知透過電郵發出；轉帳資料須由管理員人手核對銀行入帳。",
-                "Simulation: use fictional patient data only. Notifications arrive by email; Transfer reports require manual bank reconciliation.",
+                "請填寫真實聯絡資料；查詢會由同事透過電郵跟進。轉帳資料須由管理員人手核對銀行入帳。",
+                "Use your real contact details. Staff will follow up by email; bank transfers are independently reconciled by an administrator.",
               )}
             </p>
             <a href="/#staff/email">{text("職員登入", "Staff sign in")}</a>
           </div>
         </div>
         <section className="panel ev-panel">
-          <h2>{text("測試收費及安排", "Test pricing and arrangements")}</h2>
+          <h2>{text("收費及安排", "Pricing and arrangements")}</h2>
           <p>
             {text(
               "日間 07:00–22:00：HK$305／小時，最低四小時；夜間 22:00–翌日08:00／10:00：HK$325／小時，固定10／12小時。星期日及公眾假期另加 HK$30／小時；跨日假期組合及未定規則交人手。",
@@ -929,8 +972,8 @@ function AdminWorkspace({
           </p>
           <p>
             {text(
-              "30 小時日間套餐 HK$8,650，適用條件待確認實驗設定。工具物料由客人自備；偏遠地區不另向客人收費。確認報價後24小時付款；≥24小時取消免費，少於24小時及改期交人手。付款指示會透過電郵另行提供，提交轉帳資料後須由同事核對入帳。",
-              "30-hour day package HK$8,650, subject to experimental eligibility settings. Customers supply materials; remote locations do not add customer fees. Payment is due within 24 hours of quote acceptance. Cancellation at least 24 hours ahead is free; shorter notice and rescheduling require manual handling. Payment instructions are sent separately by email; staff verify the bank receipt after you submit transfer details.",
+              "30 小時日間套餐 HK$8,650，適用條件由同事核實。工具物料由客人自備；偏遠地區不另向客人收費。確認報價後24小時付款；≥24小時取消免費，少於24小時及改期交人手。付款指示會透過電郵另行提供，提交轉帳資料後須由同事核對入帳。",
+              "30-hour day package HK$8,650, subject to staff confirmation of eligibility. Customers supply materials; remote locations do not add customer fees. Payment is due within 24 hours of quote acceptance. Cancellation at least 24 hours ahead is free; shorter notice and rescheduling require manual handling. Payment instructions are sent separately by email; staff verify the bank receipt after you submit transfer details.",
             )}
           </p>
         </section>
@@ -946,8 +989,8 @@ function AdminWorkspace({
             </h2>
             <p>
               {text(
-                "請留意測試電郵；需要核實嘅資料由同事跟進。收到報價後，請開啟電郵內連結並在確認頁操作。",
-                "Check your test email. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page.",
+                "請留意電郵；需要核實嘅資料由同事跟進。收到報價後，請開啟電郵內連結並在確認頁操作。",
+                "Check your email. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page.",
               )}
             </p>
             {receipt.quote && (
@@ -959,10 +1002,10 @@ function AdminWorkspace({
               className="button secondary"
               onClick={() => {
                 setReceipt(null);
-                setForm({ ...form, fictional: false });
+                setForm({ ...form, fictional: false, consent: false });
               }}
             >
-              {text("建立另一個虛構查詢", "Create another fictional enquiry")}
+              {text("提交另一個查詢", "Submit another enquiry")}
             </button>
           </section>
         ) : (
@@ -1496,17 +1539,32 @@ function AdminWorkspace({
                     />
                   </label>
                   {c.red_flag && (
-                    <label>
-                      {text(
-                        "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
-                        "Red-flag resolution / referral (at least 10 characters; required before quoting)",
-                      )}
-                      <textarea
-                        value={redFlagResolution}
-                        onChange={(e) => setRedFlagResolution(e.target.value)}
-                        minLength={10}
-                      />
-                    </label>
+                    <div>
+                      <label>
+                        {text(
+                          "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
+                          "Red-flag resolution / referral (at least 10 characters; required before quoting)",
+                        )}
+                        <textarea
+                          value={redFlagResolution}
+                          onChange={(e) => setRedFlagResolution(e.target.value)}
+                          minLength={10}
+                        />
+                      </label>
+                      <label className="ev-check">
+                        <input
+                          type="checkbox"
+                          checked={redFlagConfirmed}
+                          onChange={(e) =>
+                            setRedFlagConfirmed(e.target.checked)
+                          }
+                        />
+                        {text(
+                          "我確認已記錄臨床處置／轉介結果，並解除此個案的報價阻擋。",
+                          "I confirm the clinical resolution or referral is recorded and this case may proceed to quoting.",
+                        )}
+                      </label>
+                    </div>
                   )}
                   <label>
                     {text(
@@ -1552,8 +1610,8 @@ function AdminWorkspace({
                       [
                         "doctor_upload_link",
                         text(
-                          "重發醫生指示樣本上載連結",
-                          "Resend doctor sample upload link",
+                          "重發醫生指示文件上載連結",
+                          "Resend doctor document upload link",
                         ),
                       ],
                       ["repost", text("再次招募", "Repost")],
@@ -2244,8 +2302,8 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
           <h1>{text("護理時間表覆核", "Care schedule review")}</h1>
           <p>
             {text(
-              "核對虛構個案、醫生指示及時間表。覆核後由另一位管理員作最終確認。",
-              "Review fictional cases, doctor orders and schedules before a separate administrator gives final approval.",
+              "核對個案、醫生指示及時間表。覆核後由另一位管理員作最終確認。",
+              "Review cases, doctor orders and schedules before a separate administrator gives final approval.",
             )}
           </p>
         </div>
@@ -2308,14 +2366,14 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
           </pre>
           <p>
             {text(
-              "請下載及檢閱家屬上載嘅虛構醫生指示樣本。系統記錄文件版本，內容必須由護士核對。",
-              "Download and review the uploaded fictional doctor-order sample. The system records the file version; a nurse must verify its contents.",
+              "請下載及檢閱家屬上載嘅醫生指示文件。系統記錄文件版本，內容必須由護士核對。",
+              "Download and review the uploaded doctor-order document. The system records the file version; a nurse must verify its contents.",
             )}
           </p>
           {c.doctor_document && (
             <div className="ev-gates">
               <strong>
-                {text("醫生指示樣本版本", "Doctor-order sample version")}
+                {text("醫生指示文件版本", "Doctor-order document version")}
               </strong>
               <span>{c.doctor_document.id}</span>
               <span>SHA-256: {c.doctor_document.sha256}</span>
@@ -2325,10 +2383,7 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                {text(
-                  "下載虛構醫生指示樣本",
-                  "Download fictional doctor-order sample",
-                )}
+                {text("下載醫生指示文件", "Download doctor-order document")}
               </a>
               <label className="ev-check">
                 <input

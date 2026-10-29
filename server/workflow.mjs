@@ -2,7 +2,11 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { extendWorkflow, SERVICE_CATALOG } from "./extended-workflow.mjs";
+import {
+  extendWorkflow,
+  SERVICE_CATALOG,
+  hasRedFlag,
+} from "./extended-workflow.mjs";
 
 export const HOLIDAYS = [
   "2026-01-01",
@@ -181,10 +185,10 @@ class BaseWorkflow {
       template_id,
       template_version: "v3-email-draft",
       to,
-      subject: `【測試】${subject}`,
+      subject: c.intake_mode === "LIVE" ? subject : `【測試】${subject}`,
       body:
         body +
-        (this.paymentMode === "bank_transfer"
+        (c.intake_mode === "LIVE" || this.paymentMode === "bank_transfer"
           ? "\n\n通知透過電郵發出。轉帳資料須由同事核對銀行入帳；如有疑問請聯絡同事，請勿重複轉帳。"
           : FOOTER),
       links,
@@ -269,9 +273,15 @@ class BaseWorkflow {
       !input.surname?.trim() ||
       !input.building?.trim() ||
       !input.district?.trim() ||
-      input.fictional !== true
+      (input.intake_mode === "LIVE"
+        ? input.consent !== true
+        : input.fictional !== true)
     )
-      throw new Error("請填妥電郵、姓氏、地區、大廈，並確認全部為虛構資料");
+      throw new Error(
+        input.intake_mode === "LIVE"
+          ? "請填妥電郵、姓名、地區、大廈，並同意保存及跟進查詢"
+          : "請填妥電郵、姓氏、地區、大廈，並確認全部為虛構資料",
+      );
     if (
       input.surname.length > 80 ||
       input.building.length > 200 ||
@@ -380,10 +390,7 @@ class BaseWorkflow {
       );
     } else {
       const quote = price(c, this.state.settings);
-      const risk =
-        /胸口痛|胸痛|氣促|呼吸困難|昏迷|叫唔醒|抽筋|中風|大量出血|流血唔止|高燒|自殺|跌親撞頭|流膿|流緊膿|胰島素|劑量|幾多單位|加藥|減藥|發炎|簡單定複雜|唔收附加費|chest pain|shortness of breath|unconscious|seizure|stroke|bleeding|insulin|dosage|dose|diagnos|pus|waive/i.test(
-          `${input.remarks || ""} ${input.other || ""} ${input.medical_history || ""}`,
-        );
+      const risk = hasRedFlag(input);
       c.red_flag = risk;
       const lead = Date.parse(`${c.date}T${c.start}:00+08:00`) - this.now();
       const reason =

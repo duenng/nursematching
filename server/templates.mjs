@@ -1,6 +1,6 @@
 export const TEMPLATE_VERSION = "v3-email-trl3-1";
 export const ACTION_LABELS = {
-  upload_doctor: "上載虛構醫生指示樣本",
+  upload_doctor: "上載醫生指示文件",
   report_fps: "提交轉帳資料",
   accept_single: "接受單次報價",
   accept_package: "30 小時套餐",

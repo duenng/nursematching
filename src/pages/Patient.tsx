@@ -103,7 +103,7 @@ export function PatientPortal() {
         <div className="patient-top-actions">
           <LanguageSwitcher />
           <a href="/#enquire">
-            {language === "zh-HK" ? "電郵流程測試查詢" : "Email test enquiry"}
+            {language === "zh-HK" ? "護理查詢" : "Care enquiry"}
           </a>
           <button onClick={() => switchView("staff")}>
             {t("Explore the staff demo")} <ArrowRight size={12} />
@@ -152,7 +152,7 @@ export function PatientPortal() {
           <div className="patient-header-actions">
             <button
               className="button primary"
-              onClick={() => setModal({ type: "enquiry" })}
+              onClick={() => (window.location.hash = "enquire")}
             >
               {t("Enquire now")} <ArrowRight size={15} />
             </button>
@@ -171,7 +171,7 @@ export function PatientPortal() {
         {section === "home" ? (
           <>
             <PatientHomeIntro
-              onEnquire={() => setModal({ type: "enquiry" })}
+              onEnquire={() => (window.location.hash = "enquire")}
               onExploreCare={() => go("care")}
               onSeeProcess={() => scrollTo("how-it-works")}
             />
@@ -295,7 +295,7 @@ export function PatientPortal() {
                 </p>
                 <button
                   className="patient-link"
-                  onClick={() => setModal({ type: "enquiry" })}
+                  onClick={() => (window.location.hash = "enquire")}
                 >
                   {t("Let’s talk about your needs")} <ArrowRight size={15} />
                 </button>
@@ -319,8 +319,8 @@ export function PatientPortal() {
                     "Yes. In My care, open a visit and request another time. The team checks the change with your provider. A revised proposal needs your approval before it becomes confirmed.",
                   ],
                   [
-                    "Is this taking real bookings?",
-                    "This is a frontend prototype. Enquiries and schedule actions are saved in this browser with fictional demonstration data. No real nurse is booked, no payment is taken and no email message is sent.",
+                    "How is my enquiry handled?",
+                    "Your enquiry is stored on our server and followed up by email. We review the details and confirm a quotation. Dispatch starts after staff verify your bank transfer.",
                   ],
                 ].map(([question, answer]) => (
                   <details key={question}>
@@ -342,7 +342,7 @@ export function PatientPortal() {
                 <p>{t("Tell us a little. We’ll help make things clearer.")}</p>
                 <button
                   className="button primary"
-                  onClick={() => setModal({ type: "enquiry" })}
+                  onClick={() => (window.location.hash = "enquire")}
                 >
                   {t("即時查詢服務 · Start an enquiry")}{" "}
                   <ArrowRight size={16} />
@@ -364,7 +364,7 @@ export function PatientPortal() {
               </div>
               <button
                 className="button primary"
-                onClick={() => setModal({ type: "enquiry" })}
+                onClick={() => (window.location.hash = "enquire")}
               >
                 <Plus size={16} />
                 {t("New care enquiry")}
@@ -608,7 +608,7 @@ export function PatientPortal() {
                 action={
                   <button
                     className="button primary"
-                    onClick={() => setModal({ type: "enquiry" })}
+                    onClick={() => (window.location.hash = "enquire")}
                   >
                     {t("Start my enquiry")} <ArrowRight size={15} />
                   </button>
@@ -643,7 +643,7 @@ export function PatientPortal() {
             </div>
             <div>
               <strong>{t("Your care journey")}</strong>
-              <button onClick={() => setModal({ type: "enquiry" })}>
+              <button onClick={() => (window.location.hash = "enquire")}>
                 {t("Start an enquiry")}
               </button>
               <button onClick={() => go("care")}>

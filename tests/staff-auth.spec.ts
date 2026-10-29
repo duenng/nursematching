@@ -134,7 +134,7 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
   await page.getByRole("button", { name: "Record edit", exact: true }).click();
   await expect(page.locator("pre").last()).toContainText("13:00");
   await expect(
-    page.getByRole("link", { name: "Download fictional doctor-order sample" }),
+    page.getByRole("link", { name: "Download doctor-order document" }),
   ).toHaveAttribute("href", "/api/doctor-document/DOC-FIXTURE");
   await page
     .getByRole("checkbox", {
