@@ -15,12 +15,7 @@ async function openWorkspace(page: import("@playwright/test").Page) {
   await page.addInitScript(() =>
     localStorage.setItem("kindred-language", "en"),
   );
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: "Staff sign in", exact: true })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/#staff\/email$/);
+  await page.goto("/#staff/email");
 }
 
 test("logged-out Google mode shows staff sign-in and does not fetch workflow data", async ({

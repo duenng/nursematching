@@ -959,7 +959,6 @@ function AdminWorkspace({
                 "Use your real contact details. Staff will follow up by email; bank transfers are independently reconciled by an administrator.",
               )}
             </p>
-            <a href="/#staff/email">{text("職員登入", "Staff sign in")}</a>
           </div>
         </div>
         <section className="panel ev-panel">

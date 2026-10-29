@@ -104,9 +104,6 @@ export function PatientPortal() {
           <a href="/#enquire">
             {language === "zh-HK" ? "護理查詢" : "Care enquiry"}
           </a>
-          <button onClick={() => (window.location.hash = "staff/email")}>
-            {t("Staff sign in")} <ArrowRight size={12} />
-          </button>
         </div>
       </div>
       <header className="patient-header">
@@ -647,9 +644,6 @@ export function PatientPortal() {
               </button>
               <button onClick={() => go("care")}>
                 {t("My care & schedule")}
-              </button>
-              <button onClick={() => (window.location.hash = "staff/email")}>
-                {t("Staff sign in")} <ArrowRight size={12} />
               </button>
             </div>
           </div>
