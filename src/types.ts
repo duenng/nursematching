@@ -168,6 +168,14 @@ export interface Provider {
   available: boolean;
   optIn: boolean;
   color: string;
+  nurseStatus?: "申請中" | "待面試" | "已核實" | "不批准" | "暫停" | "黑名單";
+  rnRegistrationNo?: string;
+  rnCertificateFile?: string;
+  rnVerifiedAt?: string;
+  interviewDate?: string;
+  interviewResult?: "通過" | "不通過";
+  dropCount?: number;
+  dropLog?: { caseId: string; at: string; reason: string }[];
 }
 export interface Visit {
   id: string;
@@ -205,6 +213,15 @@ export interface Message {
   type: "Broadcast" | "Reminder";
   status: "Simulated";
 }
+export interface MockPayment {
+  id: string;
+  caseId: string;
+  amount: number;
+  status: "Pending" | "Paid" | "Expired" | "Refunded";
+  createdAt: string;
+  deadline: string;
+  provider: "Mock checkout";
+}
 export interface Store {
   cases: CareCase[];
   providers: Provider[];
@@ -212,4 +229,5 @@ export interface Store {
   activities: Activity[];
   messages: Message[];
   packages?: PackageLedger[];
+  mockPayments?: MockPayment[];
 }

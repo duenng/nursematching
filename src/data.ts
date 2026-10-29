@@ -19,6 +19,8 @@ const providers: Provider[] = [
     available: true,
     optIn: true,
     color: "peach",
+    nurseStatus: "已核實",
+    rnRegistrationNo: "RN-DEMO-001",
   },
   {
     id: "P-002",
@@ -38,6 +40,8 @@ const providers: Provider[] = [
     available: true,
     optIn: true,
     color: "blue",
+    nurseStatus: "已核實",
+    rnRegistrationNo: "RN-DEMO-002",
   },
   {
     id: "P-003",
@@ -52,6 +56,8 @@ const providers: Provider[] = [
     available: true,
     optIn: true,
     color: "lavender",
+    nurseStatus: "已核實",
+    rnRegistrationNo: "EN-DEMO-003",
   },
   {
     id: "P-004",
@@ -66,6 +72,7 @@ const providers: Provider[] = [
     available: true,
     optIn: true,
     color: "green",
+    nurseStatus: "已核實",
   },
   {
     id: "P-005",
@@ -84,6 +91,8 @@ const providers: Provider[] = [
     available: false,
     optIn: true,
     color: "rose",
+    nurseStatus: "已核實",
+    rnRegistrationNo: "RN-DEMO-005",
   },
   {
     id: "P-006",
@@ -98,6 +107,7 @@ const providers: Provider[] = [
     available: true,
     optIn: false,
     color: "sand",
+    nurseStatus: "申請中",
   },
 ];
 export function createSeed(): Store {
@@ -308,6 +318,8 @@ export function createSeed(): Store {
     providers,
     visits,
     messages: [],
+    packages: [],
+    mockPayments: [],
     activities: [
       {
         id: "A-1",
@@ -346,7 +358,7 @@ export function readStore(): Store {
         Array.isArray(data.activities) &&
         Array.isArray(data.messages)
       )
-        return data;
+        return { ...data, packages: data.packages ?? [], mockPayments: data.mockPayments ?? [] };
     }
   } catch {
     /* Recover from unavailable or corrupted browser storage. */

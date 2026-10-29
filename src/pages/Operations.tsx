@@ -10,6 +10,7 @@ import {
   Copy,
   Database,
   Download,
+  CreditCard,
   HeartHandshake,
   LockKeyhole,
   MapPin,
@@ -20,9 +21,9 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useApp } from "../store";
+import { logEvent, useApp } from "../store";
 import { Avatar, Badge, EmptyState, PageTitle, Select } from "../components";
-import { today } from "../lib/workflow";
+import { broadcastText, today, uid } from "../lib/workflow";
 
 export function ProvidersPage() {
   const { t } = useLocale();
@@ -344,7 +345,126 @@ export function MessagesPage() {
 export function SettingsPage() {
   const { t } = useLocale();
 
-  const { data, setModal, toast } = useApp();
+  const { data, setModal, toast, update } = useApp();
+  const [mockCaseId, setMockCaseId] = useState(data.cases[0]?.id || "");
+  const [mockProviderId, setMockProviderId] = useState(data.providers[0]?.id || "");
+  const mockCase = data.cases.find((item) => item.id === mockCaseId);
+  const mockProvider = data.providers.find((item) => item.id === mockProviderId);
+  function mockQuote() {
+    if (!mockCase) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      c.quoteTotal = c.quoteTotal ?? 1220;
+      c.quoteVersion = (c.quoteVersion ?? 0) + 1;
+      c.paymentStatus = "Quoted";
+      c.status = "Quoted";
+      logEvent(next, "Mock quotation generated", `${c.id} · HK$${c.quoteTotal}`, "case");
+    });
+    toast("Mock quotation generated — no real customer message sent.");
+  }
+  function mockPayment() {
+    if (!mockCase) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      const now = new Date();
+      const deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      c.quoteTotal = c.quoteTotal ?? 1220;
+      c.paymentStatus = "Paid";
+      c.paymentLink = `mock://checkout/${c.id}`;
+      c.paymentLinkSentAt = now.toISOString();
+      c.paymentDeadline = deadline;
+      c.paidAt = now.toISOString();
+      c.amountPaid = c.quoteTotal;
+      c.status = "Paid";
+      next.mockPayments = next.mockPayments ?? [];
+      next.mockPayments.unshift({ id: uid(), caseId: c.id, amount: c.quoteTotal, status: "Paid", createdAt: now.toISOString(), deadline, provider: "Mock checkout" });
+      logEvent(next, "Mock payment received", `${c.id} · HK$${c.amountPaid}`, "case");
+    });
+    toast("Mock payment marked paid. No real money was charged.");
+  }
+  function mockExpire() {
+    if (!mockCase) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      c.paymentStatus = "Payment expired";
+      c.status = "Payment expired";
+      c.cancellationType = "Payment timeout";
+      next.mockPayments = (next.mockPayments ?? []).map((payment) => payment.caseId === c.id ? { ...payment, status: "Expired" as const } : payment);
+      logEvent(next, "Mock payment expired", `${c.id} · automatic cancellation`, "case");
+    });
+    toast("Mock 24-hour payment expiry applied.");
+  }
+  function mockRefund() {
+    if (!mockCase) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      c.refundAmount = c.amountPaid ?? c.quoteTotal ?? 0;
+      c.refundStatus = "Paid";
+      c.paymentStatus = "Not quoted";
+      c.status = "Full refund";
+      c.cancellationType = "Mock no provider / cancellation";
+      next.mockPayments = (next.mockPayments ?? []).map((payment) => payment.caseId === c.id ? { ...payment, status: "Refunded" as const } : payment);
+      logEvent(next, "Mock full refund completed", `${c.id} · HK$${c.refundAmount}`, "case");
+    });
+    toast("Mock refund completed. No real payment was reversed.");
+  }
+  function mockDispatch() {
+    if (!mockCase) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      c.status = "Posted";
+      c.dispatchStatus = "Posted";
+      c.postedAt = new Date().toISOString();
+      c.repostCount = (c.repostCount ?? 0) + 1;
+      next.messages.unshift({ id: uid(), caseId: c.id, content: `[MOCK WHATSAPP]\n${broadcastText(c)}`, createdAt: new Date().toISOString(), type: "Broadcast", status: "Simulated" });
+      logEvent(next, "Mock WhatsApp dispatch sent", `${c.id} · verified nurse sandbox`, "message");
+    });
+    toast("Mock WhatsApp dispatch recorded in Messages.");
+  }
+  function mockAssign() {
+    if (!mockCase || !mockProvider) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      const p = next.providers.find((item) => item.id === mockProvider.id)!;
+      if (p.nurseStatus !== "已核實" || !p.verified || !p.optIn) return;
+      c.providerId = p.id;
+      c.assignedAt = new Date().toISOString();
+      c.status = "Matched";
+      c.dispatchStatus = "Assigned";
+      c.addressStatus = "Requested privately";
+      logEvent(next, "Mock first-come provider assigned", `${c.id} · ${p.name}`, "provider");
+    });
+    toast("Mock first eligible provider assigned.");
+  }
+  function mockDrop() {
+    if (!mockCase || !mockProvider) return;
+    update((next) => {
+      const c = next.cases.find((item) => item.id === mockCase.id)!;
+      const p = next.providers.find((item) => item.id === mockProvider.id)!;
+      p.dropCount = (p.dropCount ?? 0) + 1;
+      p.dropLog = [...(p.dropLog ?? []), { caseId: c.id, at: new Date().toISOString(), reason: "Mock nurse cancellation" }];
+      if ((p.dropCount ?? 0) >= 3) p.nurseStatus = "暫停";
+      c.status = "Rematching";
+      c.dispatchStatus = "Posted";
+      c.providerId = undefined;
+      logEvent(next, "Mock nurse cancellation; rematch started", `${c.id} · ${p.name} · strike ${p.dropCount}`, "provider");
+    });
+    toast("Mock nurse drop recorded; rematching started.");
+  }
+  function mockVerifyNurse() {
+    if (!mockProvider) return;
+    update((next) => {
+      const p = next.providers.find((item) => item.id === mockProvider.id)!;
+      p.nurseStatus = "已核實";
+      p.verified = true;
+      p.optIn = true;
+      p.rnVerifiedAt = new Date().toISOString();
+      p.interviewResult = "通過";
+      p.interviewDate = today();
+      logEvent(next, "Mock RN onboarding verified", `${p.id} · interview + i-Learn checked`, "provider");
+    });
+    toast("Mock nurse interview and i-Learn verification passed.");
+  }
   function exportBackup() {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
@@ -481,6 +601,37 @@ export function SettingsPage() {
               {t("Reset demo")}
             </button>
           </div>
+        </section>
+        <section className="panel settings-panel mock-sandbox">
+          <div className="mock-sandbox-heading">
+            <div>
+              <h2><CreditCard size={19} /> {t("Mock integrations sandbox")}</h2>
+              <p>{t("Run the v2 payment, WhatsApp, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.")}</p>
+            </div>
+            <Badge tone="amber" dot={false}>{t("MOCK ONLY")}</Badge>
+          </div>
+          <div className="form-grid mock-controls">
+            <label className="field"><span>{t("Demo case")}</span><select aria-label={t("Demo case")} value={mockCaseId} onChange={(e) => setMockCaseId(e.target.value)}>{data.cases.map((c) => <option key={c.id} value={c.id}>{c.id} · {c.name}</option>)}</select></label>
+            <label className="field"><span>{t("Demo nurse")}</span><select aria-label={t("Demo nurse")} value={mockProviderId} onChange={(e) => setMockProviderId(e.target.value)}>{data.providers.map((p) => <option key={p.id} value={p.id}>{p.id} · {p.name}</option>)}</select></label>
+          </div>
+          <div className="mock-flow-status">
+            <Badge tone="purple" dot={false}>{mockCase?.status || "—"}</Badge>
+            <span>{mockCase?.paymentStatus || t("No payment yet")}</span>
+            <span>{mockCase?.dispatchStatus || t("Not posted")}</span>
+            <span>{mockProvider?.nurseStatus || t("Status not recorded")}</span>
+            {mockProvider && <span>{t("Strikes")}: {mockProvider.dropCount ?? 0}/3</span>}
+          </div>
+          <div className="mock-action-grid">
+            <button className="button secondary" onClick={mockQuote}>{t("1 · Generate mock quote")}</button>
+            <button className="button secondary" onClick={mockPayment}>{t("2 · Mark mock payment paid")}</button>
+            <button className="button secondary" onClick={mockExpire}>{t("Expire 24-hour payment")}</button>
+            <button className="button secondary" onClick={mockDispatch}>{t("3 · Send mock WhatsApp dispatch")}</button>
+            <button className="button secondary" onClick={mockAssign}>{t("4 · First eligible nurse accepts")}</button>
+            <button className="button secondary" onClick={mockDrop}>{t("Mock nurse cancels / rematch")}</button>
+            <button className="button secondary" onClick={mockRefund}>{t("Mock full refund")}</button>
+            <button className="button secondary" onClick={mockVerifyNurse}>{t("Mock interview + i-Learn pass")}</button>
+          </div>
+          <p className="form-hint">{t("Mock checkout: 24-hour deadline · Mock WhatsApp: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.")}</p>
         </section>
       </div>
       <div className="inline-note">

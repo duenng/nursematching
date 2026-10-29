@@ -37,3 +37,24 @@ test("v2 guided enquiry validates required fields and previews Hong Kong pricing
   await expect(page.getByRole("dialog")).toContainText("Vital signs monitoring");
   await expect(page.getByRole("dialog")).toContainText("HK$1,220");
 });
+
+test("mock integrations sandbox runs payment, dispatch, assignment, drop and onboarding flows", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("kindred-language", "en"));
+  await page.goto("/#staff");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const sandbox = page.locator(".mock-sandbox");
+  await expect(sandbox).toContainText("MOCK ONLY");
+  await sandbox.getByRole("button", { name: /Generate mock quote/ }).click();
+  await sandbox.getByRole("button", { name: /Mark mock payment paid/ }).click();
+  await expect(sandbox).toContainText("Paid");
+  await sandbox.getByRole("button", { name: /Send mock WhatsApp dispatch/ }).click();
+  await sandbox.getByRole("button", { name: /First eligible nurse accepts/ }).click();
+  await expect(sandbox).toContainText("Assigned");
+  await sandbox.getByRole("button", { name: /Mock nurse cancels/ }).click();
+  await expect(sandbox).toContainText("Rematching");
+  await sandbox.getByRole("button", { name: /Mock full refund/ }).click();
+  await expect(sandbox).toContainText("Full refund");
+  await sandbox.getByLabel("Demo nurse").selectOption("P-006");
+  await sandbox.getByRole("button", { name: /Mock interview/ }).click();
+  await expect(sandbox).toContainText("已核實");
+});

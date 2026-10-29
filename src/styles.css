@@ -3089,6 +3089,15 @@ h1 {
   gap: 16px;
   margin-top: 14px;
 }
+.mock-sandbox { border: 1px solid #ead7ef; background: linear-gradient(135deg, #fff, #fcf7fd); }
+.mock-sandbox-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.mock-sandbox-heading h2 { display: flex; align-items: center; gap: 8px; }
+.mock-sandbox-heading p { margin-top: 6px; color: var(--text-muted); }
+.mock-controls { margin-top: 16px; }
+.mock-flow-status { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin: 16px 0; color: var(--text-muted); font-size: .9rem; }
+.mock-flow-status > span:not(.badge) { padding: 6px 9px; border: 1px solid var(--border); border-radius: 999px; background: #fff; }
+.mock-action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+@media (max-width: 860px) { .mock-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .guided-section {
   display: grid;
   gap: 10px;

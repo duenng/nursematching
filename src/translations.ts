@@ -45,6 +45,24 @@ SEARCH RESULTS|搜尋結果
 RECENT CASES|最近個案
 No matching records.|找不到符合的紀錄。
 Prototype|示範版本
+Mock integrations sandbox|Mock 整合服務沙盒
+MOCK ONLY|只限 Mock 示範
+Run the v2 payment, WhatsApp, dispatch, refund and nurse onboarding flows locally. Nothing is sent or charged.|在瀏覽器內測試 v2 付款、WhatsApp、派單、退款及護士入職流程；不會真正發送或扣款。
+Demo case|示範個案
+Demo nurse|示範護士
+No payment yet|尚未付款
+Not posted|尚未派單
+Status not recorded|尚未記錄狀態
+Strikes|違規次數
+1 · Generate mock quote|1・產生 Mock 報價
+2 · Mark mock payment paid|2・標記 Mock 付款成功
+Expire 24-hour payment|模擬 24 小時付款逾時
+3 · Send mock WhatsApp dispatch|3・發送 Mock WhatsApp 派單
+4 · First eligible nurse accepts|4・第一位合資格護士接單
+Mock nurse cancels / rematch|模擬護士放飛／重新配對
+Mock full refund|模擬全額退款
+Mock interview + i-Learn pass|模擬面試＋i-Learn 通過
+Mock checkout: 24-hour deadline · Mock WhatsApp: message log only · Mock refunds: browser data only · Three mock nurse drops pause the nurse.|Mock checkout：24 小時期限；Mock WhatsApp：只寫入訊息紀錄；Mock 退款：只修改瀏覽器資料；護士三次放飛後會暫停。
 Notifications|通知
 WORKSPACE ACTIVITY|工作區動態
 Profile menu|個人選單
