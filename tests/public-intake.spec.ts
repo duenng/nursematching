@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("family submits a server enquiry without staff login; privileged data stays private", async ({
+test("family sees submission progress and errors inside review, then submits without staff login", async ({
   page,
 }, testInfo) => {
   await page.addInitScript(() =>
@@ -21,6 +21,22 @@ test("family submits a server enquiry without staff login; privileged data stays
   await page
     .getByRole("button", { name: "Use enquiry form", exact: true })
     .click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText(
+    "Patient reference (package owner)",
+  );
+  await expect(page.getByRole("alert")).toBeFocused();
+  await expect(page.getByRole("alert")).toBeInViewport();
+  await page
+    .getByRole("button", { name: "Go to the field to correct" })
+    .click();
+  await expect(
+    page.getByLabel("Patient reference (package owner)"),
+  ).toBeFocused();
   await page.getByLabel("Email (required)").fill("family@example.test");
   await page.getByLabel("Surname").fill("Li");
   await page.getByLabel("Building (no unit at intake)").fill("Test Building");
@@ -42,10 +58,79 @@ test("family submits a server enquiry without staff login; privileged data stays
       name: /I agree that this information may be stored/,
     })
     .check();
+  await page.getByLabel("Phone (optional, 8 digits)").fill("+852 1234 5678");
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText(
+    "Enter 8 digits or leave this blank.",
+  );
+  await page
+    .getByRole("button", { name: "Go to the field to correct" })
+    .click();
+  await expect(page.getByLabel("Phone (optional, 8 digits)")).toBeFocused();
+  await page.getByLabel("Phone (optional, 8 digits)").fill("");
   await page
     .getByRole("button", { name: "Confirm details and submit", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let attempts = 0;
+  await page.route("**/api/enquiries", async (route) => {
+    attempts++;
+    if (attempts === 1) {
+      await pending;
+      return route.fulfill({
+        status: 400,
+        json: { error: "Please correct the service date." },
+      });
+    }
+    if (attempts === 2)
+      return route.fulfill({
+        status: 502,
+        contentType: "text/plain",
+        body: "error code: 502",
+      });
+    if (attempts === 3) return route.abort("failed");
+    return route.continue();
+  });
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Confirm enquiry submission", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toHaveText(
+    "Submitting your enquiry, please wait…",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Submitting…", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Back to edit", exact: true }),
+  ).toBeDisabled();
+  release();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "Please correct the service date.",
+  );
+  await expect(dialog.getByRole("alert")).toBeFocused();
+  await expect(dialog.getByRole("alert")).toBeInViewport();
+  await dialog
+    .getByRole("button", { name: "Confirm enquiry submission", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "The server could not confirm the result.",
+  );
+  await dialog
+    .getByRole("button", { name: "Confirm enquiry submission", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Could not reach the server or confirm the result.",
+  );
+  await expect(dialog).toContainText("family@example.test");
   const responsePromise = page.waitForResponse((r) =>
     r.url().endsWith("/api/enquiries"),
   );

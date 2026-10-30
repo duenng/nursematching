@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Mail,
   RefreshCw,
@@ -303,6 +303,17 @@ export function AdminWorkspace({
     { date: string; shift: string; start: string; end: string }[]
   >([]);
   const [intakeReview, setIntakeReview] = useState(false);
+  const [invalidField, setInvalidField] = useState<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null
+  >(null);
+  const intakeError = useRef<HTMLParagraphElement>(null);
+  const reviewError = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (!error) return;
+    const target = intakeReview ? reviewError.current : intakeError.current;
+    target?.focus();
+    target?.scrollIntoView({ block: "center" });
+  }, [intakeReview, error]);
   const [receipt, setReceipt] = useState<{
     id: string;
     status: string;
@@ -312,17 +323,35 @@ export function AdminWorkspace({
     operational ? [] : [{ ...services[0], times: ["12:00"], prn: false }],
   );
   async function request(path: string, body?: unknown) {
-    const res = await fetch(apiUrl(path), {
-      method: body === undefined ? "GET" : "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.csrf ? { "X-CSRF-Token": session.csrf } : {}),
-        ...(key ? { Authorization: `Bearer ${key}` } : {}),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    const data = await res.json();
+    let res: Response;
+    try {
+      res = await fetch(apiUrl(path), {
+        method: body === undefined ? "GET" : "POST",
+        signal: AbortSignal.timeout(40000),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.csrf ? { "X-CSRF-Token": session.csrf } : {}),
+          ...(key ? { Authorization: `Bearer ${key}` } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch {
+      throw new Error(
+        text(
+          "未能連接伺服器，無法確認操作結果。如已提交查詢，請先向同事確認，避免重複提交。",
+          "Could not reach the server or confirm the result. If you submitted an enquiry, check with staff before submitting again.",
+        ),
+      );
+    }
+    const data = await res.json().catch(() => null);
+    if (!data)
+      throw new Error(
+        text(
+          "伺服器暫時未能確認操作結果。如已提交查詢，請先向同事確認，避免重複提交。",
+          "The server could not confirm the result. If you submitted an enquiry, check with staff before submitting again.",
+        ),
+      );
     if (!res.ok) {
       if (res.status === 401 && session?.method === "google")
         window.dispatchEvent(new Event("staff-session-expired"));
@@ -599,10 +628,24 @@ export function AdminWorkspace({
             "Server validation, manual routing and quoting follow submission.",
           )}
         </p>
+        {error && (
+          <p ref={reviewError} role="alert" tabIndex={-1} className="ev-error">
+            {error}
+          </p>
+        )}
+        {busy && (
+          <p role="status">
+            {text(
+              "正在提交查詢，請稍候…",
+              "Submitting your enquiry, please wait…",
+            )}
+          </p>
+        )}
         <div className="ev-actions">
           <button
             autoFocus
             className="button secondary"
+            disabled={busy}
             onClick={() => setIntakeReview(false)}
           >
             {text("返回修改", "Back to edit")}
@@ -649,7 +692,9 @@ export function AdminWorkspace({
               })
             }
           >
-            {text("確認提交查詢", "Confirm enquiry submission")}
+            {busy
+              ? text("提交中…", "Submitting…")
+              : text("確認提交查詢", "Confirm enquiry submission")}
           </button>
         </div>
       </section>
@@ -665,8 +710,38 @@ export function AdminWorkspace({
             : text("1. 建立虛構查詢", "1. Create a fictional enquiry")}
       </h2>
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          const invalid = e.currentTarget.querySelector<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+          >("input:invalid, select:invalid, textarea:invalid");
+          if (invalid) {
+            const label =
+              invalid.labels?.[0]?.textContent?.trim() ||
+              text("必填欄位", "Required field");
+            const hint =
+              invalid.type === "email"
+                ? text("請輸入有效電郵地址。", "Enter a valid email address.")
+                : invalid.getAttribute("pattern") === "[0-9]{8}"
+                  ? text(
+                      "請輸入 8 位數字，或留空。",
+                      "Enter 8 digits or leave this blank.",
+                    )
+                  : invalid.type === "checkbox"
+                    ? text("請勾選確認。", "Please tick this confirmation.")
+                    : text(
+                        "請填妥或更正此欄位。",
+                        "Complete or correct this field.",
+                      );
+            setInvalidField(invalid);
+            setError(`${label}：${hint}`);
+            // Also focus on repeated attempts with the same validation message.
+            intakeError.current?.focus();
+            intakeError.current?.scrollIntoView({ block: "center" });
+            return;
+          }
+          setInvalidField(null);
           if (!items.length) {
             setError(
               text(
@@ -1275,9 +1350,26 @@ export function AdminWorkspace({
               )}
             </p>
           </section>
-          {error && (
-            <p role="alert" className="ev-error">
+          {error && !intakeReview && (
+            <p
+              ref={intakeError}
+              role="alert"
+              tabIndex={-1}
+              className="ev-error"
+            >
               {error}
+              {invalidField && (
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={() => {
+                    invalidField.focus();
+                    invalidField.scrollIntoView({ block: "center" });
+                  }}
+                >
+                  {text("前往需要修改的欄位", "Go to the field to correct")}
+                </button>
+              )}
             </p>
           )}
           {receipt ? (
