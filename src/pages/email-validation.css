@@ -331,6 +331,19 @@
 .email-validation .form-hint {
   line-height: 1.7;
 }
+.ev-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ev-time-row label {
+  margin-bottom: 0;
+}
+.ev-preferred-times:disabled {
+  opacity: 0.5;
+}
 @media (max-width: 1100px) {
   .ev-columns {
     grid-template-columns: 1fr;

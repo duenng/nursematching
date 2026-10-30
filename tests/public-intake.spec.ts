@@ -1,5 +1,51 @@
 import { test, expect } from "@playwright/test";
 
+test("additional visits use time menus and clearly label overnight endings in both languages", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
+  await page.goto("/#enquire");
+  await page
+    .getByRole("button", { name: "Use enquiry form", exact: true })
+    .click();
+  await page
+    .getByText("Additional visits / day and night", { exact: true })
+    .click();
+  await page.getByRole("button", { name: "Add visit", exact: true }).click();
+  const start = page.getByRole("combobox", {
+    name: "Visit start",
+    exact: true,
+  });
+  const end = page.getByRole("combobox", { name: "Visit end", exact: true });
+  await start.selectOption("21:30");
+  await expect(end).toHaveValue("");
+  await expect(end.locator('option[value="21:30"]')).toHaveAttribute(
+    "disabled",
+    "",
+  );
+  await end.selectOption("22:00");
+  await page
+    .getByRole("combobox", { name: "Visit shift", exact: true })
+    .selectOption("NIGHT10");
+  await expect(page.getByText("Next day 08:00", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "繁中", exact: true }).click();
+  await expect(page.getByText("翌日 08:00", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("combobox", { name: "時段", exact: true })
+      .first()
+      .getByRole("option", { name: /翌日 08:00/ }),
+  ).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
 test("family sees submission progress and errors inside review, then submits without staff login", async ({
   page,
 }, testInfo) => {
@@ -71,6 +117,46 @@ test("family sees submission progress and errors inside review, then submits wit
     .click();
   await expect(page.getByLabel("Phone (optional, 8 digits)")).toBeFocused();
   await page.getByLabel("Phone (optional, 8 digits)").fill("");
+  const start = page.getByRole("combobox", { name: "Start", exact: true });
+  const end = page.getByRole("combobox", { name: "End", exact: true });
+  await start.selectOption("14:30");
+  await expect(end).toHaveValue("");
+  await expect(end.locator('option[value="14:30"]')).toHaveAttribute(
+    "disabled",
+    "",
+  );
+  await end.selectOption("18:00");
+  await start.selectOption("13:30");
+  await expect(end).toHaveValue("18:00");
+  const preferred = page.locator(".ev-preferred-times").first();
+  await preferred
+    .getByRole("combobox", { name: /Time 1 · Hour/ })
+    .selectOption("13");
+  await preferred
+    .getByRole("combobox", { name: /Time 1 · Minute/ })
+    .selectOption("15");
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText(
+    "choose preferred times within the service window",
+  );
+  await preferred
+    .getByRole("combobox", { name: /Time 1 · Hour/ })
+    .selectOption("14");
+  await preferred.getByRole("button", { name: "Add preferred time" }).click();
+  await preferred
+    .getByRole("combobox", { name: /Time 2 · Hour/ })
+    .selectOption("17");
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await preferred
+    .getByRole("combobox", { name: /Time 2 · Minute/ })
+    .selectOption("45");
+  await preferred.getByRole("button", { name: /Remove .*Time 2/ }).click();
   await page
     .getByRole("button", { name: "Confirm details and submit", exact: true })
     .click();
@@ -86,6 +172,9 @@ test("family sees submission progress and errors inside review, then submits wit
     expect(route.request().postDataJSON()).toMatchObject({
       surname: "Li Tai Man",
       patient_ref: "Li Tai Man",
+      start: "13:30",
+      end: "18:00",
+      services: [expect.objectContaining({ times: ["14:15"] })],
     });
     if (attempts === 1) {
       await pending;

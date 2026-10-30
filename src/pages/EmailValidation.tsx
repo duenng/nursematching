@@ -15,6 +15,7 @@ import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
 import { EmailPreview } from "../EmailPreview";
 import { ConversationEnquiry } from "./ConversationEnquiry";
+import { DayTimeSelect, PreferredTimeFields } from "../CareTimeFields";
 
 type Service = { id: string; label: string; times: string[]; prn: boolean };
 export type Case = {
@@ -623,13 +624,16 @@ export function AdminWorkspace({
           {form.shift === "DAY"
             ? `${form.start}–${form.end}`
             : form.shift === "NIGHT10"
-              ? "22:00–08:00"
-              : "22:00–10:00"}
+              ? text("22:00–翌日 08:00", "22:00–08:00 next day")
+              : text("22:00–翌日 10:00", "22:00–10:00 next day")}
         </p>
         {additionalVisits.length > 0 && (
           <pre>
             {additionalVisits
-              .map((v) => `${v.date} ${v.shift} ${v.start}–${v.end}`)
+              .map(
+                (v) =>
+                  `${v.date} ${v.start}–${v.shift !== "DAY" ? text("翌日 ", "next day ") : ""}${v.end}`,
+              )
               .join("\n")}
           </pre>
         )}
@@ -684,7 +688,10 @@ export function AdminWorkspace({
                     ...(publicIntake || operational
                       ? { fictional: undefined }
                       : {}),
-                    services: items,
+                    services: items.map((item) => ({
+                      ...item,
+                      times: item.prn ? [] : item.times,
+                    })),
                     ...(additionalVisits.length
                       ? {
                           visits: [
@@ -769,6 +776,36 @@ export function AdminWorkspace({
               text(
                 "請選擇至少一項護理服務。",
                 "Select at least one care service.",
+              ),
+            );
+            return;
+          }
+          const start = form.shift === "DAY" ? form.start : "22:00";
+          const end =
+            form.shift === "DAY"
+              ? form.end
+              : form.shift === "NIGHT10"
+                ? "08:00"
+                : "10:00";
+          const invalidService = items.find(
+            (item) =>
+              !item.prn &&
+              item.times.some((time) =>
+                form.shift === "DAY"
+                  ? time < start || time > end
+                  : !(time >= start || time <= end),
+              ),
+          );
+          if (invalidService) {
+            setInvalidField(
+              e.currentTarget.querySelector<HTMLSelectElement>(
+                `[data-service-id="${invalidService.id}"] select`,
+              ),
+            );
+            setError(
+              text(
+                `${invalidService.label}：偏好時間須在服務時段 ${start}–${form.shift !== "DAY" ? "翌日 " : ""}${end} 內，請重新選擇。`,
+                `${invalidService.label}: choose preferred times within the service window ${start}–${form.shift !== "DAY" ? "next day " : ""}${end}.`,
               ),
             );
             return;
@@ -947,35 +984,53 @@ export function AdminWorkspace({
               onChange={(e) => setForm({ ...form, shift: e.target.value })}
             >
               <option value="DAY">{text("日間", "Day")}</option>
-              <option value="NIGHT10">22:00–08:00</option>
-              <option value="NIGHT12">22:00–10:00</option>
+              <option value="NIGHT10">
+                {text(
+                  "夜間 22:00–翌日 08:00（10 小時）",
+                  "Night 22:00–08:00 next day (10 hours)",
+                )}
+              </option>
+              <option value="NIGHT12">
+                {text(
+                  "夜間 22:00–翌日 10:00（12 小時）",
+                  "Night 22:00–10:00 next day (12 hours)",
+                )}
+              </option>
             </select>
           </label>
           {form.shift === "DAY" && (
             <>
               <label>
                 {text("開始", "Start")}
-                <input
-                  required
-                  type="time"
-                  step="1800"
+                <DayTimeSelect
                   value={form.start}
-                  onChange={(e) => setForm({ ...form, start: e.target.value })}
+                  onChange={(start) =>
+                    setForm({
+                      ...form,
+                      start,
+                      end: form.end > start ? form.end : "",
+                    })
+                  }
                 />
               </label>
               <label>
                 {text("結束", "End")}
-                <input
-                  required
-                  type="time"
-                  step="1800"
+                <DayTimeSelect
+                  end
+                  after={form.start}
                   value={form.end}
-                  onChange={(e) => setForm({ ...form, end: e.target.value })}
+                  onChange={(end) => setForm({ ...form, end })}
                 />
               </label>
             </>
           )}
         </div>
+        <p className="form-hint">
+          {text(
+            "以上時間均為香港時間，採用 24 小時制。日間可選 07:00–22:00，每半小時一格；結束時間須遲於開始時間。",
+            "All times are in Hong Kong time using the 24-hour clock. Day visits run within 07:00–22:00 in 30-minute steps; the end must be later than the start.",
+          )}
+        </p>
         <details>
           <summary>
             {text("多次上門／日夜組合", "Additional visits / day and night")}
@@ -1028,9 +1083,19 @@ export function AdminWorkspace({
                     )
                   }
                 >
-                  {["DAY", "NIGHT10", "NIGHT12"].map((value) => (
-                    <option key={value}>{value}</option>
-                  ))}
+                  <option value="DAY">{text("日間", "Day")}</option>
+                  <option value="NIGHT10">
+                    {text(
+                      "夜間 22:00–翌日 08:00（10 小時）",
+                      "Night 22:00–08:00 next day (10 hours)",
+                    )}
+                  </option>
+                  <option value="NIGHT12">
+                    {text(
+                      "夜間 22:00–翌日 10:00（12 小時）",
+                      "Night 22:00–10:00 next day (12 hours)",
+                    )}
+                  </option>
                 </select>
               </label>
               {(["start", "end"] as const).map((field) => (
@@ -1039,20 +1104,33 @@ export function AdminWorkspace({
                     field === "start" ? "開始" : "結束",
                     field === "start" ? "Visit start" : "Visit end",
                   )}
-                  <input
-                    type="time"
-                    step="1800"
-                    required
-                    disabled={v.shift !== "DAY"}
-                    value={v[field]}
-                    onChange={(e) =>
-                      setAdditionalVisits(
-                        additionalVisits.map((r, n) =>
-                          n === index ? { ...r, [field]: e.target.value } : r,
-                        ),
-                      )
-                    }
-                  />
+                  {v.shift !== "DAY" ? (
+                    <span>
+                      {field === "end" ? text("翌日 ", "Next day ") : ""}
+                      {v[field]}
+                    </span>
+                  ) : (
+                    <DayTimeSelect
+                      end={field === "end"}
+                      after={field === "end" ? v.start : undefined}
+                      value={v[field]}
+                      onChange={(value) =>
+                        setAdditionalVisits(
+                          additionalVisits.map((r, n) =>
+                            n === index
+                              ? {
+                                  ...r,
+                                  [field]: value,
+                                  ...(field === "start" && r.end <= value
+                                    ? { end: "" }
+                                    : {}),
+                                }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  )}
                 </label>
               ))}
               <button
@@ -1092,7 +1170,7 @@ export function AdminWorkspace({
           {services.map((s) => {
             const chosen = items.find((x) => x.id === s.id);
             return (
-              <div className="ev-service" key={s.id}>
+              <div className="ev-service" data-service-id={s.id} key={s.id}>
                 <label className="ev-check">
                   <input
                     type="checkbox"
@@ -1109,21 +1187,17 @@ export function AdminWorkspace({
                 </label>
                 {chosen && (
                   <div>
-                    <input
-                      aria-label={`${s.id} times`}
-                      placeholder="09:00,12:00,15:00"
-                      value={chosen.times.join(",")}
+                    <PreferredTimeFields
+                      label={s.label}
+                      times={chosen.times}
                       disabled={chosen.prn}
-                      onChange={(e) =>
+                      onChange={(times) =>
                         setItems(
                           items.map((x) =>
                             x.id === s.id
                               ? {
                                   ...x,
-                                  times: e.target.value
-                                    .split(/[,、]/)
-                                    .map((v) => v.trim())
-                                    .filter(Boolean),
+                                  times,
                                 }
                               : x,
                           ),
