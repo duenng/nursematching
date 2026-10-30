@@ -29,19 +29,18 @@ test("family sees submission progress and errors inside review, then submits wit
     .getByRole("button", { name: "Confirm details and submit", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("alert")).toContainText(
-    "Patient reference (package owner)",
-  );
+  await expect(page.getByRole("alert")).toContainText("Patient name");
   await expect(page.getByRole("alert")).toBeFocused();
   await expect(page.getByRole("alert")).toBeInViewport();
   await page
     .getByRole("button", { name: "Go to the field to correct" })
     .click();
+  await expect(page.getByLabel("Patient name")).toBeFocused();
+  await page.getByLabel("Email (required)").fill("family@example.test");
   await expect(
     page.getByLabel("Patient reference (package owner)"),
-  ).toBeFocused();
-  await page.getByLabel("Email (required)").fill("family@example.test");
-  await page.getByLabel("Surname").fill("Li");
+  ).toHaveCount(0);
+  await page.getByLabel("Patient name", { exact: true }).fill("Li Tai Man");
   await page.getByLabel("Building (no unit at intake)").fill("Test Building");
   await page.getByRole("combobox", { name: /^Gender/ }).selectOption("M");
   await page.getByRole("spinbutton", { name: "Age" }).fill("78");
@@ -50,9 +49,7 @@ test("family sees submission progress and errors inside review, then submits wit
   await page.getByRole("combobox", { name: /^District/ }).selectOption("屯門");
   await page.getByLabel("Mobility").selectOption({ index: 1 });
   await page.getByLabel("Companion during service").selectOption({ index: 1 });
-  await page
-    .getByLabel("Patient reference (package owner)")
-    .fill("PUBLIC-TEST-1");
+
   await page
     .getByLabel("Service date")
     .fill(new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10));
@@ -86,6 +83,10 @@ test("family sees submission progress and errors inside review, then submits wit
   let attempts = 0;
   await page.route("**/api/enquiries", async (route) => {
     attempts++;
+    expect(route.request().postDataJSON()).toMatchObject({
+      surname: "Li Tai Man",
+      patient_ref: "Li Tai Man",
+    });
     if (attempts === 1) {
       await pending;
       return route.fulfill({

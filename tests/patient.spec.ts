@@ -56,7 +56,9 @@ test("homepage enquiry uses the server form without a browser-only consent claim
     }),
   ).toBeVisible();
   await expect(page.getByText(/All data is fictional/)).toHaveCount(0);
-  await expect(page.getByLabel("Surname", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Patient name", { exact: true })).toHaveValue(
+    "",
+  );
   await expect(page.getByLabel("Email (required)")).toHaveValue("");
   await page.reload();
   await expect(

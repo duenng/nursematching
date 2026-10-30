@@ -48,7 +48,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByRole("combobox", { name: "Companion during service", exact: true })
     .selectOption("YES");
-  await page.getByLabel("Surname", { exact: true }).fill("Li");
+  await page.getByLabel("Patient name", { exact: true }).fill("Li");
   await page.getByLabel("Email (required)").fill("family@careknock.invalid");
   await page
     .getByRole("combobox", { name: "District", exact: true })

@@ -612,7 +612,8 @@ export function AdminWorkspace({
           {text("請核對資料後確認提交", "Review details before submission")}
         </h2>
         <p>
-          {form.patient_ref} · {form.surname} · {form.gender} · {form.age} 歲
+          {!publicIntake && `${form.patient_ref} · `}
+          {form.surname} · {form.gender} · {form.age} 歲
           <br />
           {form.email} · {form.phone || "—"}
           <br />
@@ -677,6 +678,9 @@ export function AdminWorkspace({
                   publicIntake ? "/api/enquiries" : "/api/cases",
                   {
                     ...form,
+                    ...(publicIntake
+                      ? { patient_ref: form.surname.trim() }
+                      : {}),
                     ...(publicIntake || operational
                       ? { fictional: undefined }
                       : {}),
@@ -774,19 +778,32 @@ export function AdminWorkspace({
         }}
       >
         <div className="ev-form-grid">
-          <label>
-            {text(
-              "病人代號（套餐只限同一病人）",
-              "Patient reference (package owner)",
-            )}
-            <input
-              required
-              value={form.patient_ref}
-              onChange={(e) =>
-                setForm({ ...form, patient_ref: e.target.value })
-              }
-            />
-          </label>
+          {publicIntake ? (
+            <label>
+              {text("病人姓名", "Patient name")}
+              <input
+                required
+                maxLength={80}
+                autoComplete="off"
+                value={form.surname}
+                onChange={(e) => setForm({ ...form, surname: e.target.value })}
+              />
+            </label>
+          ) : (
+            <label>
+              {text(
+                "病人代號（套餐只限同一病人）",
+                "Patient reference (package owner)",
+              )}
+              <input
+                required
+                value={form.patient_ref}
+                onChange={(e) =>
+                  setForm({ ...form, patient_ref: e.target.value })
+                }
+              />
+            </label>
+          )}
           <label>
             {text("性別", "Gender")}
             <select
@@ -846,14 +863,17 @@ export function AdminWorkspace({
               <option value="PARTIAL">部分時間</option>
             </select>
           </label>
-          <label>
-            {text("姓氏", "Surname")}
-            <input
-              required
-              value={form.surname}
-              onChange={(e) => setForm({ ...form, surname: e.target.value })}
-            />
-          </label>
+          {!publicIntake && (
+            <label>
+              {text("病人姓名", "Patient name")}
+              <input
+                required
+                maxLength={80}
+                value={form.surname}
+                onChange={(e) => setForm({ ...form, surname: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             {text("電郵（必填）", "Email (required)")}
             <input

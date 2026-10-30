@@ -62,7 +62,7 @@ test("Chinese homepage opens the server enquiry with meaningful data-use consent
     }),
   ).toBeVisible();
   await expect(page.getByText(/我正使用虛構資料進行示範/)).toHaveCount(0);
-  await expect(page.getByLabel("姓氏", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("病人姓名", { exact: true })).toHaveValue("");
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "上門護理查詢", exact: true }),
