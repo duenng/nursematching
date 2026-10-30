@@ -25,7 +25,7 @@ STAFF_SENIOR_NURSE_EMAILS=senior-nurse@example.com
 
 入口：`/#staff/email`。登入後返回同一工作台。家屬查詢入口：`/#enquire`，不需要登入；家屬及接單護士經電郵的一次性連結操作。
 
-分離部署時，登入成功後會跳回 `FRONTEND_URL/#staff/email`；未設定 `FRONTEND_URL` 則留在 backend 的 `/#staff/email`。CareKnock 正式網域設定如下，Google Authorized redirect URI 仍用 `https://careknockhkbackend.duen.ng/auth/google/callback`：
+分離部署時，公開網站的職員入口會自動轉到 backend 的職員工作台，登入成功後留在 backend 的 `/#staff/email`。這樣 Safari 可直接使用同一來源的登入 cookie，避免 Google 登入後因跨網站 cookie 被封鎖而返回登入頁。Backend 必須同時提供建置後的 `dist`，職員可直接開啟 `https://careknockhkbackend.duen.ng/#staff`。`FRONTEND_URL` 仍用於公開查詢的 CORS 設定。CareKnock 正式網域設定如下，Google Authorized redirect URI 仍用 `https://careknockhkbackend.duen.ng/auth/google/callback`：
 
 ```dotenv
 # Dokploy backend

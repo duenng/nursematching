@@ -118,6 +118,7 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
   );
   const session = await request("/auth/session");
   assert.equal(session.user.role, "ADMIN");
+  assert.equal(session.staff_url, `${base}/#staff`);
   const redirect = await fetch(base + "/auth/google", { redirect: "manual" });
   assert.equal(redirect.status, 302);
   const login = new URL(redirect.headers.get("location"));

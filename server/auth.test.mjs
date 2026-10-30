@@ -108,7 +108,7 @@ test("Google code flow binds browser, PKCE, nonce; session is hashed, HttpOnly a
   advance(8 * 3600000);
   assert.equal(auth.current(request), null);
 });
-test("cross-site frontend keeps OAuth state cookie first-party compatible", async (t) => {
+test("separate public frontend keeps the authenticated workspace on the API origin", async (t) => {
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
   const { provider, auth: providerAuth } = setup(t);
@@ -126,10 +126,15 @@ test("cross-site frontend keeps OAuth state cookie first-party compatible", asyn
   const flowRequest = req(login.cookie.split(";")[0]);
   const result = await auth.finish(
     flowRequest,
-    new URL(`https://api.example.test/auth/google/callback?state=${state}&code=valid&returnTo=https://attacker.invalid`),
+    new URL(
+      `https://api.example.test/auth/google/callback?state=${state}&code=valid&returnTo=https://attacker.invalid`,
+    ),
   );
-  assert.equal(result.location, "https://care.example.test/#staff/email");
+  assert.equal(result.location, "/#staff/email");
   assert.match(result.cookies[0], /SameSite=None/);
+  assert.equal(new URL(result.location, auth.baseUrl).origin, auth.baseUrl);
+  const session = auth.current(req(result.cookies[0].split(";")[0]));
+  assert.equal(session.role, "ADMIN");
 });
 test("OAuth wrong browser, wrong state, expiry and consumed callback fail closed", async (t) => {
   const { auth, advance } = setup(t);

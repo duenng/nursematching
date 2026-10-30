@@ -18,6 +18,35 @@ async function openWorkspace(page: import("@playwright/test").Page) {
   await page.goto("/#staff/email");
 }
 
+test("staff entry moves to the session origin before requiring a third-party cookie", async ({
+  page,
+}, testInfo) => {
+  const backend = new URL(String(testInfo.project.use.baseURL));
+  backend.hostname = "127.0.0.1";
+  let publicWorkflowReads = 0;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/auth/session", (route) => {
+    const onBackend = new URL(route.request().url()).origin === backend.origin;
+    return route.fulfill({
+      json: {
+        ...(onBackend
+          ? session("ADMIN")
+          : { mode: "google", user: null, login_url: "/auth/google" }),
+        staff_url: `${backend.origin}/#staff`,
+      },
+    });
+  });
+  await page.route("**/api/workflow", (route) => {
+    if (new URL(route.request().url()).origin !== backend.origin)
+      publicWorkflowReads++;
+    return route.fulfill({ status: 503, json: { error: "Test workspace" } });
+  });
+  await page.goto("/#staff/requests");
+  await expect(page).toHaveURL(`${backend.origin}/#staff/requests`);
+  await expect(page.locator(".sidebar")).toBeAttached();
+  expect(publicWorkflowReads).toBe(0);
+});
+
 test("logged-out Google mode shows staff sign-in and does not fetch workflow data", async ({
   page,
 }) => {

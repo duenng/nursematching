@@ -69,6 +69,8 @@ VITE_API_BASE_URL=https://api.example.com
 
 The backend must set `FRONTEND_URL` and `CORS_ORIGINS` to the exact Pages origin. The frontend sends credentials for staff sessions; when the origins differ the backend sets a `SameSite=None; Secure` cookie. Configure Google Authorized redirect URI as `https://api.example.com/auth/google/callback`. Email action links remain on the backend URL and do not depend on the frontend.
 
+Staff entry automatically opens the workspace on the backend origin, and Google sign-in returns there. This keeps staff sessions working in Safari when it blocks third-party cookies. The backend must serve its built `dist` as well as the API; staff can also open `https://api.example.com/#staff` directly.
+
 To verify locally:
 
 ```sh

@@ -284,7 +284,9 @@ export class StaffAuth {
       actor_code: id,
     });
     return {
-      location: `${this.frontendUrl}/#staff/email`,
+      // Keep the workspace on the cookie's origin. Safari blocks the session
+      // as a third-party cookie when the public site uses a different domain.
+      location: "/#staff/email",
       cookies: [
         this.cookie(this.sessionCookie, token, 8 * 3600),
         this.cookie(this.stateCookie, "", 0, "Lax"),

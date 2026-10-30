@@ -525,6 +525,7 @@ const server = http.createServer(async (req, res) => {
         mode: auth.mode,
         user,
         login_url: auth.mode === "google" ? "/auth/google" : null,
+        staff_url: auth.mode === "google" ? `${auth.baseUrl}/#staff` : null,
       });
     }
     if (url.pathname === "/auth/google" && req.method === "GET") {

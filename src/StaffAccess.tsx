@@ -25,6 +25,7 @@ type SessionInfo = {
   mode: "google" | "local";
   user: StaffSession | null;
   login_url: string | null;
+  staff_url?: string | null;
 };
 type Access = {
   session: SessionInfo;
@@ -62,6 +63,15 @@ export function StaffAccess({ children }: { children: ReactNode }) {
       const info: SessionInfo = await r.json();
       if (!["google", "local"].includes(info.mode))
         throw new Error("Cannot verify staff session. Please retry.");
+      if (current !== requestId.current) return;
+      if (info.mode === "google" && info.staff_url) {
+        const workspace = new URL(info.staff_url);
+        if (workspace.origin !== window.location.origin) {
+          workspace.hash = window.location.hash;
+          window.location.replace(workspace.href);
+          return;
+        }
+      }
       if (
         info.user &&
         (!["ADMIN", "SENIOR_NURSE"].includes(info.user.role) ||
