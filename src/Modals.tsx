@@ -704,7 +704,7 @@ function EnquiryModal({ onClose }: { onClose: () => void }) {
                                   })
                                 }
                               />
-                              <span>{t("As needed (PRN)")}</span>
+                              <span>{t("Nurse to arrange")}</span>
                             </label>
                             {item.tubeOnly && (
                               <Select

@@ -637,7 +637,7 @@ export function AdminWorkspace({
           {items
             .map(
               (s) =>
-                `${s.label} ${s.prn ? "PRN" : s.times.join("、") || "待補時間"}`,
+                `${s.label} ${s.prn ? text("護士自行安排", "Nurse to arrange") : s.times.join("、") || "待補時間"}`,
             )
             .join("\n")}
         </pre>
@@ -1144,7 +1144,7 @@ export function AdminWorkspace({
                           )
                         }
                       />
-                      PRN
+                      {text("護士自行安排", "Nurse to arrange")}
                     </label>
                   </div>
                 )}
@@ -2515,8 +2515,8 @@ export function AdminWorkspace({
                     )}
                     <p className="form-hint">
                       {text(
-                        "PRN 不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
-                        "PRN has no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
+                        "護士自行安排的項目不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
+                        "Tasks arranged by the nurse have no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
                       )}
                     </p>
                   </>
@@ -3258,7 +3258,7 @@ export function ClinicalWorkspace({ session }: { session: StaffSession }) {
                     <strong>{service.label}</strong>
                     <span>
                       {service.prn
-                        ? text("按需要（PRN）", "As needed (PRN)")
+                        ? text("護士自行安排", "Nurse to arrange")
                         : service.times?.length
                           ? service.times.join(" · ")
                           : text("時間待確認", "Time to confirm")}
@@ -3370,7 +3370,7 @@ export function ClinicalWorkspace({ session }: { session: StaffSession }) {
                   <div key={index}>
                     <time>
                       {row.time === "PRN"
-                        ? text("按需要", "As needed")
+                        ? text("護士自行安排", "Nurse to arrange")
                         : row.time}
                     </time>
                     <span>{row.item}</span>
@@ -3502,7 +3502,7 @@ export function ClinicalWorkspace({ session }: { session: StaffSession }) {
                         )
                       }
                     />
-                    {text("按需要（PRN）", "As needed (PRN)")}
+                    {text("護士自行安排", "Nurse to arrange")}
                   </label>
                   <button
                     className="button secondary"

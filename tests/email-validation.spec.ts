@@ -160,13 +160,11 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByText("Dispatch preview (no name, phone or unit)", { exact: true })
     .click();
-  const preview = page
-    .locator("details")
-    .filter({
-      has: page.getByText("Dispatch preview (no name, phone or unit)", {
-        exact: true,
-      }),
-    });
+  const preview = page.locator("details").filter({
+    has: page.getByText("Dispatch preview (no name, phone or unit)", {
+      exact: true,
+    }),
+  });
   await expect(preview).toContainText("HK$245／小時，共 HK$980");
   await expect(preview).toContainText("Workflow Building");
   await expect(preview).not.toContainText("family@careknock.invalid");

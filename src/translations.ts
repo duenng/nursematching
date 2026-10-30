@@ -101,7 +101,7 @@ Care services · select all that apply|護理服務・可選多項
 A · Basic care|A・基本護理
 B · Doctor instruction required|B・需醫生指示
 C · Non-clinical support|C・非護理程序
-As needed (PRN)|按需要（PRN）
+Nurse to arrange|護士自行安排
 Doctor instruction / prescription|醫生指示／處方
 Visit period|時段類別
 Service date|服務日期

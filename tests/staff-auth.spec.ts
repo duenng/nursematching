@@ -220,11 +220,11 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
   await page.getByRole("button", { name: "Load draft", exact: true }).click();
   await page.getByLabel("Time 1", { exact: true }).fill("13:00");
   await page
-    .getByRole("checkbox", { name: "As needed (PRN)", exact: true })
+    .getByRole("checkbox", { name: "Nurse to arrange", exact: true })
     .check();
   await expect(page.getByLabel("Time 1", { exact: true })).toBeDisabled();
   await page
-    .getByRole("checkbox", { name: "As needed (PRN)", exact: true })
+    .getByRole("checkbox", { name: "Nurse to arrange", exact: true })
     .uncheck();
   await page.getByLabel("Time 1", { exact: true }).fill("13:00");
   await expect(page.getByLabel("Care task 1", { exact: true })).toHaveValue(
