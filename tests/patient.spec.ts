@@ -16,21 +16,13 @@ test("patients land on service pages and can explore their own care without staf
     "A little help at home",
   );
   await expect(
-    page.getByRole("button", { name: "Open patient menu" }),
+    page.getByRole("button", { name: "Homepage menu" }),
   ).toBeHidden();
-  await expect(
-    page.getByRole("heading", { name: "Nursing care at home" }),
-  ).toBeVisible();
-  await page
-    .getByText("Can I arrange care for myself?", { exact: true })
-    .click();
-  await expect(page.locator(".patient-faq-list details").first()).toContainText(
-    "You can enquire for yourself",
-  );
-  await page
-    .getByRole("navigation", { name: "Patient navigation" })
-    .getByRole("button", { name: "My care" })
-    .click();
+  await expect(page.locator("#pricing")).toContainText("8,650");
+  await expect(page.locator("#pricing")).toContainText("HK$305");
+  await expect(page.locator("#pricing")).toContainText("HK$325");
+  await expect(page.locator(".ck-header")).not.toContainText("My care");
+  await page.goto("/#patient/care");
   await expect(page.locator(".patient-request-person")).toContainText(
     "Mr. Chan",
   );
@@ -47,7 +39,10 @@ test("homepage enquiry uses the server form without a browser-only consent claim
   page,
 }) => {
   await page.goto("/#patient");
-  await page.getByRole("button", { name: "Enquire now", exact: true }).click();
+  await page
+    .locator(".ck-header")
+    .getByRole("link", { name: "Enquire now", exact: true })
+    .click();
   await expect(page).toHaveURL(/#enquire$/);
   await expect(
     page.getByRole("heading", { name: "Home nursing enquiry" }),
@@ -89,7 +84,7 @@ test("patient preview changes cannot create or modify real staff records", async
   expect(JSON.stringify(state.cases)).not.toContain("PREVIEW-ONLY-CHANGE");
 });
 
-test("mobile patients can browse services, open My care and request care without overflow", async ({
+test("mobile patients can use homepage navigation and open the existing care preview without overflow", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -103,11 +98,16 @@ test("mobile patients can browse services, open My care and request care without
     path: "/tmp/kindred-patient-mobile-home.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Open patient menu" }).click();
+  await page.getByRole("button", { name: "Homepage menu" }).click();
   await page
-    .getByRole("navigation", { name: "Patient navigation" })
-    .getByRole("button", { name: "My care" })
+    .getByRole("navigation", { name: "Homepage navigation" })
+    .getByRole("link", { name: "Pricing", exact: true })
     .click();
+  await expect(page).toHaveURL(/#pricing$/);
+  await expect(
+    page.getByRole("button", { name: "Homepage menu" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await page.goto("/#patient/care");
   await expect(page.locator(".patient-request-person")).toContainText(
     "Mr. Chan",
   );

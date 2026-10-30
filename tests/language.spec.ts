@@ -10,10 +10,8 @@ test("Traditional Chinese is the default and language selection persists across 
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "在家多一點支援",
   );
-  await page.getByText("我可以為自己安排護理嗎？", { exact: true }).click();
-  await expect(page.locator(".patient-faq-list details").first()).toContainText(
-    "你可為自己或親友查詢",
-  );
+  await expect(page.locator("#advantages")).toContainText("照護計劃時間表");
+  await expect(page.locator("#advantages")).toContainText("智能提醒");
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
@@ -50,7 +48,10 @@ test("Chinese homepage opens the server enquiry with meaningful data-use consent
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "立即查詢", exact: true }).click();
+  await page
+    .locator(".ck-header")
+    .getByRole("link", { name: "立即查詢", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "上門護理查詢", exact: true }),
   ).toBeVisible();
@@ -68,19 +69,20 @@ test("Chinese homepage opens the server enquiry with meaningful data-use consent
   ).toBeVisible();
 });
 
-test("switching languages preserves expanded services and mobile pages fit the screen", async ({
+test("switching languages preserves homepage anchors and mobile pages fit the screen", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("button", { name: /上門護士護理/ }).click();
-  await expect(page.locator("#clinic-service-details")).toContainText(
-    "根據已確認的專業指示",
-  );
+  await page.getByRole("button", { name: "主頁選單" }).click();
+  await page
+    .getByRole("navigation", { name: "主頁導覽" })
+    .getByRole("link", { name: "我們的優勢", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#advantages$/);
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  await expect(page.locator("#clinic-service-details")).toContainText(
-    "Nursing support for needs",
-  );
+  await expect(page.locator("#advantages")).toContainText("Our advantages");
+  await expect(page).toHaveURL(/#advantages$/);
   await page.getByRole("button", { name: "繁中", exact: true }).click();
   expect(
     await page.evaluate(
@@ -91,11 +93,7 @@ test("switching languages preserves expanded services and mobile pages fit the s
     path: "/tmp/kindred-zh-mobile-home.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "開啟服務對象選單" }).click();
-  await page
-    .getByRole("navigation", { name: "服務對象選單" })
-    .getByRole("button", { name: "我的護理" })
-    .click();
+  await page.goto("/#patient/care");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

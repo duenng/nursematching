@@ -11,7 +11,10 @@ test("family sees submission progress and errors inside review, then submits wit
     if (req.url().includes("/api/workflow")) staffReads++;
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Enquire now", exact: true }).click();
+  await page
+    .locator(".ck-header")
+    .getByRole("link", { name: "Enquire now", exact: true })
+    .click();
   await expect(page).toHaveURL(/#enquire$/);
   await expect(
     page.getByRole("heading", { name: "Home nursing enquiry" }),

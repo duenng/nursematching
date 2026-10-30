@@ -7,7 +7,10 @@ test("public server form displays service pricing and requires real enquiry deta
     localStorage.setItem("kindred-language", "en"),
   );
   await page.goto("/#patient");
-  await page.getByRole("button", { name: "Enquire now", exact: true }).click();
+  await page
+    .locator(".ck-header")
+    .getByRole("link", { name: "Enquire now", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Use enquiry form", exact: true })
     .click();

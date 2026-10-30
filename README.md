@@ -27,7 +27,7 @@ Alternatively set `INTAKE_AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `
 
 The public service structure takes inspiration from the user-provided [CARE U elderly-care reference](https://www.careu.com.hk/我們的服務/長者護理/): service descriptions, the enquiry journey and FAQs. CareKnock uses its own text, illustrations and visual design. CARE U pricing, professional-scope claims and contact information are not used.
 
-The patient homepage follows the supplied visual reference with a centred photographic hero, a welcome section, five photographic service tiles and a care-provider section. It uses a CUHK-inspired purple palette, warm peach accents and larger type. Service tiles reveal further information and open the enquiry flow. Stock photos are illustrative; [image sources](docs/IMAGE_SOURCES.md) are recorded separately.
+The public homepage uses the supplied CareKnock v3 structure: a split hero, five-step process, separate daytime/nighttime and 30-hour package pricing, our advantages, AI/arrangement boundaries and a final enquiry CTA. It supports Traditional Chinese and English, with every primary CTA opening `/#enquire`. The hero uses the repository’s original home-care illustration; no stock photos or fictional schedules appear on the homepage. Styles are scoped to `.ck-home`, leaving the enquiry form, patient preview and staff workspace unchanged.
 
 ```sh
 npm run build     # Type checking and production build

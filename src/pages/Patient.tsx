@@ -6,11 +6,9 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
-  ClipboardCheck,
   Clock3,
   Heart,
   HeartHandshake,
-  House,
   LockKeyhole,
   MapPin,
   Menu,
@@ -94,6 +92,7 @@ export function PatientPortal() {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }),
     );
   }
+  if (section === "home") return <PatientHomeIntro />;
   return (
     <div className={`patient-app ${section === "home" ? "patient-home" : ""}`}>
       <div className="patient-top-strip">
@@ -174,189 +173,6 @@ export function PatientPortal() {
         </div>
       </header>
       <main>
-        {section === "home" ? (
-          <>
-            <PatientHomeIntro
-              onEnquire={() => (window.location.hash = "enquire")}
-              onExploreCare={() => go("care")}
-              onSeeProcess={() => scrollTo("how-it-works")}
-            />
-            <section className="patient-process-section" id="how-it-works">
-              <div className="patient-container">
-                <div className="patient-centered-heading">
-                  <span className="patient-eyebrow">
-                    {t("HOW IT WORKS · 服務流程")}
-                  </span>
-                  <h2>
-                    {t("From “where do I start?”")}
-                    <br />
-                    {t("to a helping hand at your door.")}
-                  </h2>
-                  <p>{t("A clear next step, every step of the way.")}</p>
-                </div>
-                <div className="patient-process-grid">
-                  {[
-                    {
-                      icon: MessageCircle,
-                      title: "Start an enquiry",
-                      text: "Tell us who needs support, your district and the building or estate. Unit details are collected privately later.",
-                    },
-                    {
-                      icon: ClipboardCheck,
-                      title: "AI organises details, you check",
-                      text: "AI structures the tick-box services, preferred times and visit details. You review everything before a quotation is prepared.",
-                    },
-                    {
-                      icon: HeartHandshake,
-                      title: "Confirm the quote and pay",
-                      text: "After you confirm the quotation, full payment is due within 24 hours. A 30-hour package is HK$8,650, saving HK$500.",
-                    },
-                    {
-                      icon: House,
-                      title: "Paid first, then first-come dispatch",
-                      text: "The platform sends the paid case to eligible nurses. The first nurse to accept is assigned; no clinical decision is made by AI.",
-                    },
-                    {
-                      icon: ShieldCheck,
-                      title: "Confirm privately and schedule",
-                      text: "After a nurse accepts, an email links to the private unit form; the Care Schedule is reviewed before details are released.",
-                    },
-                  ].map((step, i) => (
-                    <div className="patient-process-step" key={step.title}>
-                      <div className="patient-step-icon">
-                        <step.icon size={26} strokeWidth={1.5} />
-                        <span>0{t(i + 1)}</span>
-                      </div>
-                      <h3>{t(step.title)}</h3>
-                      <p>{t(step.text)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-            <section className="patient-container patient-demo-section">
-              <div className="patient-demo-card">
-                <div className="patient-demo-calendar" aria-hidden="true">
-                  <div>
-                    <CalendarDays size={17} />
-                    <span>{t("YOUR CARE, AT A GLANCE")}</span>
-                  </div>
-                  <div>
-                    <span className="patient-demo-date">
-                      {t("MON")}
-                      <strong>09:00</strong>
-                    </span>
-                    <span>
-                      <strong>{t("Home care visit")}</strong>
-                      <small>{t("Your confirmed care tasks")}</small>
-                      <Badge tone="amber">{t("For your approval")}</Badge>
-                    </span>
-                    <Check size={19} />
-                  </div>
-                  <div className="patient-demo-calendar-footer">
-                    <ShieldCheck size={13} />
-                    {t("You’re part of every decision.")}
-                  </div>
-                </div>
-                <div>
-                  <span className="patient-eyebrow">
-                    {t("YOUR CARE. YOUR SAY.")}
-                  </span>
-                  <h2>
-                    {t("A plan you can see.")}
-                    <br />
-                    {t("A schedule you can shape.")}
-                  </h2>
-                  <p>
-                    {t(
-                      "Review your request, see upcoming visits, and ask for a different time. Nothing moves from proposed to confirmed without your approval.",
-                    )}
-                  </p>
-                  <button
-                    className="button secondary"
-                    onClick={() => go("care")}
-                  >
-                    {t("Have a look at My care")} <ArrowRight size={16} />
-                  </button>
-                </div>
-              </div>
-            </section>
-            <section
-              className="patient-section patient-container patient-faq-section"
-              id="common-questions"
-            >
-              <div>
-                <span className="patient-eyebrow">
-                  {t("A LITTLE MORE CLARITY · 常見問題")}
-                </span>
-                <h2>
-                  {t("A few questions")}
-                  <br />
-                  {t("you might have.")}
-                </h2>
-                <p>
-                  {t("Not sure where to start?")}
-                  <br />
-                  {t("Your first enquiry is just a conversation.")}
-                </p>
-                <button
-                  className="patient-link"
-                  onClick={() => (window.location.hash = "enquire")}
-                >
-                  {t("Let’s talk about your needs")} <ArrowRight size={15} />
-                </button>
-              </div>
-              <div className="patient-faq-list">
-                {[
-                  [
-                    "Can I arrange care for myself?",
-                    "Yes. You can enquire for yourself or a loved one. Tell us who needs support, your district and what help you’re looking for. The care team reviews the details with you.",
-                  ],
-                  [
-                    "How do I know which type of nurse I need?",
-                    "You don’t have to decide on your own. A qualified reviewer considers the requested care and confirms whether an RN, EN or another appropriate pathway is needed. Appointment companions provide non-clinical support.",
-                  ],
-                  [
-                    "How much will the service cost?",
-                    "The price depends on confirmed care needs, the professional requirements, visit length and timing. The team confirms a quotation with you before the case is published. Enquiring here does not commit you to a service.",
-                  ],
-                  [
-                    "Can I change a proposed visit?",
-                    "Yes. In My care, open a visit and request another time. The team checks the change with your provider. A revised proposal needs your approval before it becomes confirmed.",
-                  ],
-                  [
-                    "How is my enquiry handled?",
-                    "Your enquiry is stored on our server and followed up by email. We review the details and confirm a quotation. Dispatch starts after staff verify your bank transfer.",
-                  ],
-                ].map(([question, answer]) => (
-                  <details key={question}>
-                    <summary>
-                      {t(question)}
-                      <Plus size={17} />
-                    </summary>
-                    <p>{t(answer)}</p>
-                  </details>
-                ))}
-              </div>
-            </section>
-            <section className="patient-bottom-cta">
-              <div className="patient-container">
-                <span className="patient-eyebrow">
-                  {t("YOU DON’T HAVE TO FIGURE IT ALL OUT ALONE.")}
-                </span>
-                <h2>{t("Let’s find your next step, together.")}</h2>
-                <p>{t("Tell us a little. We’ll help make things clearer.")}</p>
-                <button
-                  className="button primary"
-                  onClick={() => (window.location.hash = "enquire")}
-                >
-                  {t("即時查詢服務 · Start an enquiry")}{" "}
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </section>
-          </>
-        ) : (
           <section className="patient-container patient-care-page">
             <div className="patient-care-heading">
               <div>
@@ -622,7 +438,6 @@ export function PatientPortal() {
               />
             )}
           </section>
-        )}
       </main>
       <footer className="patient-footer">
         <div className="patient-container">
