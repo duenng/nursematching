@@ -93,6 +93,82 @@ test("staff requests show connection failures without falling back to demonstrat
   await expect(page.locator("table")).toHaveCount(0);
 });
 
+test("manual case saves location review before quoting and displays action results beside controls", async ({
+  page,
+}) => {
+  const origin = String(test.info().project.use.baseURL);
+  const response = await page.request.post(`${origin}/api/enquiries`, {
+    headers: { Origin: origin },
+    data: {
+      surname: "Fixture",
+      email: "quote-fixture@example.test",
+      patient_ref: "QUOTE-FIXTURE",
+      consent: true,
+      gender: "M",
+      age: 78,
+      weight_kg: 65,
+      height_cm: 165,
+      mobility: "需人輔助",
+      companion: "YES",
+      district: "東區",
+      building: "Fixture building",
+      date: "2026-11-10",
+      shift: "DAY",
+      start: "10:00",
+      end: "14:00",
+      doctor_order: "NA",
+      services: [{ id: "vitals", times: ["12:00"], prn: false }],
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const { id } = await response.json();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/#staff/requests/${id}`);
+  const controls = page.locator(".ev-admin");
+  await controls.locator("summary").first().click();
+  const issue = controls.getByRole("button", {
+    name: "Issue quote after review",
+    exact: true,
+  });
+  await expect(issue).toBeDisabled();
+  await expect(controls).toContainText("Location review has not been saved.");
+  await controls
+    .getByRole("button", { name: "Review location / allowance", exact: true })
+    .click();
+  await expect(controls.getByRole("alert")).toContainText(
+    "請選擇地區分類並填覆核原因",
+  );
+  await expect(controls.getByRole("alert")).toBeInViewport();
+  await controls
+    .getByLabel("Review / action reason")
+    .fill("Address and services verified with the family");
+  await controls.getByRole("combobox").selectOption("C");
+  await controls
+    .getByRole("button", { name: "Review location / allowance", exact: true })
+    .click();
+  await expect(controls.getByRole("status")).toContainText(
+    "Location and allowance review saved.",
+  );
+  await expect(issue).toBeEnabled();
+  await issue.click();
+  await expect(controls.getByRole("status")).toContainText(
+    "Quote created and queued for email delivery.",
+  );
+  await expect(page.locator(".ev-state")).toContainText("QUOTED");
+  const workspace = await (
+    await page.request.get(`${origin}/api/workflow`)
+  ).json();
+  expect(
+    workspace.cases.find((c: { id: string }) => c.id === id).quote.total,
+  ).toBe(1220);
+  expect(
+    workspace.emails.filter(
+      (m: { case_id: string; template_id: string }) =>
+        m.case_id === id && m.template_id === "T1",
+    ),
+  ).toHaveLength(1);
+});
+
 test("mobile staff navigation and provider form fit the screen", async ({
   page,
 }, info) => {

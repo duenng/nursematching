@@ -238,6 +238,8 @@ export function AdminWorkspace({
   );
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState("");
+  const [actionFeedback, setActionFeedback] = useState("");
+  const actionFeedbackRef = useRef<HTMLDivElement>(null);
   const [enquiryMode, setEnquiryMode] = useState<"conversation" | "form">(
     "conversation",
   );
@@ -381,9 +383,13 @@ export function AdminWorkspace({
       });
     return data;
   }
-  async function run(fn: () => Promise<unknown>) {
+  async function run(
+    fn: () => Promise<unknown>,
+    feedback?: { pending: string; success: string },
+  ) {
     setBusy(true);
     setError("");
+    setActionFeedback(feedback?.pending || "");
     try {
       await fn();
       if (!publicIntake) {
@@ -391,12 +397,19 @@ export function AdminWorkspace({
         if (operational)
           window.dispatchEvent(new Event("staff-workflow-updated"));
       }
+      if (feedback) setActionFeedback(feedback.success);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+  useEffect(() => {
+    if (!busy && actionFeedback) {
+      actionFeedbackRef.current?.focus();
+      actionFeedbackRef.current?.scrollIntoView({ block: "center" });
+    }
+  }, [busy, actionFeedback, error]);
   useEffect(() => {
     if (publicIntake) return;
     void refresh(true).catch((e) => setError(e.message));
@@ -485,6 +498,11 @@ export function AdminWorkspace({
     verified: false,
   });
   const [remoteTier, setRemoteTier] = useState("C");
+  useEffect(() => {
+    setRemoteTier(
+      ["A", "B", "C"].includes(c?.remote_tier || "") ? c!.remote_tier! : "C",
+    );
+  }, [c?.id, c?.remote_tier]);
   const [scheduleEdit, setScheduleEdit] = useState("");
   const [correctedOrder, setCorrectedOrder] = useState("UNSURE");
   const [correctedTubes, setCorrectedTubes] = useState<Record<string, string>>(
@@ -1745,7 +1763,7 @@ export function AdminWorkspace({
             : text("匯出證據", "Export evidence")}
         </button>
       </div>
-      {error && (
+      {error && !actionFeedback && (
         <div className="ev-error" role="alert">
           {error}
         </div>
@@ -2214,16 +2232,56 @@ export function AdminWorkspace({
                             disabled={
                               busy ||
                               (a === "issue_quote" &&
-                                c.intake_channel === "conversation")
+                                (c.intake_channel === "conversation" ||
+                                  c.status !== "MANUAL" ||
+                                  c.remote_tier === "UNMATCHED"))
                             }
                             className="button secondary"
                             key={a}
-                            onClick={() => run(() => action(a))}
+                            onClick={() =>
+                              run(() => action(a), {
+                                pending: text(
+                                  "正在處理，請稍候…",
+                                  "Processing, please wait…",
+                                ),
+                                success:
+                                  a === "remote"
+                                    ? text(
+                                        "已儲存地點覆核及交通津貼分類。核實其餘服務資料後，可按「人工處理後發報價」。",
+                                        "Location and allowance review saved. After verifying the remaining service details, issue the quote below.",
+                                      )
+                                    : a === "issue_quote"
+                                      ? text(
+                                          "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
+                                          "Quote created and queued for email delivery. Check Messages for the delivery result.",
+                                        )
+                                      : text("操作已儲存。", "Action saved."),
+                              })
+                            }
                           >
                             {label}
                           </button>
                         ))}
                       </div>
+                      {actionFeedback && (
+                        <div
+                          ref={actionFeedbackRef}
+                          tabIndex={-1}
+                          role={error ? "alert" : "status"}
+                          className={error ? "ev-error" : "staff-notice"}
+                        >
+                          {error || actionFeedback}
+                        </div>
+                      )}
+                      {c.status === "MANUAL" &&
+                        c.remote_tier === "UNMATCHED" && (
+                          <p className="ev-error">
+                            {text(
+                              "尚未儲存地點覆核。請核實地址、選擇正確分類，再按「覆核地點及交通津貼」；只更改選單不會儲存，未完成前不能發報價。",
+                              "Location review has not been saved. Verify the address, select the correct tier and click Review location / allowance. Changing the selection alone does not save it; quoting is unavailable until review is saved.",
+                            )}
+                          </p>
+                        )}
                       <p className="form-hint">
                         {text(
                           operational
