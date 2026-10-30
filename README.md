@@ -102,7 +102,7 @@ The workspace refreshes every 30 seconds while visible and when returning to the
 
 Public live deployments require `AUTH_MODE=google`, HTTPS, OAuth credentials and separate `STAFF_ADMIN_EMAILS` / `STAFF_SENIOR_NURSE_EMAILS`. Local loopback access is available for development. See [staff login setup](docs/STAFF_LOGIN.md).
 
-Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` to enable external email. In live mode an empty `TEST_EMAIL_ALLOWLIST` permits real recipients; a populated list restricts delivery. Without SMTP, notifications are saved locally and clearly marked **not delivered**. Verify delivery with controlled accounts before accepting bookings.
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` to enable external email. Live mode ignores `TEST_EMAIL_ALLOWLIST`; this recipient restriction applies only in test mode. Without SMTP, notifications are saved locally and clearly marked **not delivered**. Verify delivery with controlled accounts before accepting bookings. Previously blocked notifications remain in the delivery log and need an explicit retry after their configuration issue is resolved.
 
 Live mode requires `PAYMENT_MODE=bank_transfer` and wall time. Set `BANK_NAME`, `BANK_ACCOUNT_NAME` and `BANK_ACCOUNT_NUMBER`; missing receiving-account details prevent quote acceptance for payment. Staff still check actual bank receipts and perform refunds/payroll transfers themselves.
 

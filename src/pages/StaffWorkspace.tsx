@@ -59,7 +59,7 @@ const statuses: Record<string, [string, string]> = {
   captured: ["已保存，未寄出", "Saved, not delivered"],
   sent: ["郵件伺服器已接收", "Accepted by mail server"],
   failed: ["寄送失敗", "Delivery failed"],
-  blocked: ["收件地址被限制", "Recipient restricted"],
+  blocked: ["未寄出，需處理設定", "Not sent, configuration needed"],
   delivery_unknown: ["寄送結果待查", "Delivery unknown"],
   sending: ["正在寄送", "Sending"],
 };

@@ -22,6 +22,7 @@ async function mockWorkspace(
   page: import("@playwright/test").Page,
   cases: object[],
   submissions: object[] = [],
+  emails: object[] = [],
 ) {
   const workspace = await (await page.request.get("/api/workflow")).json();
   await page.addInitScript(() =>
@@ -34,7 +35,7 @@ async function mockWorkspace(
         cases,
         payment_submissions: submissions,
         payment_reconciliations: [],
-        emails: [],
+        emails,
         events: [],
       },
     }),
@@ -189,5 +190,115 @@ test("approved refund offers only refund recording and sends the entered bank re
     verified: true,
     reason: "銀行退款已完成",
     received_at: "2026-10-31T04:00:00.000Z",
+  });
+});
+
+test("paid case distinguishes the administrator preview from an unsent nurse invitation", async ({
+  page,
+}) => {
+  await mockWorkspace(
+    page,
+    [{ ...baseCase, status: "PAID" }],
+    [],
+    [
+      {
+        id: "PREVIEW-1",
+        case_id: baseCase.id,
+        template_id: "T14",
+        subject: "派單預覽",
+        to: "admin@example.test",
+        status: "blocked",
+        error: "尚未設定有效管理員通知電郵",
+        body: "Preview",
+        links: [],
+      },
+    ],
+  );
+  await page.goto("/#staff/requests/C-UX-001");
+  const progress = page.getByRole("region", { name: "派單實際進度" });
+  await expect(progress).toContainText("接單邀請紀錄: 0");
+  await expect(progress).toContainText("尚未建立護士接單邀請");
+  await expect(progress).toContainText("管理員派單預覽不會寄給護士");
+  await expect(progress).toContainText("管理員派單預覽 · 未寄出，需處理設定");
+  await expect(progress).toContainText("尚未設定有效管理員通知電郵");
+  await expect(
+    page.getByRole("button", { name: "確認預覽並派單" }),
+  ).toBeEnabled();
+});
+
+test("dispatch shows per-recipient failure, retry and outstanding care gates", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockWorkspace(
+    page,
+    [{ ...baseCase, status: "POSTED" }],
+    [],
+    [
+      {
+        id: "NURSE-MAIL-1",
+        case_id: baseCase.id,
+        template_id: "T3",
+        subject: "新 Case",
+        to: "nurse@careknock.invalid",
+        status: "failed",
+        error: "SMTP connection refused",
+        body: "Invitation",
+        links: [],
+      },
+    ],
+  );
+  let retry: unknown;
+  await page.route("**/api/workflow", async (route) => {
+    const response = await route.fetch();
+    const workspace = await response.json();
+    await route.fulfill({
+      json: {
+        ...workspace,
+        cases: [{ ...baseCase, status: "POSTED" }],
+        capabilities: {
+          ...workspace.capabilities,
+          email_delivery_enabled: true,
+        },
+        emails: [
+          {
+            id: "NURSE-MAIL-1",
+            case_id: baseCase.id,
+            template_id: "T3",
+            subject: "新 Case",
+            to: "nurse@careknock.invalid",
+            status: "failed",
+            error: "SMTP connection refused",
+            body: "Invitation",
+            links: [],
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/email-retry", (route) => {
+    retry = route.request().postDataJSON();
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/#staff/requests/C-UX-001");
+  const progress = page.getByRole("region", { name: "派單實際進度" });
+  await expect(progress).toContainText("護士接單邀請 · 寄送失敗");
+  await expect(progress).toContainText("nurse@careknock.invalid");
+  await expect(progress).toContainText("SMTP connection refused");
+  await expect(progress).toContainText("尚未有護士確認接單");
+  await expect(page.locator(".ev-gates")).toContainText("護士接單後索取");
+  await expect(
+    page.getByRole("button", { name: "管理員最終確認", exact: true }),
+  ).toBeDisabled();
+  await progress.getByRole("button", { name: "重新寄送" }).click();
+  await expect.poll(() => retry).toEqual({ id: "NURSE-MAIL-1" });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page.screenshot({
+    path: "test-results/dispatch-progress-mobile.png",
+    fullPage: true,
   });
 });

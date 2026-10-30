@@ -138,6 +138,8 @@ const allowed = new Set(
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 );
+// Legacy test recipient settings must never restrict the live workspace.
+const emailRestricted = !live;
 const mailer = process.env.SMTP_HOST
   ? nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -384,7 +386,7 @@ async function integrations() {
         continue;
       }
       if (live && mailCase?.intake_mode !== "LIVE") continue;
-      if ((!live || allowed.size > 0) && !allowed.has(mail.to.toLowerCase())) {
+      if (emailRestricted && !allowed.has(mail.to.toLowerCase())) {
         mail.status = "blocked";
         mail.error = "Recipient is not in TEST_EMAIL_ALLOWLIST";
         continue;
@@ -526,7 +528,7 @@ const server = http.createServer(async (req, res) => {
         workspace: live ? "live" : "test",
         email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
         email_delivery_enabled: !!mailer,
-        email_restricted: !live || allowed.size > 0,
+        email_restricted: emailRestricted,
         payment: mode,
         auth:
           auth.mode === "google"
@@ -747,7 +749,7 @@ const server = http.createServer(async (req, res) => {
             workspace: live ? "live" : "test",
             email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
             email_delivery_enabled: !!mailer,
-            email_restricted: !live || allowed.size > 0,
+            email_restricted: emailRestricted,
             payment: mode,
             live_ai: publicAssistantConfig().enabled,
             bank_transfer_configured: workflow.bankTransferConfigured(),
@@ -783,10 +785,7 @@ const server = http.createServer(async (req, res) => {
           )
             throw new Error("只可重試未寄出或已失敗的通知");
           if (!mailer) throw new Error("請先設定 SMTP 寄信連線");
-          if (
-            (!live || allowed.size > 0) &&
-            !allowed.has(mail.to.toLowerCase())
-          )
+          if (emailRestricted && !allowed.has(mail.to.toLowerCase()))
             throw new Error("收件地址不在允許名單，請先更新寄信設定");
           mail.status = "queued";
           delete mail.error;
@@ -1139,7 +1138,7 @@ for (const mail of workflow.state.emails.filter((x) => x.status === "sending"))
 workflow.save();
 server.listen(port, host, () =>
   console.log(
-    `TRL 3 workflow server listening on ${host}:${port}; email=${mailer ? "SMTP allowlist" : "local inbox"}; payment=${mode}`,
+    `Workflow server listening on ${host}:${port}; email=${mailer ? (emailRestricted ? "SMTP test allowlist" : "SMTP") : "local inbox"}; payment=${mode}`,
   ),
 );
 const interval = setInterval(

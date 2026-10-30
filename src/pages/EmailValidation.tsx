@@ -15,6 +15,7 @@ import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
 import { EmailPreview } from "../EmailPreview";
 import { ConversationEnquiry } from "./ConversationEnquiry";
+import { DispatchDelivery } from "./DispatchDelivery";
 import { DayTimeSelect, PreferredTimeFields } from "../CareTimeFields";
 import {
   CaseOverview,
@@ -2864,15 +2865,26 @@ export function AdminWorkspace({
                           "Dispatch and care arrangements",
                         )}
                       </summary>
+                      {operational && workspace && (
+                        <DispatchDelivery
+                          c={c}
+                          workspace={workspace}
+                          zh={zh}
+                          busy={busy}
+                          onRetry={(id) =>
+                            void run(() => request("/api/email-retry", { id }))
+                          }
+                        />
+                      )}
                       <ol className="ev-steps">
                         <li>
                           {text(
                             operational
                               ? "請家屬從報價電郵中的連結確認接受報價。"
-                              : "到收件箱開 T1 連結，再在確認頁接受報價。",
+                              : "到收件箱開啟報價電郵中的連結，再在確認頁接受報價。",
                             operational
                               ? "The family confirms acceptance through the link in their quote email."
-                              : "Open T1 in the inbox, then confirm acceptance.",
+                              : "Open the quotation email link in the inbox, then confirm acceptance.",
                           )}
                         </li>
                         <li>
@@ -2913,14 +2925,14 @@ export function AdminWorkspace({
                         </li>
                         <li>
                           {text(
-                            "護士開自己嘅 T3 個人連結，第一個確認接單者得標。",
-                            "Nurses open individual T3 links; first confirmation wins.",
+                            "護士從自己的接單邀請電郵確認接單，第一個有效確認者得標。",
+                            "Nurses confirm through their own invitation emails; the first valid acceptance wins.",
                           )}
                         </li>
                         <li>
                           {text(
-                            "家屬經 T16 提供單位；完成 Care Schedule 三關。",
-                            "Family provides the unit through T16; complete schedule review.",
+                            "護士接單後，家屬會收到填寫樓層及單位的電郵；護理時間表另須產生草稿、資深護士覆核及管理員最終確認。",
+                            "After a nurse accepts, the family receives an address request. The care schedule separately needs a draft, senior nurse review and final administrator approval.",
                           )}
                           {session?.method === "google" && (
                             <p className="form-hint">
@@ -2931,8 +2943,15 @@ export function AdminWorkspace({
                             </p>
                           )}
                           <div className="ev-actions">
-                            {(["draft", "nurse", "admin"] as const).map(
-                              (step, i) => (
+                            {(["draft", "nurse", "admin"] as const)
+                              .filter(
+                                (step) =>
+                                  !(
+                                    session?.method === "google" &&
+                                    step === "nurse"
+                                  ),
+                              )
+                              .map((step) => (
                                 <button
                                   className="button secondary"
                                   key={step}
@@ -2954,42 +2973,71 @@ export function AdminWorkspace({
                                   onClick={() => run(() => action(step))}
                                 >
                                   {
-                                    [
-                                      text(
+                                    {
+                                      draft: text(
                                         "產生規則草稿",
                                         "Generate rules draft",
                                       ),
-                                      text(
+                                      nurse: text(
                                         "資深護士覆核",
                                         "Senior nurse review",
                                       ),
-                                      text(
+                                      admin: text(
                                         "管理員最終確認",
                                         "Administrator final approval",
                                       ),
-                                    ][i]
+                                    }[step]
                                   }
                                 </button>
-                              ),
-                            )}
+                              ))}
                           </div>
                         </li>
                         <li>
                           {text(
-                            "配對、地址、排程齊備先寄 T11，轉為 READY。",
-                            "T11 is released only after assignment, address and schedule approval.",
+                            "護士已接單、家屬已提供完整地址、護理時間表已完成最終批核，三項齊備後才寄出完整服務資料，個案轉為「待服務」。",
+                            "Full care details are emailed only when a nurse has accepted, the family has provided the address and the schedule has final approval. The case then becomes ready for service.",
                           )}
                         </li>
                       </ol>
                       <div className="ev-gates">
                         <span>
                           {text("得標護士", "Assigned nurse")}:{" "}
-                          {c.assigned_nurse || "—"}
+                          {workspace?.nurses.find(
+                            (n) => n.id === c.assigned_nurse,
+                          )?.name ||
+                            c.assigned_nurse ||
+                            text("尚未接單", "No acceptance yet")}
                         </span>
                         <span>
-                          {text("地址", "Address")}: {c.address_status}
+                          {text("地址", "Address")}:{" "}
+                          {c.address_status === "PROVIDED"
+                            ? text("家屬已提供", "Provided by family")
+                            : c.address_status === "ASKED"
+                              ? text("等候家屬填寫", "Awaiting family response")
+                              : text(
+                                  "護士接單後索取",
+                                  "Requested after nurse acceptance",
+                                )}
                         </span>
-                        <span>Care Schedule: {c.schedule_status}</span>
+                        <span>
+                          {text("護理時間表", "Care schedule")}:{" "}
+                          {c.schedule_status === "CONFIRMED"
+                            ? text(
+                                "管理員已最終批核",
+                                "Final approval complete",
+                              )
+                            : c.schedule_status === "NURSE_REVIEWED"
+                              ? text(
+                                  "護士已覆核，待管理員批核",
+                                  "Nurse reviewed, awaiting final approval",
+                                )
+                              : c.schedule
+                                ? text(
+                                    "已有草稿，待資深護士覆核",
+                                    "Draft ready, awaiting senior nurse review",
+                                  )
+                                : text("尚未產生草稿", "No draft yet")}
+                        </span>
                       </div>
                       {c.schedule && !session && (
                         <details className="ev-admin">
@@ -3102,9 +3150,7 @@ export function AdminWorkspace({
                 className={mail?.id === m.id ? "active" : ""}
                 onClick={() => setMailId(m.id)}
               >
-                <strong>
-                  {m.template_id} · {m.to}
-                </strong>
+                <strong>{m.to}</strong>
                 <span>{m.subject}</span>
                 <small>{m.status}</small>
               </button>
@@ -3113,9 +3159,7 @@ export function AdminWorkspace({
           <section className="panel ev-panel">
             {mail ? (
               <>
-                <p>
-                  {mail.template_id} · {mail.template_version} · {mail.status}
-                </p>
+                <p>{mail.status}</p>
                 <h2>{mail.subject}</h2>
                 <p>To: {mail.to}</p>
                 {mail.status === "sent" && (
@@ -3505,9 +3549,7 @@ export function AdminWorkspace({
             </summary>
             {Object.entries(workspace?.template_catalog || {}).map(
               ([id, t]) => (
-                <p key={id}>
-                  {id} · {t.scope} · {t.description}
-                </p>
+                <p key={id}>{t.description}</p>
               ),
             )}
           </details>

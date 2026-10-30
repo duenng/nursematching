@@ -1047,3 +1047,20 @@
   font-weight: 400;
   line-height: 1.6;
 }
+.ev-dispatch-delivery {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f6f4f8;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.ev-dispatch-delivery h3 {
+  margin-top: 0;
+}
+.ev-delivery-record {
+  padding: 12px 0;
+  border-top: 1px solid #ded8e5;
+}
+.ev-delivery-record p {
+  margin: 6px 0;
+}
