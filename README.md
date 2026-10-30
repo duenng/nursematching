@@ -41,7 +41,7 @@ The repository includes `nixpacks.toml`. It installs the dependencies, builds
 2. Use Install Command `npm ci --include=dev`, Build Command `npm run build`,
    and Start Command `npm start` if entering overrides in Dokploy. Otherwise the
    checked-in Nixpacks configuration supplies them.
-3. Set `PORT=3000`, `BASE_URL=https://nursematching.duen.ng` and [Google staff login settings](docs/STAFF_LOGIN.md) in Dokploy (`AUTH_MODE=google`, client ID/secret and two separate role allowlists). Mount a persistent volume at `/app/data` and run **one replica**. The workflow server rejects a second process opening the same database.
+3. Set `PORT=3000`, `BASE_URL=https://api.example.com`, `FRONTEND_URL=https://care.example.com`, and `CORS_ORIGINS=https://care.example.com` in Dokploy. `BASE_URL` is the backend public URL used for OAuth callbacks and email action links. Add [Google staff login settings](docs/STAFF_LOGIN.md) (`AUTH_MODE=google`, client ID/secret and two separate role allowlists). Mount a persistent volume at `/app/data` and run **one replica**. The workflow server rejects a second process opening the same database.
 4. In Domains, set Host to `nursematching.duen.ng`, Path and Internal Path to `/`,
    and **Container Port to `3000`**. Leave Strip Path and Custom Entrypoint off.
 5. Point DNS to the Dokploy server, configure HTTPS with a valid certificate,
@@ -52,6 +52,16 @@ get a valid upstream response. Check deployment logs for a successful build and
 runtime logs for the workflow server listening on port 3000. Changing only the
 Domain port cannot start a stopped container. No Vite development server is
 needed for this deployment.
+
+### Separate Cloudflare Pages frontend
+
+Build the repository as a static Vite site on Cloudflare Pages. Use `npm run build` as the build command, `dist` as the output directory, and set this Pages build variable:
+
+```dotenv
+VITE_API_BASE_URL=https://api.example.com
+```
+
+The backend must set `FRONTEND_URL` and `CORS_ORIGINS` to the exact Pages origin. The frontend sends credentials for staff sessions; when the origins differ the backend sets a `SameSite=None; Secure` cookie. Configure Google Authorized redirect URI as `https://api.example.com/auth/google/callback`. Email action links remain on the backend URL and do not depend on the frontend.
 
 To verify locally:
 

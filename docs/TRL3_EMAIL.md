@@ -98,7 +98,7 @@ npm test
 
 Node.js＋SQLite，單程序同步狀態轉換、整次操作成功才保存；失敗回滾。事件、套餐 ledger 由程式追加。資料庫不是防竄改帳本，亦不是正式多租戶醫療資料庫。
 
-`npm start` 提供網站、API、確認頁及每分鐘 worker，預設 3000；`npm run preview` 只有靜態頁。Dokploy：`PORT=3000`、`BASE_URL=https://...`、`AUTH_MODE=google` 及 OAuth／角色名單設定、持久化 volume `/app/data`，只可一個 replica。沒有管理員金鑰時只容許 localhost 管理。Google 登入模式提供管理員／資深護士獨立角色；本機／共用金鑰演練不作獨立身份證據。詳見 [職員登入及權限](STAFF_LOGIN.md)。
+`npm start` 提供 API、確認頁及每分鐘 worker，預設 3000；`npm run preview` 只有靜態頁。前後端分開時，Dokploy backend 設定 `PORT=3000`、`BASE_URL=https://api.example.com`、`FRONTEND_URL=https://care.example.com`、`CORS_ORIGINS=https://care.example.com`、`AUTH_MODE=google` 及 OAuth／角色名單，並掛載持久化 volume `/app/data`，只可一個 replica。Cloudflare Pages frontend 使用 `npm run build`、輸出 `dist`，並設定 `VITE_API_BASE_URL=https://api.example.com`。沒有管理員金鑰時只容許 localhost 管理。Google 登入模式提供管理員／資深護士獨立角色；本機／共用金鑰演練不作獨立身份證據。詳見 [職員登入及權限](STAFF_LOGIN.md)。
 
 目前沒有 live AI；草稿是依原有項目及時間做確定性整理。不得把這次測試描述成 AI 臨床能力驗證。正式 TRL 判準須與申請方確認。多次上門／跨日間夜間組合目前需分開查詢或人手處理；醫生指示可透過付款通知連結上載虛構 PDF／PNG／JPEG（最多 2 MB）；護士下載檢閱並記錄文件 ID、SHA-256、覆核說明。Google 模式需確認此文件版本先可完成護士覆核；不會自動判斷文件內容。
 

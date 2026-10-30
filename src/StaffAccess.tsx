@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { LockKeyhole } from "lucide-react";
 import { LanguageSwitcher, useLocale } from "./i18n";
 import { Logo } from "./components";
+import { apiUrl } from "./lib/api";
 import "./pages/email-validation.css";
 
 export type StaffSession = {
@@ -52,8 +53,9 @@ export function StaffAccess({ children }: { children: ReactNode }) {
     const current = ++requestId.current;
     try {
       const savedKey = sessionStorage.getItem("workflow-admin-key");
-      const r = await fetch("/auth/session", {
+      const r = await fetch(apiUrl("/auth/session"), {
         cache: "no-store",
+        credentials: "include",
         headers: savedKey ? { Authorization: `Bearer ${savedKey}` } : {},
       });
       if (!r.ok) throw new Error("Cannot verify staff session. Please retry.");
@@ -114,8 +116,9 @@ export function StaffAccess({ children }: { children: ReactNode }) {
   }, [session?.user?.expires_at, load]);
   async function logout() {
     try {
-      const r = await fetch("/auth/logout", {
+      const r = await fetch(apiUrl("/auth/logout"), {
         method: "POST",
+        credentials: "include",
         headers: { "X-CSRF-Token": session?.user?.csrf || "" },
       });
       if (!r.ok) throw new Error("Logout failed. Refresh and try again.");
@@ -152,7 +155,7 @@ export function StaffAccess({ children }: { children: ReactNode }) {
               )}
             </p>
             {session?.mode === "google" && (
-              <a className="button primary" href="/auth/google">
+              <a className="button primary" href={apiUrl("/auth/google")}>
                 {text("使用 Google 登入", "Sign in with Google")}
               </a>
             )}

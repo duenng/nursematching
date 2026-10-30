@@ -51,7 +51,7 @@
 
 ### 真實測試步驟
 
-1. 在 Dokploy 確認 `BASE_URL`、`AUTH_MODE=google`、兩個不同角色名單、Gmail SMTP allowlist、`PAYMENT_MODE=bank_transfer` 及三項銀行資料；確認 runtime log 有 `listening on 0.0.0.0:3000`。
+1. 在 Dokploy backend 確認 `BASE_URL`、`FRONTEND_URL`、`CORS_ORIGINS`、`AUTH_MODE=google`、兩個不同角色名單、Gmail SMTP allowlist、`PAYMENT_MODE=bank_transfer` 及三項銀行資料；Cloudflare Pages frontend 設定 `VITE_API_BASE_URL`；確認 runtime log 有 `listening on 0.0.0.0:3000`。
 2. 管理員用管理員 Google 帳戶登入 `/#staff/email`；資深護士用另一個帳戶登入，分別截圖角色及工作台。禁止共用 cookie；每次換角色先登出。
 3. 由 `/#enquire` 建立一個 LIVE 查詢，勾選資料保存及跟進同意。管理員確認 T1 已抵達 Gmail，先 GET 開連結，再按 POST 接受；記錄電郵時間及 Case ID。工作台內的「虛構查詢」只供程式演練，不能當作 LIVE 證據。
 4. 按 T8 銀行指示完成一次小額真實轉帳，保留銀行交易時間／參考及收款入帳截圖。家屬提交轉帳資料後，管理員在銀行核對相同參考／金額／時間，再按「確認銀行入帳」。未核對前截圖證明不可派單；核對後才派單。

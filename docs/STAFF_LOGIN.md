@@ -5,11 +5,15 @@
 ## Google 設定
 
 1. 在 Google Cloud／Google Auth Platform 建立 OAuth 專案、同意畫面及 **Web application** 用戶端。只要求 `openid email profile`。外部應用處於測試狀態時，把測試職員加入 Google 的 test users；Workspace 亦須符合管理員政策。
-2. Authorized redirect URI 精確填 `http://localhost:5173/auth/google/callback`（本機開發）。`npm start` 用 3000 時改成 `http://localhost:3000/auth/google/callback`。遠端則為 `https://你的測試網域/auth/google/callback`；不可把 `/#staff` 放進 callback。
+2. Authorized redirect URI 必須指向 **backend**：本機開發填 `http://localhost:5173/auth/google/callback`；分離部署則填 `https://你的-api-網域/auth/google/callback`。不可把前端 Pages 網址或 `/#staff` 放進 callback。分離部署時 backend 的 `BASE_URL` 是 API 網址，`FRONTEND_URL` 是前端網址。
 3. `.env` 填下列設定，重新啟動；OAuth 憑證只放本機／部署環境，切勿加入版本控制。
 
 ```dotenv
 BASE_URL=http://localhost:5173
+# Separate deployment example:
+# BASE_URL=https://api.example.com
+# FRONTEND_URL=https://care.example.com
+# CORS_ORIGINS=https://care.example.com
 AUTH_MODE=google
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret

@@ -24,6 +24,20 @@ import { EXPERIMENT_POLICIES } from "./extended-workflow.mjs";
 
 const port = Number(process.env.API_PORT || process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
+const normalizeOrigin = (value) => {
+  const trimmed = String(value || "").trim();
+  return trimmed ? new URL(trimmed).origin : "";
+};
+const frontendUrl = normalizeOrigin(process.env.FRONTEND_URL);
+const corsOrigins = new Set(
+  [
+    frontendUrl,
+    ...(process.env.CORS_ORIGINS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ].map(normalizeOrigin).filter(Boolean),
+);
 const mode = process.env.PAYMENT_MODE || "bank_transfer";
 if (!["bank_transfer", "fps_test", "mock", "stripe_test"].includes(mode))
   throw new Error("Unsupported PAYMENT_MODE");
@@ -82,6 +96,8 @@ if (
 documentStore(workflow.db);
 const auth = new StaffAuth(workflow.db, {
   baseUrl: workflow.baseUrl,
+  frontendUrl,
+  allowedOrigins: [...corsOrigins],
   audit: (event, detail) => {
     workflow.event(event, null, detail);
     workflow.save();
@@ -121,9 +137,17 @@ const escape = (s) =>
       ],
   );
 const names = ACTION_LABELS;
+function requestOrigin(req) {
+  return req.headers.origin || "";
+}
+function originAllowed(req) {
+  const origin = requestOrigin(req);
+  return origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin);
+}
 const html = (title, body) =>
   `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKnock · TRL 3</small><h1>${escape(title)}</h1>${body}<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p></main></html>`;
 function reply(res, status, body, type = "application/json") {
+  const origin = requestOrigin(res.req || {});
   res.writeHead(status, {
     "Content-Type": `${type}; charset=utf-8`,
     "Cache-Control": "no-store",
@@ -131,6 +155,15 @@ function reply(res, status, body, type = "application/json") {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy":
       "default-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+    ...(origin && (origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin))
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          Vary: "Origin",
+        }
+      : {}),
   });
   res.end(type === "application/json" ? JSON.stringify(body) : body);
 }
@@ -346,11 +379,19 @@ async function integrations() {
 }
 const intakeAllowed = createIntakeLimiter();
 const server = http.createServer(async (req, res) => {
+  res.req = req;
   const url = new URL(req.url, "http://localhost");
   try {
+    if (
+      req.method === "OPTIONS" &&
+      (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/"))
+    ) {
+      if (!originAllowed(req)) return reply(res, 403, { error: "Origin not allowed" });
+      return reply(res, 204, "");
+    }
     if (url.pathname === "/api/enquiries" && req.method === "POST") {
       if (
-        req.headers.origin !== new URL(workflow.baseUrl).origin ||
+        !originAllowed(req) ||
         !req.headers["content-type"]?.includes("application/json")
       )
         return reply(res, 403, { error: "Origin or content type not allowed" });
@@ -444,7 +485,7 @@ const server = http.createServer(async (req, res) => {
           workflow.valid(t, c);
           if (
             req.headers.origin &&
-            req.headers.origin !== new URL(workflow.baseUrl).origin
+            !originAllowed(req)
           )
             return reply(res, 403, { error: "Origin not allowed" });
           storeSample(

@@ -10,6 +10,7 @@ import {
 import { useLocale } from "../i18n";
 import { useStaffAccess } from "../StaffAccess";
 import type { StaffSession } from "../StaffAccess";
+import { apiUrl } from "../lib/api";
 import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
 
@@ -257,8 +258,9 @@ function AdminWorkspace({
     { ...services[0], times: ["12:00"], prn: false },
   ]);
   async function request(path: string, body?: unknown) {
-    const res = await fetch(path, {
+    const res = await fetch(apiUrl(path), {
       method: body === undefined ? "GET" : "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(session?.csrf ? { "X-CSRF-Token": session.csrf } : {}),
@@ -2241,7 +2243,9 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function refresh() {
-    const r = await fetch("/api/workflow");
+    const r = await fetch(apiUrl("/api/workflow"), {
+      credentials: "include",
+    });
     const data = await r.json();
     if (!r.ok) {
       if (r.status === 401)
@@ -2259,8 +2263,9 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
     setBusy(true);
     setError("");
     try {
-      const r = await fetch("/api/case-action", {
+      const r = await fetch(apiUrl("/api/case-action"), {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": session.csrf || "",
@@ -2505,7 +2510,7 @@ function ClinicalWorkspace({ session }: { session: StaffSession }) {
                 </details>
                 <a
                   className="button secondary"
-                  href={`/api/doctor-document/${c.doctor_document.id}`}
+                  href={apiUrl(`/api/doctor-document/${c.doctor_document.id}`)}
                   target="_blank"
                   rel="noreferrer"
                 >

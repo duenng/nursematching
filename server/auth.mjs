@@ -68,12 +68,20 @@ export class StaffAuth {
       now = Date.now,
       provider,
       audit = () => {},
+      allowedOrigins = [],
+      frontendUrl = "",
     } = {},
   ) {
     this.db = db;
     this.now = now; // Authentication always uses wall time, independent of experiment clocks.
     this.audit = audit;
     this.baseUrl = new URL(baseUrl).origin;
+    this.frontendUrl = frontendUrl ? new URL(frontendUrl).origin : "";
+    this.allowedOrigins = new Set(
+      [this.baseUrl, this.frontendUrl, ...allowedOrigins]
+        .filter(Boolean)
+        .map((origin) => new URL(origin).origin),
+    );
     this.mode =
       env.AUTH_MODE ||
       (env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_SECRET ? "google" : "local");
@@ -89,6 +97,8 @@ export class StaffAuth {
     this.admins = emailList(env.STAFF_ADMIN_EMAILS);
     this.seniors = emailList(env.STAFF_SENIOR_NURSE_EMAILS);
     this.secure = new URL(this.baseUrl).protocol === "https:";
+    this.crossSiteCookie =
+      this.frontendUrl && new URL(this.frontendUrl).origin !== this.baseUrl;
     this.sessionCookie = this.secure
       ? "__Host-kindred_session"
       : "kindred_session";
@@ -128,7 +138,8 @@ export class StaffAuth {
       staff_id TEXT PRIMARY KEY, email TEXT NOT NULL, google_subject TEXT NOT NULL);`);
   }
   cookie(name, value, seconds) {
-    return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${this.secure ? "; Secure" : ""}`;
+    const sameSite = this.crossSiteCookie ? "None" : "Lax";
+    return `${name}=${value}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${seconds}${this.secure || this.crossSiteCookie ? "; Secure" : ""}`;
   }
   role(email) {
     if (this.admins.has(email)) return "ADMIN";
@@ -157,10 +168,10 @@ export class StaffAuth {
     };
   }
   verifyMutation(req, user) {
-    if (req.headers.origin && req.headers.origin !== this.baseUrl) return false;
+    if (req.headers.origin && !this.allowedOrigins.has(req.headers.origin)) return false;
     if (user?.method !== "google") return true;
     return (
-      req.headers.origin === this.baseUrl &&
+      this.allowedOrigins.has(req.headers.origin) &&
       equal(req.headers["x-csrf-token"], user.csrf)
     );
   }
