@@ -740,7 +740,9 @@ export function StaffWorkspace() {
                             )}
                             <EmailPreview mail={m} />
                             <details className="ev-email-plain">
-                              <summary>{text("純文字內容", "Plain text content")}</summary>
+                              <summary>
+                                {text("純文字內容", "Plain text content")}
+                              </summary>
                               <pre>{m.body}</pre>
                             </details>
                             {["failed", "blocked", "captured"].includes(
@@ -865,7 +867,7 @@ export function StaffWorkspace() {
             role="dialog"
             aria-modal="true"
             aria-label={text("護理員資料", "Provider details")}
-            className="panel ev-panel ev-review"
+            className="panel ev-panel ev-review email-validation"
           >
             <div className="staff-section-title">
               <h2>{text("護理員資料", "Provider details")}</h2>

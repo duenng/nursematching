@@ -110,6 +110,10 @@ test("mobile staff navigation and provider form fit the screen", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBeTruthy();
+  await expect(page.locator(".sidebar")).not.toHaveClass(/open/);
+  await page
+    .locator(".sidebar")
+    .evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   await page.screenshot({
     path: info.outputPath("live-staff-mobile.png"),
     fullPage: true,

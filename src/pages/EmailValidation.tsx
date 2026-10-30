@@ -343,7 +343,19 @@ export function AdminWorkspace({
     }
   }
   useEffect(() => {
-    if (!publicIntake) void refresh(true).catch((e) => setError(e.message));
+    if (publicIntake) return;
+    void refresh(true).catch((e) => setError(e.message));
+    if (!operational) return;
+    const reload = () => {
+      if (document.visibilityState === "visible")
+        void refresh().catch((e) => setError(e.message));
+    };
+    const timer = window.setInterval(reload, 30000);
+    window.addEventListener("focus", reload);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", reload);
+    };
   }, []);
   const c =
     workspace?.cases.find((c) => c.id === selected) || workspace?.cases.at(-1);
