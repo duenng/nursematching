@@ -39,17 +39,25 @@ test("administrator can review a Sunday night quote and family sees the exact co
   const created = await response.json();
   await page.goto(`/#staff/requests/${created.id}`);
   await page.getByText("人工覆核／取消退款／重新招募", { exact: true }).click();
-  await page
-    .getByLabel("覆核／操作原因", { exact: true })
-    .fill("已核實本次跨星期日夜更收費及服務地址");
-  await page.getByLabel("偏遠分類（只影響護士交通津貼）").selectOption("C");
-  await page
-    .getByRole("button", { name: "覆核地點及交通津貼", exact: true })
-    .click();
+  const requirements = page.locator("#quote-requirements");
   const issue = page.getByRole("button", {
     name: "人工處理後發報價",
     exact: true,
   });
+  await expect(issue).toBeDisabled();
+  await expect(issue).toHaveAttribute("aria-describedby", "quote-requirements");
+  await expect(requirements).toContainText("地點覆核尚未儲存");
+  await expect(requirements).toContainText("請填寫上方「覆核／操作原因」");
+  await page
+    .getByLabel("覆核／操作原因", { exact: true })
+    .fill("已核實本次跨星期日夜更收費及服務地址");
+  await page.getByLabel("偏遠分類（只影響護士交通津貼）").selectOption("C");
+  await expect(issue).toBeDisabled();
+  await expect(requirements).toContainText("地點覆核尚未儲存");
+  await page
+    .getByRole("button", { name: "覆核地點及交通津貼", exact: true })
+    .click();
+  await expect(requirements).toHaveCount(0);
   await issue.click();
   await expect(
     page
@@ -61,6 +69,8 @@ test("administrator can review a Sunday night quote and family sees the exact co
     .getByRole("checkbox", { name: "使用人工確認的夜更收費", exact: true })
     .check();
   await expect(issue).toBeDisabled();
+  await expect(requirements).toContainText("請填寫人工基本費及附加費");
+  await expect(requirements).toContainText("請核對總額，並勾選");
   await page.getByLabel("人工基本費 HKD（整數）", { exact: true }).fill("3900");
   await page
     .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
@@ -71,13 +81,21 @@ test("administrator can review a Sunday night quote and family sees the exact co
   const confirm = page.getByRole("checkbox", {
     name: /我已核實此夜更的基本費/,
   });
+  await page.getByLabel("覆核／操作原因", { exact: true }).fill("核實");
   await confirm.check();
+  await expect(issue).toBeDisabled();
+  await expect(requirements).toContainText("至少 10 字收費依據");
+  await page
+    .getByLabel("覆核／操作原因", { exact: true })
+    .fill("已核實本次跨星期日夜更收費及服務地址");
   await expect(issue).toBeEnabled();
+  await expect(requirements).toHaveCount(0);
   await page
     .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
     .fill("700");
   await expect(confirm).not.toBeChecked();
   await expect(issue).toBeDisabled();
+  await expect(requirements).toContainText("修改金額後須重新勾選");
   await page
     .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
     .fill("600");
@@ -95,7 +113,7 @@ test("administrator can review a Sunday night quote and family sees the exact co
   );
   await issue.click();
   expect((await sent).ok()).toBeTruthy();
-  await expect(page.locator(".ev-state")).toContainText("QUOTED");
+  await expect(page.locator(".ev-state")).toContainText("已報價");
   await expect(
     page.getByText(
       "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
@@ -195,7 +213,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   expect(c.intake_mode).toBe("LIVE");
   expect(c.fictional).toBe(false);
   await expect(page).toHaveURL(new RegExp(`#staff/requests/${c.id}$`));
-  await expect(page.locator(".ev-state")).toContainText("MANUAL");
+  await expect(page.locator(".ev-state")).toContainText("Needs review");
   await page
     .getByText("Manual review, cancellation, refunds and reposting", {
       exact: true,
@@ -210,7 +228,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByRole("button", { name: "Issue quote after review", exact: true })
     .click();
-  await expect(page.locator(".ev-state")).toContainText("QUOTED");
+  await expect(page.locator(".ev-state")).toContainText("Quote sent");
   let state = await (await page.request.get("/api/workflow")).json();
   const quote = state.emails.find(
     (m: { case_id: string; template_id: string }) =>
@@ -235,7 +253,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Approve preview and dispatch" }),
-  ).toBeDisabled();
+  ).toBeHidden();
   state = await (await page.request.get("/api/workflow")).json();
   const payment = state.emails.find(
     (m: { case_id: string; template_id: string }) =>
@@ -244,16 +262,53 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   const reportLink = payment.links.find(
     (l: { label: string }) => l.label === "report_fps",
   ).url;
-  const report = await page.request.post(reportLink, {
+  const rejected = await page.request.post(reportLink, {
     form: {
       reference: `FAMILY-${Date.now()}`,
       amount: "1220",
-      transferred_at: new Date(Date.now() + 8 * 3600000)
-        .toISOString()
-        .slice(0, 16),
+      transferred_at: "2026-01-01T12:00",
     },
   });
-  expect(report.ok()).toBeTruthy();
+  expect(rejected.status()).toBe(400);
+  expect(await rejected.text()).toContain("請更正轉帳資料");
+  expect(await rejected.text()).toContain("不可早於個案建立時間");
+  await family.goto(reportLink);
+  const transferReference = `FAMILY-${Date.now()}`;
+  const transferHkt = new Date(Date.now() + 8 * 3600000).toISOString();
+  await family
+    .getByLabel("轉帳參考編號", { exact: true })
+    .fill(transferReference);
+  await expect(family.getByLabel("實際轉帳金額 HKD（整數）")).toHaveValue(
+    "1220",
+  );
+  await family
+    .getByLabel("轉帳日期", { exact: true })
+    .fill(transferHkt.slice(0, 10));
+  await family
+    .getByRole("combobox", { name: "時", exact: true })
+    .selectOption(transferHkt.slice(11, 13));
+  await family
+    .getByRole("combobox", { name: "分", exact: true })
+    .selectOption(transferHkt.slice(14, 16));
+  await family.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await family.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await family
+    .getByRole("button", {
+      name: "確認：提交轉帳資料（待管理員對數）",
+      exact: true,
+    })
+    .click();
+  await expect(family.locator("main")).toContainText(
+    "已收到轉帳資料，等候管理員對數",
+  );
+  const reportedState = await (await page.request.get("/api/workflow")).json();
+  expect(
+    reportedState.cases.find((item: { id: string }) => item.id === c.id).status,
+  ).toBe("PENDING_PAY");
   await page.reload();
   await page
     .getByRole("combobox", { name: "Pending transfer report", exact: true })
@@ -276,11 +331,11 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
       exact: true,
     })
     .click();
-  await expect(page.locator(".ev-state")).toContainText("PAID");
+  await expect(page.locator(".ev-state")).toContainText("Payment verified");
   await page
     .getByText("Dispatch preview (no name, phone or unit)", { exact: true })
     .click();
-  const preview = page.locator("details").filter({
+  const preview = page.locator("details:not(.ev-workflow)").filter({
     has: page.getByText("Dispatch preview (no name, phone or unit)", {
       exact: true,
     }),
@@ -295,7 +350,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByRole("button", { name: "Approve preview and dispatch", exact: true })
     .click();
-  await expect(page.locator(".ev-state")).toContainText("POSTED");
+  await expect(page.locator(".ev-state")).toContainText("Recruiting nurse");
   state = await (await page.request.get("/api/workflow")).json();
   const broadcast = state.emails.find(
     (m: { case_id: string; template_id: string; to: string }) =>
@@ -305,7 +360,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   expect(broadcast.body).toContain("HK$245／小時，共 HK$980");
   expect((await page.request.post(broadcast.links[0].url)).ok()).toBeTruthy();
   await page.reload();
-  await expect(page.locator(".ev-state")).toContainText("MATCHED");
+  await expect(page.locator(".ev-state")).toContainText("Nurse assigned");
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "Care schedule", exact: true })

@@ -362,12 +362,14 @@ export function StaffWorkspace() {
                     CareKnock · {text("香港時間", "Hong Kong time")}
                   </p>
                   <h1>{text(title[1], title[2])}</h1>
-                  <p>
-                    {text(
-                      "共用伺服器紀錄，操作按職員權限保存。",
-                      "Shared server records with staff permissions and an audit trail.",
-                    )}
-                  </p>
+                  {!location.caseId && (
+                    <p>
+                      {text(
+                        "共用伺服器紀錄，操作按職員權限保存。",
+                        "Shared server records with staff permissions and an audit trail.",
+                      )}
+                    </p>
+                  )}
                 </div>
                 <button
                   className="button secondary"
@@ -485,46 +487,47 @@ export function StaffWorkspace() {
                       </section>
                     </>
                   )}
-                  {["requests", "schedule", "clients"].includes(page) && (
-                    <div className="staff-filters">
-                      <label>
-                        <Search size={16} />
-                        <input
-                          aria-label={text("搜尋工作區", "Search workspace")}
-                          placeholder={text(
-                            "個案、電郵、病人代號或地區",
-                            "Case, email, patient reference or district",
-                          )}
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                        />
-                      </label>
-                      <select
-                        aria-label={text("個案狀態", "Case status")}
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <option value="">
-                          {text("所有狀態", "All statuses")}
-                        </option>
-                        {Array.from(
-                          new Set(data.cases.map((c) => c.status)),
-                        ).map((s) => (
-                          <option value={s} key={s}>
-                            {status(s)}
+                  {["requests", "schedule", "clients"].includes(page) &&
+                    !location.caseId && (
+                      <div className="staff-filters">
+                        <label>
+                          <Search size={16} />
+                          <input
+                            aria-label={text("搜尋工作區", "Search workspace")}
+                            placeholder={text(
+                              "個案、電郵、病人代號或地區",
+                              "Case, email, patient reference or district",
+                            )}
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                          />
+                        </label>
+                        <select
+                          aria-label={text("個案狀態", "Case status")}
+                          value={filter}
+                          onChange={(e) => setFilter(e.target.value)}
+                        >
+                          <option value="">
+                            {text("所有狀態", "All statuses")}
                           </option>
-                        ))}
-                      </select>
-                      {page === "schedule" && (
-                        <input
-                          aria-label={text("服務日期", "Service date")}
-                          type="date"
-                          value={day}
-                          onChange={(e) => setDay(e.target.value)}
-                        />
-                      )}
-                    </div>
-                  )}
+                          {Array.from(
+                            new Set(data.cases.map((c) => c.status)),
+                          ).map((s) => (
+                            <option value={s} key={s}>
+                              {status(s)}
+                            </option>
+                          ))}
+                        </select>
+                        {page === "schedule" && (
+                          <input
+                            aria-label={text("服務日期", "Service date")}
+                            type="date"
+                            value={day}
+                            onChange={(e) => setDay(e.target.value)}
+                          />
+                        )}
+                      </div>
+                    )}
                   {page === "requests" && !location.caseId && (
                     <section className="panel ev-panel">
                       {caseTable(cases.slice().reverse())}

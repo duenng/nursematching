@@ -752,3 +752,298 @@
     justify-content: center;
   }
 }
+
+/* Case management: scan the summary first, then handle the current task. */
+.ev-case-panel {
+  overflow-wrap: anywhere;
+}
+.ev-case-panel > h2 {
+  color: #72657a;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.ev-state.ev-case-header {
+  align-items: center;
+  padding: 0 0 22px;
+  border-radius: 0;
+  border-bottom: 1px solid #eae3ee;
+  background: transparent;
+}
+.ev-case-header > div {
+  display: grid;
+  gap: 6px;
+}
+.ev-case-header .ev-case-caption {
+  color: #756a7d;
+  font-size: 12px;
+}
+.ev-case-header strong {
+  font-size: 25px;
+  letter-spacing: -0.5px;
+  color: #44214e;
+}
+.ev-case-header .ev-case-badge {
+  padding: 7px 12px;
+  border: 1px solid #dfd1e9;
+  border-radius: 20px;
+  background: #f4edf8;
+  color: #63387b;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ev-case-header .ev-case-badge.is-closed {
+  background: #f3f2f4;
+  border-color: #e3e0e5;
+  color: #6d6573;
+}
+.ev-case-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+.ev-case-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #776b80;
+  font-size: 12px;
+}
+.ev-case-facts dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.ev-case-facts dd small,
+.ev-case-facts dd a {
+  display: block;
+  margin-top: 4px;
+  color: #716478;
+  font-size: 13px;
+  font-weight: 400;
+}
+.ev-case-facts dd a {
+  width: fit-content;
+  color: #75458b;
+  text-underline-offset: 3px;
+}
+.ev-case-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  border: 1px solid #ebe4f0;
+  border-radius: 12px;
+  background: #fbf9fc;
+  padding: 18px 20px;
+}
+.ev-case-totals > div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+.ev-case-totals span,
+.ev-case-totals small {
+  color: #796c82;
+  font-size: 12px;
+}
+.ev-case-totals strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ev-case-totals > div:first-child strong {
+  color: #54295f;
+  font-size: 23px;
+}
+.ev-next-action {
+  margin: 22px 0;
+  padding: 17px 20px;
+  border-left: 3px solid #8a5ba2;
+  border-radius: 0 10px 10px 0;
+  background: #f5f0f8;
+}
+.ev-next-action strong {
+  color: #623c76;
+  font-size: 13px;
+}
+.ev-next-action p {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.ev-next-action.is-closed {
+  border-left-color: #aaa1b1;
+  background: #f7f6f8;
+}
+.ev-finance {
+  margin: 24px 0;
+  padding: 22px;
+  border: 1px solid #e7dfec;
+  border-radius: 12px;
+}
+.ev-finance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ev-finance-heading h3 {
+  font-size: 16px;
+}
+.ev-finance-status {
+  font-size: 12px;
+  color: #71617c;
+  padding: 5px 10px;
+  background: #f4f0f7;
+  border-radius: 6px;
+}
+.ev-finance-help,
+.ev-finance-empty {
+  color: #76697e;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.ev-finance-help {
+  margin-bottom: 20px;
+}
+.ev-finance .form-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #7c6d87;
+}
+.ev-finance .ev-actions {
+  margin: 18px 0 12px;
+}
+.ev-finance .button {
+  white-space: normal;
+  line-height: 1.5;
+}
+.ev-finance .ev-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ev-finance .ev-check {
+  padding: 13px;
+  border-radius: 9px;
+  background: #f7f4fa;
+  font-size: 13px;
+}
+.ev-finance-history {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #ece5f1;
+  font-size: 13px;
+}
+.ev-finance-history summary,
+.ev-workflow > summary {
+  cursor: pointer;
+  color: #704685;
+  line-height: 1.7;
+}
+.ev-finance-history > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+}
+.ev-refund-amount {
+  font-size: 13px;
+  padding: 12px 0;
+}
+.ev-refund-amount strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 8px;
+}
+.ev-workflow {
+  padding: 18px 0;
+  border-top: 1px solid #eae3ee;
+}
+.ev-workflow > summary {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ev-case-panel .ev-admin summary {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.ev-case-panel > .form-hint {
+  font-size: 12px;
+  color: #7c6d87;
+}
+@media (max-width: 800px) {
+  .ev-case-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ev-case-facts > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .ev-state.ev-case-header {
+    gap: 12px;
+    padding-bottom: 18px;
+  }
+  .ev-case-header strong {
+    font-size: 22px;
+  }
+  .ev-case-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    margin: 20px 0;
+  }
+  .ev-case-facts > div {
+    display: grid;
+    grid-template-columns: 105px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .ev-case-facts dt {
+    align-items: flex-start;
+    line-height: 1.6;
+    padding-top: 2px;
+    margin: 0;
+  }
+  .ev-case-facts dt svg {
+    display: none;
+  }
+  .ev-case-facts dd small:first-of-type {
+    margin-top: 2px;
+  }
+  .ev-case-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    padding: 16px;
+  }
+  .ev-case-totals > div:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e9e1ef;
+  }
+  .ev-next-action {
+    padding: 14px 16px;
+  }
+  .ev-finance {
+    padding: 16px;
+  }
+  .ev-finance .ev-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ev-finance .ev-actions .button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .ev-finance input,
+  .ev-finance select,
+  .ev-finance textarea {
+    font-size: 16px;
+  }
+}
+.ev-finance .ev-amount-warning {
+  color: #913a2b;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}

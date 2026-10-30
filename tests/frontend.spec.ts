@@ -131,7 +131,7 @@ test("manual case saves location review before quoting and displays action resul
     exact: true,
   });
   await expect(issue).toBeDisabled();
-  await expect(controls).toContainText("Location review has not been saved.");
+  await expect(controls).toContainText("Location review is not saved:");
   await controls
     .getByRole("button", { name: "Review location / allowance", exact: true })
     .click();
@@ -146,15 +146,15 @@ test("manual case saves location review before quoting and displays action resul
   await controls
     .getByRole("button", { name: "Review location / allowance", exact: true })
     .click();
-  await expect(controls.getByRole("status")).toContainText(
-    "Location and allowance review saved.",
-  );
+  await expect(
+    controls.locator('[role="status"][tabindex="-1"]'),
+  ).toContainText("Location and allowance review saved.");
   await expect(issue).toBeEnabled();
   await issue.click();
-  await expect(controls.getByRole("status")).toContainText(
-    "Quote created and queued for email delivery.",
-  );
-  await expect(page.locator(".ev-state")).toContainText("QUOTED");
+  await expect(
+    controls.locator('[role="status"][tabindex="-1"]'),
+  ).toContainText("Quote created and queued for email delivery.");
+  await expect(page.locator(".ev-state")).toContainText("Quote sent");
   const workspace = await (
     await page.request.get(`${origin}/api/workflow`)
   ).json();

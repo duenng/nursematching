@@ -1,4 +1,5 @@
 import { confirmationDetails } from "./workflow-content.mjs";
+import { transferReportForm, TransferReportError } from "./transfer-report.mjs";
 import { validAdminEmail } from "./admin-email.mjs";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -167,7 +168,9 @@ function originAllowed(req) {
   return origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin);
 }
 const html = (title, body, { paymentNotice = true } = {}) =>
-  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKnock</small><h1>${escape(title)}</h1>${body}${paymentNotice ? `<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p>` : ""}</main></html>`;
+  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"PingFang HK","Microsoft JhengHei",sans-serif;color:#342046;background:#f6f3fa}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f3fa;padding:6vw 3vw;color:#342046}main{max-width:1368px;margin:0 auto;background:#fff;border-radius:44px;padding:78px 66px 82px;box-shadow:0 2px 18px #3b24500a}main>small{display:block;color:#6f6777;font-size:30px;line-height:1.3;margin-bottom:74px}h1{margin:0 0 58px;color:#2e1545;font-size:clamp(44px,5vw,78px);line-height:1.2;letter-spacing:-2px}main>p{font-size:clamp(21px,2.2vw,34px);line-height:1.65;margin:0 0 38px}button,a{font:inherit}button{background:#750f6d;color:#fff;border:0;padding:14px 24px;border-radius:10px;cursor:pointer}input,select,textarea{box-sizing:border-box;font:inherit;padding:12px;max-width:100%;margin:12px 0;border:1px solid #e4d9ea;border-radius:9px}input:not([type="checkbox"]),textarea{width:100%}button{max-width:100%;white-space:normal}label{display:inline-block}select{display:block}small{color:#6f6777}pre{white-space:pre-wrap;background:#f7f4fb;border-radius:16px;padding:20px;font-size:18px;line-height:1.8}@media(max-width:700px){body{padding:16px 8px}main{border-radius:28px;padding:36px 28px 42px}main>small{font-size:24px;margin-bottom:58px}h1{font-size:42px;letter-spacing:-1px;margin-bottom:42px}main>p{font-size:22px}pre{font-size:16px}}
+</style><main><small>CareKnock</small><h1>${escape(title)}</h1>${body}${paymentNotice ? `<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p>` : ""}</main></html>`;
 function reply(res, status, body, type = "application/json") {
   const origin = requestOrigin(res.req || {});
   res.writeHead(status, {
@@ -595,6 +598,16 @@ const server = http.createServer(async (req, res) => {
             ),
             "text/html",
           );
+        if (t.action === "report_fps")
+          return reply(
+            res,
+            200,
+            html(
+              "提交轉帳資料",
+              transferReportForm(c, token, workflow.now(), mode),
+            ),
+            "text/html",
+          );
         if (t.action === "take_case" && c.assigned_nurse)
           return reply(
             res,
@@ -610,7 +623,7 @@ const server = http.createServer(async (req, res) => {
           200,
           html(
             names[t.action] || "確認操作",
-            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><pre>${escape(confirmationDetails(c, t.action, workflow.state.settings, workflow.now()))}</pre><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
+            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><pre>${escape(confirmationDetails(c, t.action, workflow.state.settings, workflow.now()))}</pre><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
           ),
           "text/html",
         );
@@ -637,7 +650,34 @@ const server = http.createServer(async (req, res) => {
             "text/html",
           );
         }
-        const result = workflow.act(token, await body(req));
+        const input = await body(req);
+        let result;
+        try {
+          result = workflow.act(token, input);
+        } catch (error) {
+          if (
+            t?.action !== "report_fps" ||
+            !(error instanceof TransferReportError)
+          )
+            throw error;
+          const { c } = workflow.inspect(token);
+          return reply(
+            res,
+            400,
+            html(
+              "請更正轉帳資料",
+              transferReportForm(
+                c,
+                token,
+                workflow.now(),
+                mode,
+                input,
+                error.errors,
+              ),
+            ),
+            "text/html",
+          );
+        }
         void integrations().catch((error) => console.error(error.message));
         return reply(
           res,

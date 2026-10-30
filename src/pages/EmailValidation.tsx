@@ -16,6 +16,11 @@ import catalog from "../../server/catalog/services.json";
 import { EmailPreview } from "../EmailPreview";
 import { ConversationEnquiry } from "./ConversationEnquiry";
 import { DayTimeSelect, PreferredTimeFields } from "../CareTimeFields";
+import {
+  CaseOverview,
+  caseStatusLabel,
+  refundStatusLabel,
+} from "./CaseOverview";
 
 type Service = { id: string; label: string; times: string[]; prn: boolean };
 export type Case = {
@@ -65,6 +70,7 @@ export type Case = {
   remote_tier?: string;
   nurse_pay_total?: number;
   payment_amount?: number;
+  amount_paid?: number;
   payment_review_status?: string;
   services?: {
     id?: string;
@@ -139,6 +145,8 @@ export type Workspace = {
     case_id: string;
     amount: number;
     verified_by: string;
+    bank_reference?: string;
+    received_at?: string;
   }[];
   packages: {
     id: string;
@@ -476,15 +484,71 @@ export function AdminWorkspace({
   const [manualNightBase, setManualNightBase] = useState("");
   const [manualNightSurcharge, setManualNightSurcharge] = useState("");
   const [manualNightConfirmed, setManualNightConfirmed] = useState(false);
-  const validManualNightQuote =
+  const validManualNightAmounts =
     /^\d+$/.test(manualNightBase) &&
     /^\d+$/.test(manualNightSurcharge) &&
     Number.isSafeInteger(
       Number(manualNightBase) + Number(manualNightSurcharge),
     ) &&
-    Number(manualNightBase) + Number(manualNightSurcharge) > 0 &&
-    adminReason.trim().length >= 10 &&
-    manualNightConfirmed;
+    Number(manualNightBase) + Number(manualNightSurcharge) > 0;
+  const quoteBlockers = [
+    ...(c?.intake_channel === "conversation"
+      ? [
+          text(
+            "請先核實文字查詢，並另建完整服務安排後報價。",
+            "Verify the text enquiry and create a complete service request before quoting.",
+          ),
+        ]
+      : []),
+    ...(c && c.status !== "MANUAL"
+      ? [
+          text(
+            "此個案目前不是待人工處理狀態，不能在此重新發報價。",
+            "This case is not awaiting manual review and cannot be quoted here.",
+          ),
+        ]
+      : []),
+    ...(c?.remote_tier === "UNMATCHED"
+      ? [
+          text(
+            "地點覆核尚未儲存：核實地址、選擇偏遠分類，再按「覆核地點及交通津貼」。只更改選單不會儲存。",
+            "Location review is not saved: verify the address, select the remote tier, then click Review location / allowance. Changing the selection alone does not save it.",
+          ),
+        ]
+      : []),
+    ...(!adminReason.trim()
+      ? [
+          text(
+            "請填寫上方「覆核／操作原因」。",
+            "Enter the review / action reason above.",
+          ),
+        ]
+      : []),
+    ...(manualNightQuote && !validManualNightAmounts
+      ? [
+          text(
+            "請填寫人工基本費及附加費，均須為非負整數；無附加費請填 0，總額須大於 0。",
+            "Enter whole-dollar manual base and surcharge amounts, both zero or more. Enter 0 for no surcharge; the total must be greater than 0.",
+          ),
+        ]
+      : []),
+    ...(manualNightQuote && adminReason.trim().length < 10
+      ? [
+          text(
+            "人工夜更報價須在「覆核／操作原因」填寫至少 10 字收費依據。",
+            "For a manual night quote, enter at least 10 characters explaining the pricing in the review / action reason.",
+          ),
+        ]
+      : []),
+    ...(manualNightQuote && !manualNightConfirmed
+      ? [
+          text(
+            "請核對總額，並勾選「我已核實此夜更的基本費、附加費及總額」。修改金額後須重新勾選。",
+            "Review the total and tick the confirmation that the night's base fee, surcharge and total have been verified. Confirm again after changing an amount.",
+          ),
+        ]
+      : []),
+  ];
   useEffect(() => {
     setRedFlagResolution("");
     setRedFlagConfirmed(false);
@@ -501,6 +565,35 @@ export function AdminWorkspace({
     received_at: "",
     verified: false,
   });
+  const [paymentNote, setPaymentNote] = useState("");
+  const pendingReports =
+    workspace?.payment_submissions.filter(
+      (s) => s.case_id === c?.id && s.status === "PENDING_REVIEW",
+    ) || [];
+  const refundEntry =
+    c?.status === "FULL_REFUND" && c.refund_status === "APPROVED";
+  const canReconcile = c?.status === "PENDING_PAY" && pendingReports.length > 0;
+  const validBankRecord =
+    fps.verified &&
+    fps.bank_reference.trim().length > 0 &&
+    fps.bank_reference.trim().length <= 100 &&
+    Number(fps.amount) > 0 &&
+    Number(fps.amount) ===
+      (refundEntry
+        ? c?.refund_amount
+        : (c?.payment_amount ?? c?.quote?.total)) &&
+    !!fps.received_at &&
+    !!paymentNote.trim();
+  useEffect(() => {
+    setFps({
+      submission_id: "",
+      bank_reference: "",
+      amount: "",
+      received_at: "",
+      verified: false,
+    });
+    setPaymentNote("");
+  }, [c?.id, c?.status, c?.refund_status]);
   async function fpsAction(action: string) {
     if (c)
       await request("/api/case-action", {
@@ -511,7 +604,7 @@ export function AdminWorkspace({
         received_at: fps.received_at
           ? new Date(fps.received_at + "+08:00").toISOString()
           : "",
-        reason: adminReason,
+        reason: paymentNote,
       });
   }
 
@@ -1583,40 +1676,42 @@ export function AdminWorkspace({
           · {workspace.capabilities.server_now}
         </p>
       )}
-      <div className="ev-capabilities">
-        <span>
-          <Mail size={16} />
-          {["smtp", "smtp_test"].includes(workspace?.capabilities.email || "")
-            ? operational
-              ? text("SMTP 寄信", "SMTP delivery")
-              : text("SMTP 測試寄信（白名單）", "SMTP test / allowlist")
-            : operational
-              ? text("寄信尚未啟用", "Email delivery not enabled")
-              : text("本機測試收件箱", "Local test inbox")}
-        </span>
-        <span>
-          {workspace?.capabilities.payment === "bank_transfer"
-            ? text(
-                "銀行轉帳 · 同事人手核對入帳",
-                "Bank transfer · manual bank verification",
-              )
-            : workspace?.capabilities.payment === "fps_test"
+      {(!operational || section === "settings") && (
+        <div className="ev-capabilities">
+          <span>
+            <Mail size={16} />
+            {["smtp", "smtp_test"].includes(workspace?.capabilities.email || "")
+              ? operational
+                ? text("SMTP 寄信", "SMTP delivery")
+                : text("SMTP 測試寄信（白名單）", "SMTP test / allowlist")
+              : operational
+                ? text("寄信尚未啟用", "Email delivery not enabled")
+                : text("本機測試收件箱", "Local test inbox")}
+          </span>
+          <span>
+            {workspace?.capabilities.payment === "bank_transfer"
               ? text(
-                  "FPS 轉帳 · 管理員人手對數（測試）",
-                  "FPS · administrator reconciliation (test)",
+                  "銀行轉帳 · 同事人手核對入帳",
+                  "Bank transfer · manual bank verification",
                 )
-              : workspace?.capabilities.payment === "stripe_test"
-                ? "Stripe test mode"
-                : text(
-                    "本機模擬付款 · 未連接 Stripe",
-                    "Local mock payment · Stripe not connected",
-                  )}
-        </span>
-        <span>
-          {text("規則產生草稿 · 未連接 AI", "Rules draft · no live AI")}
-        </span>
-        <span>{text("伺服器 SQLite 儲存", "Server SQLite storage")}</span>
-      </div>
+              : workspace?.capabilities.payment === "fps_test"
+                ? text(
+                    "FPS 轉帳 · 管理員人手對數（測試）",
+                    "FPS · administrator reconciliation (test)",
+                  )
+                : workspace?.capabilities.payment === "stripe_test"
+                  ? "Stripe test mode"
+                  : text(
+                      "本機模擬付款 · 未連接 Stripe",
+                      "Local mock payment · Stripe not connected",
+                    )}
+          </span>
+          <span>
+            {text("規則產生草稿 · 未連接 AI", "Rules draft · no live AI")}
+          </span>
+          <span>{text("伺服器 SQLite 儲存", "Server SQLite storage")}</span>
+        </div>
+      )}
       {(!operational || section === "settings") && (
         <details className="panel ev-config" open={operational}>
           <summary>
@@ -1874,14 +1969,16 @@ export function AdminWorkspace({
             ))}
           </div>
         )}
-        <button
-          className="button secondary"
-          disabled={busy}
-          onClick={() => run(() => refresh())}
-        >
-          <RefreshCw size={15} />
-          {text("重新整理", "Refresh")}
-        </button>
+        {!operational && (
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => run(() => refresh())}
+          >
+            <RefreshCw size={15} />
+            {text("重新整理", "Refresh")}
+          </button>
+        )}
         <button
           className="button secondary"
           onClick={exportEvidence}
@@ -1915,7 +2012,7 @@ export function AdminWorkspace({
             </option>
             {workspace?.cases.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.id} · {status[c.status] || c.status}
+                {c.id} · {caseStatusLabel(c.status, zh)}
               </option>
             ))}
           </select>
@@ -1927,7 +2024,7 @@ export function AdminWorkspace({
           <div className="ev-columns">
             {(!operational || section === "enquiries") && intakePanel}
             {(!operational || section === "requests") && (
-              <section className="panel ev-panel">
+              <section className="panel ev-panel ev-case-panel" key={c?.id}>
                 <h2>
                   {operational
                     ? text("個案處理", "Case management")
@@ -1935,33 +2032,25 @@ export function AdminWorkspace({
                 </h2>
                 {c ? (
                   <>
-                    <div className="ev-state">
-                      <strong>{c.id}</strong>
-                      <span>
-                        {status[c.status] || c.status} · {c.status}
-                      </span>
-                    </div>
-                    <p>
-                      {c.date} {c.start}–{c.end}
-                      <br />
-                      {c.district} · {c.building}
-                    </p>
+                    <CaseOverview
+                      c={c}
+                      zh={zh}
+                      pendingReports={pendingReports.length}
+                    />
                     {c.visits && c.visits.length > 1 && (
-                      <pre>
-                        {c.visits
-                          .map(
-                            (v) =>
-                              `${v.date} ${v.shift || ""} ${v.start}–${v.end}`,
-                          )
-                          .join("\n")}
-                      </pre>
-                    )}
-                    {operational && (
-                      <p>
-                        {c.patient_ref} · {c.surname}
-                        <br />
-                        {c.email} · {c.phone || "—"}
-                      </p>
+                      <details className="ev-admin">
+                        <summary>
+                          {text("查看全部服務日期", "View all visit dates")}
+                        </summary>
+                        <pre>
+                          {c.visits
+                            .map(
+                              (v) =>
+                                `${v.date} ${v.start}–${v.end}${v.end < v.start ? text("（翌日）", " (+1 day)") : ""}`,
+                            )
+                            .join("\n")}
+                        </pre>
+                      </details>
                     )}
                     {c.intake_channel === "conversation" && (
                       <section className="conversation-summary">
@@ -1988,7 +2077,6 @@ export function AdminWorkspace({
                         </p>
                       </section>
                     )}
-                    {c.quote && <h3>HK${c.quote.total.toLocaleString()}</h3>}
                     {c.quote?.pricing_method === "MANUAL_NIGHT_HOLIDAY" && (
                       <p>
                         {text("人工夜更報價", "Manually reviewed night quote")}{" "}
@@ -1999,710 +2087,956 @@ export function AdminWorkspace({
                         {c.quote.review_reason}
                       </p>
                     )}
-                    <div className="ev-gates">
-                      <span>
-                        {c.order_type || "SINGLE"} · {c.package_id || "—"}
-                      </span>
-                      <span>
-                        {text("偏遠分類", "Remote tier")}:{" "}
-                        {c.remote_tier || "—"}
-                      </span>
-                      <span>
-                        {text("退款", "Refund")}: {c.refund_status || "—"} · HK$
-                        {c.refund_amount ?? 0}
-                      </span>
-                    </div>
                     {["bank_transfer", "fps_test"].includes(
                       workspace?.capabilities.payment || "",
                     ) && (
-                      <section className="ev-gates">
-                        <h3>
-                          {text(
-                            "轉帳對數及退款紀錄",
-                            "Transfer reconciliation and refund record",
-                          )}
-                        </h3>
-                        <p>
-                          {workspace?.capabilities.payment === "bank_transfer"
-                            ? text(
-                                "客人提交資料後，請登入銀行核對實際入帳；確認收款前不會派單。系統不會自動查銀行或轉帳。",
-                                "Check the actual receipt in your bank after the customer submits a report. Dispatch waits for confirmation; the system does not access your bank or transfer funds.",
-                              )
-                            : text(
-                                "客人提交資料只代表聲明，未確認入帳前不會派單。此為 TRL 3 測試，請用虛構交易。",
-                                "A customer report is a claim; dispatch waits for independent bank verification. Use fictional transactions for TRL 3.",
+                      <section
+                        className="ev-finance"
+                        aria-label={text("收款及退款", "Payments and refunds")}
+                      >
+                        <div className="ev-finance-heading">
+                          <h3>
+                            {refundEntry
+                              ? text("記錄銀行退款", "Record bank refund")
+                              : text("收款對數", "Payment reconciliation")}
+                          </h3>
+                          <span className="ev-finance-status">
+                            {refundEntry
+                              ? refundStatusLabel(c.refund_status, zh)
+                              : {
+                                  PENDING_REVIEW: text(
+                                    "待核對銀行入帳",
+                                    "Awaiting bank verification",
+                                  ),
+                                  VERIFIED: text(
+                                    "已核實收款",
+                                    "Payment verified",
+                                  ),
+                                  REJECTED: text(
+                                    "資料不符，待跟進",
+                                    "Report rejected, follow up",
+                                  ),
+                                }[c.payment_review_status || ""] ||
+                                text("未有收款紀錄", "No payment recorded")}
+                          </span>
+                        </div>
+                        {canReconcile || refundEntry ? (
+                          <>
+                            <p className="ev-finance-help">
+                              {workspace?.capabilities.payment ===
+                              "bank_transfer"
+                                ? text(
+                                    "客人提交資料後，請登入銀行核對實際入帳；確認收款前不會派單。系統不會自動查銀行或轉帳。",
+                                    "Check the actual receipt in your bank after the customer submits a report. Dispatch waits for confirmation; the system does not access your bank or transfer funds.",
+                                  )
+                                : text(
+                                    "客人提交資料只代表聲明，未確認入帳前不會派單。此為 TRL 3 測試，請用虛構交易。",
+                                    "A customer report is a claim; dispatch waits for independent bank verification. Use fictional transactions for TRL 3.",
+                                  )}
+                            </p>
+                            {workspace?.capabilities.payment ===
+                              "bank_transfer" &&
+                              !workspace.capabilities
+                                .bank_transfer_configured && (
+                                <p className="ev-error">
+                                  {text(
+                                    "收款銀行資料未設定，暫時不能接受付款預約。請聯絡系統管理員完成設定。",
+                                    "Bank details are not configured. Ask your system administrator to complete setup before accepting payment bookings.",
+                                  )}
+                                </p>
                               )}
-                        </p>
-                        {workspace?.capabilities.payment === "bank_transfer" &&
-                          !workspace.capabilities.bank_transfer_configured && (
-                            <p className="ev-error">
+
+                            <div className="ev-form-grid">
+                              {!refundEntry && (
+                                <label>
+                                  {text(
+                                    "待對數轉帳聲明",
+                                    "Pending transfer report",
+                                  )}
+                                  <select
+                                    aria-label={text(
+                                      "待對數轉帳聲明",
+                                      "Pending transfer report",
+                                    )}
+                                    value={fps.submission_id}
+                                    onChange={(e) => {
+                                      const sub =
+                                        workspace?.payment_submissions.find(
+                                          (s) => s.id === e.target.value,
+                                        );
+                                      setFps({
+                                        ...fps,
+                                        submission_id: e.target.value,
+                                        verified: false,
+                                        amount: String(
+                                          sub?.amount ||
+                                            c.payment_amount ||
+                                            c.quote?.total ||
+                                            "",
+                                        ),
+                                      });
+                                    }}
+                                  >
+                                    <option value="">
+                                      {text("請選擇", "Select")}
+                                    </option>
+                                    {pendingReports.map((s) => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.reference} · HK${s.amount}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <small className="form-hint">
+                                    {text(
+                                      "請按銀行紀錄核實，家屬聲明不代表已入帳。",
+                                      "Verify against bank records; a family report does not confirm receipt.",
+                                    )}
+                                  </small>
+                                </label>
+                              )}
+                              {refundEntry && (
+                                <p className="ev-refund-amount">
+                                  {text(
+                                    "已批核退款金額",
+                                    "Approved refund amount",
+                                  )}
+                                  <strong>
+                                    HK$
+                                    {(c.refund_amount ?? 0).toLocaleString(
+                                      "en-HK",
+                                    )}
+                                  </strong>
+                                </p>
+                              )}
+                              <label>
+                                {text(
+                                  "銀行入帳／退款轉帳參考",
+                                  "Bank receipt / refund reference",
+                                )}
+                                <input
+                                  value={fps.bank_reference}
+                                  maxLength={100}
+                                  placeholder={text(
+                                    "按銀行紀錄填寫",
+                                    "Reference from bank record",
+                                  )}
+                                  onChange={(e) =>
+                                    setFps({
+                                      ...fps,
+                                      bank_reference: e.target.value,
+                                      verified: false,
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label>
+                                {text("核實金額 HKD", "Verified amount HKD")}
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={fps.amount}
+                                  onChange={(e) =>
+                                    setFps({
+                                      ...fps,
+                                      amount: e.target.value,
+                                      verified: false,
+                                    })
+                                  }
+                                />
+                                {fps.amount &&
+                                  Number(fps.amount) !==
+                                    (refundEntry
+                                      ? c.refund_amount
+                                      : (c.payment_amount ??
+                                        c.quote?.total)) && (
+                                    <small className="ev-amount-warning">
+                                      {text(
+                                        "金額與應付金額不符，請核實後再確認。",
+                                        "The amount differs from the expected total. Check it before confirming.",
+                                      )}
+                                    </small>
+                                  )}
+                              </label>
+                              <label>
+                                {text(
+                                  "銀行入帳／退款轉帳時間 HKT",
+                                  "Bank receipt / refund time HKT",
+                                )}
+                                <input
+                                  type="datetime-local"
+                                  value={fps.received_at}
+                                  onChange={(e) =>
+                                    setFps({
+                                      ...fps,
+                                      received_at: e.target.value,
+                                      verified: false,
+                                    })
+                                  }
+                                />
+                              </label>
+                            </div>
+                            <label>
                               {text(
-                                "收款銀行資料未設定：暫時不能接受付款預約。請在 .env 填寫 BANK_NAME、BANK_ACCOUNT_NAME、BANK_ACCOUNT_NUMBER 後重啟。",
-                                "Bank details are not configured. Payment bookings are unavailable until BANK_NAME, BANK_ACCOUNT_NAME and BANK_ACCOUNT_NUMBER are set and the server restarts.",
+                                "對數／退款說明",
+                                "Reconciliation / refund note",
+                              )}
+                              <textarea
+                                value={paymentNote}
+                                onChange={(e) => setPaymentNote(e.target.value)}
+                                placeholder={text(
+                                  "記錄核對結果或不符原因",
+                                  "Record the verification result or mismatch",
+                                )}
+                              />
+                            </label>
+                            <label className="ev-check">
+                              <input
+                                type="checkbox"
+                                checked={fps.verified}
+                                onChange={(e) =>
+                                  setFps({ ...fps, verified: e.target.checked })
+                                }
+                              />
+                              {workspace?.capabilities.payment ===
+                              "bank_transfer"
+                                ? text(
+                                    "我已登入銀行獨立核對實際入帳／退款，金額及參考正確。",
+                                    "I independently checked the actual bank receipt or refund, amount and reference.",
+                                  )
+                                : text(
+                                    "我已獨立核對銀行紀錄，金額及參考正確（測試用虛構銀行紀錄）。",
+                                    "I independently checked the bank record, amount and reference (fictional bank record for testing).",
+                                  )}
+                            </label>
+                            {error && (
+                              <p role="alert" className="ev-error">
+                                {error}
+                              </p>
+                            )}
+                            <div className="ev-actions">
+                              {!refundEntry && (
+                                <>
+                                  <button
+                                    className="button primary"
+                                    disabled={
+                                      busy ||
+                                      !validBankRecord ||
+                                      !pendingReports.some(
+                                        (s) => s.id === fps.submission_id,
+                                      )
+                                    }
+                                    onClick={() =>
+                                      run(() => fpsAction("reconcile_fps"))
+                                    }
+                                  >
+                                    {text(
+                                      "確認銀行入帳，完成對數",
+                                      "Confirm bank receipt after reconciliation",
+                                    )}
+                                  </button>
+                                  <button
+                                    className="button secondary"
+                                    disabled={
+                                      busy ||
+                                      !paymentNote.trim() ||
+                                      !pendingReports.some(
+                                        (s) => s.id === fps.submission_id,
+                                      )
+                                    }
+                                    onClick={() =>
+                                      run(() => fpsAction("reject_fps"))
+                                    }
+                                  >
+                                    {text(
+                                      "對數不符，退回跟進",
+                                      "Reject unmatched transfer report",
+                                    )}
+                                  </button>
+                                </>
+                              )}
+                              {refundEntry && (
+                                <button
+                                  className="button primary"
+                                  disabled={busy || !validBankRecord}
+                                  onClick={() =>
+                                    run(() => fpsAction("record_fps_refund"))
+                                  }
+                                >
+                                  {text(
+                                    "記錄已完成轉帳退款",
+                                    "Record completed bank transfer refund",
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            <p className="form-hint">
+                              {text(
+                                "填妥資料及核實聲明後，才可確認。所有時間均為香港時間。",
+                                "Complete the fields and verification before confirming. All times are Hong Kong time.",
                               )}
                             </p>
-                          )}
-
-                        <p>
-                          {text("對數狀態", "Review status")}:{" "}
-                          {c.payment_review_status || "—"}
-                        </p>
-                        <div className="ev-form-grid">
-                          <label>
-                            {text("待對數轉帳聲明", "Pending transfer report")}
-                            <select
-                              value={fps.submission_id}
-                              onChange={(e) => {
-                                const sub = workspace?.payment_submissions.find(
-                                  (s) => s.id === e.target.value,
-                                );
-                                setFps({
-                                  ...fps,
-                                  submission_id: e.target.value,
-                                  amount: String(
-                                    sub?.amount ||
-                                      c.payment_amount ||
-                                      c.quote?.total ||
-                                      "",
-                                  ),
-                                });
-                              }}
-                            >
-                              <option value="">
-                                {text("請選擇", "Select")}
-                              </option>
-                              {workspace?.payment_submissions
-                                .filter(
-                                  (s) =>
-                                    s.case_id === c.id &&
-                                    s.status === "PENDING_REVIEW",
+                          </>
+                        ) : (
+                          <p className="ev-finance-empty">
+                            {c.status === "PENDING_PAY"
+                              ? text(
+                                  "未有待對數轉帳聲明。家屬提交資料後，會在此顯示核對表格。",
+                                  "No transfer report to review. The reconciliation form appears after the family submits a report.",
                                 )
-                                .map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.reference} · HK${s.amount}
-                                  </option>
-                                ))}
-                            </select>
-                          </label>
-                          <label>
-                            {text(
-                              "銀行入帳／退款轉帳參考",
-                              "Bank receipt / refund reference",
-                            )}
-                            <input
-                              value={fps.bank_reference}
-                              onChange={(e) =>
-                                setFps({
-                                  ...fps,
-                                  bank_reference: e.target.value,
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {text("核實金額 HKD", "Verified amount HKD")}
-                            <input
-                              type="number"
-                              min="1"
-                              value={fps.amount}
-                              onChange={(e) =>
-                                setFps({ ...fps, amount: e.target.value })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {text(
-                              "銀行入帳／退款轉帳時間 HKT",
-                              "Bank receipt / refund time HKT",
-                            )}
-                            <input
-                              type="datetime-local"
-                              value={fps.received_at}
-                              onChange={(e) =>
-                                setFps({ ...fps, received_at: e.target.value })
-                              }
-                            />
-                          </label>
-                        </div>
-                        <label>
+                              : text(
+                                  "目前沒有需要核對的收款或記錄的退款。",
+                                  "No payment reconciliation or refund entry is currently required.",
+                                )}
+                          </p>
+                        )}
+                        {!!workspace?.payment_reconciliations.filter(
+                          (r) => r.case_id === c.id,
+                        ).length && (
+                          <details className="ev-finance-history">
+                            <summary>
+                              {text(
+                                "查看已核實收款紀錄",
+                                "View verified payment records",
+                              )}
+                            </summary>
+                            {workspace.payment_reconciliations
+                              .filter((r) => r.case_id === c.id)
+                              .map((r) => (
+                                <div key={r.id}>
+                                  <strong>
+                                    HK${r.amount.toLocaleString("en-HK")}
+                                  </strong>
+                                  <span>{r.bank_reference || r.id}</span>
+                                  <small>
+                                    {text("核實職員：", "Verified by: ")}
+                                    {r.verified_by}
+                                  </small>
+                                </div>
+                              ))}
+                          </details>
+                        )}
+                      </section>
+                    )}
+                    {(!operational ||
+                      ![
+                        "CANCELLED",
+                        "EXPIRED",
+                        "PAY_TIMEOUT",
+                        "DONE",
+                        "NO_FIRST_INSERT",
+                      ].includes(c.status) ||
+                      c.refund_status === "PENDING") && (
+                      <details className="ev-admin">
+                        <summary>
                           {text(
-                            "對數／退款說明",
-                            "Reconciliation / refund note",
+                            "人工覆核／取消退款／重新招募",
+                            "Manual review, cancellation, refunds and reposting",
                           )}
+                        </summary>
+                        <label>
+                          {text("覆核／操作原因", "Review / action reason")}
                           <textarea
+                            aria-label={text(
+                              "覆核／操作原因",
+                              "Review / action reason",
+                            )}
                             value={adminReason}
                             onChange={(e) => setAdminReason(e.target.value)}
                           />
                         </label>
-                        <label className="ev-check">
-                          <input
-                            type="checkbox"
-                            checked={fps.verified}
-                            onChange={(e) =>
-                              setFps({ ...fps, verified: e.target.checked })
-                            }
-                          />
-                          {workspace?.capabilities.payment === "bank_transfer"
-                            ? text(
-                                "我已登入銀行獨立核對實際入帳／退款，金額及參考正確。",
-                                "I independently checked the actual bank receipt or refund, amount and reference.",
-                              )
-                            : text(
-                                "我已獨立核對銀行紀錄，金額及參考正確（測試用虛構銀行紀錄）。",
-                                "I independently checked the bank record, amount and reference (fictional bank record for testing).",
-                              )}
-                        </label>
-                        <div className="ev-actions">
-                          <button
-                            className="button primary"
-                            disabled={busy || c.status !== "PENDING_PAY"}
-                            onClick={() =>
-                              run(() => fpsAction("reconcile_fps"))
-                            }
-                          >
-                            {text(
-                              "確認銀行入帳，完成對數",
-                              "Confirm bank receipt after reconciliation",
-                            )}
-                          </button>
-                          <button
-                            className="button secondary"
-                            disabled={busy || c.status !== "PENDING_PAY"}
-                            onClick={() => run(() => fpsAction("reject_fps"))}
-                          >
-                            {text(
-                              "對數不符，退回跟進",
-                              "Reject unmatched transfer report",
-                            )}
-                          </button>
-                          <button
-                            className="button secondary"
-                            disabled={busy || c.refund_status !== "APPROVED"}
-                            onClick={() =>
-                              run(() => fpsAction("record_fps_refund"))
-                            }
-                          >
-                            {text(
-                              "記錄已完成轉帳退款",
-                              "Record completed bank transfer refund",
-                            )}
-                          </button>
-                        </div>
-                      </section>
-                    )}
-                    <details className="ev-admin">
-                      <summary>
-                        {text(
-                          "人工覆核／取消退款／重新招募",
-                          "Manual review, cancellation, refunds and reposting",
-                        )}
-                      </summary>
-                      <label>
-                        {text("覆核／操作原因", "Review / action reason")}
-                        <textarea
-                          value={adminReason}
-                          onChange={(e) => setAdminReason(e.target.value)}
-                        />
-                      </label>
-                      {c.status === "MANUAL" && !c.package_id && (
-                        <details>
-                          <summary>
-                            {text(
-                              "更正醫生指示／現有喉管資料",
-                              "Correct doctor order / existing tube facts",
-                            )}
-                          </summary>
-                          <p>
-                            {text(
-                              "更正後仍須重新驗證及發報價；不代表醫生文件已核實。",
-                              "Corrections require revalidation and a new quote; they do not verify a doctor document.",
-                            )}
-                          </p>
-                          <label>
-                            {text("醫生指示", "Doctor order")}
-                            <select
-                              value={correctedOrder}
-                              onChange={(e) =>
-                                setCorrectedOrder(e.target.value)
-                              }
-                            >
-                              {["YES", "NO", "UNSURE", "NA"].map((v) => (
-                                <option key={v}>{v}</option>
-                              ))}
-                            </select>
-                          </label>
-                          {c.services
-                            ?.filter((s) => s.replace_only)
-                            .map((s) => (
-                              <label key={s.id}>
-                                {s.label}
-                                <select
-                                  value={correctedTubes[s.id!] || "UNSURE"}
-                                  onChange={(e) =>
-                                    setCorrectedTubes({
-                                      ...correctedTubes,
-                                      [s.id!]: e.target.value,
-                                    })
-                                  }
-                                >
-                                  {["YES", "NO_FIRST_INSERT", "UNSURE"].map(
-                                    (v) => (
-                                      <option key={v}>{v}</option>
-                                    ),
-                                  )}
-                                </select>
-                              </label>
-                            ))}
-                          <button
-                            className="button secondary"
-                            disabled={busy || !adminReason.trim()}
-                            onClick={() => run(() => action("correct_intake"))}
-                          >
-                            {text("記錄更正", "Record correction")}
-                          </button>
-                        </details>
-                      )}
-                      {c.red_flag && (
-                        <div>
-                          <label>
-                            {text(
-                              "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
-                              "Red-flag resolution / referral (at least 10 characters; required before quoting)",
-                            )}
-                            <textarea
-                              value={redFlagResolution}
-                              onChange={(e) =>
-                                setRedFlagResolution(e.target.value)
-                              }
-                              minLength={10}
-                            />
-                          </label>
-                          <label className="ev-check">
-                            <input
-                              type="checkbox"
-                              checked={redFlagConfirmed}
-                              onChange={(e) =>
-                                setRedFlagConfirmed(e.target.checked)
-                              }
-                            />
-                            {text(
-                              "我確認已記錄臨床處置／轉介結果，並解除此個案的報價阻擋。",
-                              "I confirm the clinical resolution or referral is recorded and this case may proceed to quoting.",
-                            )}
-                          </label>
-                        </div>
-                      )}
-                      <label>
-                        {text(
-                          "偏遠分類（只影響護士交通津貼）",
-                          "Remote tier (nurse allowance only)",
-                        )}
-                        <select
-                          value={remoteTier}
-                          onChange={(e) => setRemoteTier(e.target.value)}
-                        >
-                          {["A", "B", "C"].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                      {c.status === "MANUAL" &&
-                        ["NIGHT10", "NIGHT12"].includes(c.shift || "") &&
-                        c.intake_channel !== "conversation" && (
-                          <fieldset>
-                            <legend>
+                        {c.status === "MANUAL" && !c.package_id && (
+                          <details>
+                            <summary>
                               {text(
-                                "星期日／公眾假期夜更人工報價",
-                                "Manual Sunday / holiday night quote",
+                                "更正醫生指示／現有喉管資料",
+                                "Correct doctor order / existing tube facts",
                               )}
-                            </legend>
-                            <p className="form-hint">
+                            </summary>
+                            <p>
                               {text(
-                                "暫未有統一加價規則。如發報價時提示夜更涉及星期日／公眾假期，請先核實逐單收費，再填寫金額。此功能只適用於該類夜更。",
-                                "There is no standard surcharge rule yet. If quoting is blocked because the night visit involves a Sunday or public holiday, verify this visit's charges before entering amounts. This option applies only to those night visits.",
+                                "更正後仍須重新驗證及發報價；不代表醫生文件已核實。",
+                                "Corrections require revalidation and a new quote; they do not verify a doctor document.",
                               )}
                             </p>
+                            <label>
+                              {text("醫生指示", "Doctor order")}
+                              <select
+                                value={correctedOrder}
+                                onChange={(e) =>
+                                  setCorrectedOrder(e.target.value)
+                                }
+                              >
+                                {["YES", "NO", "UNSURE", "NA"].map((v) => (
+                                  <option key={v}>{v}</option>
+                                ))}
+                              </select>
+                            </label>
+                            {c.services
+                              ?.filter((s) => s.replace_only)
+                              .map((s) => (
+                                <label key={s.id}>
+                                  {s.label}
+                                  <select
+                                    value={correctedTubes[s.id!] || "UNSURE"}
+                                    onChange={(e) =>
+                                      setCorrectedTubes({
+                                        ...correctedTubes,
+                                        [s.id!]: e.target.value,
+                                      })
+                                    }
+                                  >
+                                    {["YES", "NO_FIRST_INSERT", "UNSURE"].map(
+                                      (v) => (
+                                        <option key={v}>{v}</option>
+                                      ),
+                                    )}
+                                  </select>
+                                </label>
+                              ))}
+                            <button
+                              className="button secondary"
+                              disabled={busy || !adminReason.trim()}
+                              onClick={() =>
+                                run(() => action("correct_intake"))
+                              }
+                            >
+                              {text("記錄更正", "Record correction")}
+                            </button>
+                          </details>
+                        )}
+                        {c.red_flag && (
+                          <div>
+                            <label>
+                              {text(
+                                "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
+                                "Red-flag resolution / referral (at least 10 characters; required before quoting)",
+                              )}
+                              <textarea
+                                value={redFlagResolution}
+                                onChange={(e) =>
+                                  setRedFlagResolution(e.target.value)
+                                }
+                                minLength={10}
+                              />
+                            </label>
                             <label className="ev-check">
                               <input
                                 type="checkbox"
-                                checked={manualNightQuote}
-                                onChange={(e) => {
-                                  setManualNightQuote(e.target.checked);
-                                  setManualNightConfirmed(false);
-                                }}
+                                checked={redFlagConfirmed}
+                                onChange={(e) =>
+                                  setRedFlagConfirmed(e.target.checked)
+                                }
                               />
                               {text(
-                                "使用人工確認的夜更收費",
-                                "Use manually reviewed night charges",
+                                "我確認已記錄臨床處置／轉介結果，並解除此個案的報價阻擋。",
+                                "I confirm the clinical resolution or referral is recorded and this case may proceed to quoting.",
                               )}
                             </label>
-                            {manualNightQuote && (
-                              <>
-                                <div className="ev-form-grid">
-                                  <label>
-                                    {text(
-                                      "人工基本費 HKD（整數）",
-                                      "Manual base fee HKD (whole dollars)",
-                                    )}
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="1"
-                                      value={manualNightBase}
-                                      onChange={(e) => {
-                                        setManualNightBase(e.target.value);
-                                        setManualNightConfirmed(false);
-                                      }}
-                                    />
-                                  </label>
-                                  <label>
-                                    {text(
-                                      "人工附加費 HKD（無附加費請填 0）",
-                                      "Manual surcharge HKD (enter 0 for none)",
-                                    )}
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="1"
-                                      value={manualNightSurcharge}
-                                      onChange={(e) => {
-                                        setManualNightSurcharge(e.target.value);
-                                        setManualNightConfirmed(false);
-                                      }}
-                                    />
-                                  </label>
-                                </div>
-                                <p>
-                                  {text("人工報價總額", "Manual quote total")}:
-                                  HK$
-                                  {/^\d+$/.test(manualNightBase) &&
-                                  /^\d+$/.test(manualNightSurcharge)
-                                    ? (
-                                        Number(manualNightBase) +
-                                        Number(manualNightSurcharge)
-                                      ).toLocaleString("en-HK")
-                                    : "—"}
-                                </p>
-                                <p className="form-hint">
-                                  {text(
-                                    "請在上方「覆核／操作原因」記錄至少 10 字的收費依據；原因只供內部紀錄。報價電郵會列出基本費、附加費及總額。",
-                                    "Record the pricing basis in the review / action reason above (at least 10 characters, for internal records). The quote email will show the base fee, surcharge and total.",
-                                  )}
-                                </p>
-                                <label className="ev-check">
-                                  <input
-                                    type="checkbox"
-                                    checked={manualNightConfirmed}
-                                    onChange={(e) =>
-                                      setManualNightConfirmed(e.target.checked)
-                                    }
-                                  />
-                                  {text(
-                                    "我已核實此夜更的基本費、附加費及總額，確認按以上金額發報價。",
-                                    "I have verified this night's base fee, surcharge and total and confirm issuing the quote for these amounts.",
-                                  )}
-                                </label>
-                              </>
-                            )}
-                          </fieldset>
+                          </div>
                         )}
-                      <div className="ev-actions">
-                        {[
-                          [
-                            "remote",
-                            text(
-                              "覆核地點及交通津貼",
-                              "Review location / allowance",
-                            ),
-                          ],
-                          [
-                            "issue_quote",
-                            text(
-                              "人工處理後發報價",
-                              "Issue quote after review",
-                            ),
-                          ],
-                          [
-                            "manual_refund",
-                            text(
-                              "人工決定退款／放回時數（待批核）",
-                              "Request refund for paid manual case",
-                            ),
-                          ],
-                          [
-                            "refund",
-                            text(
-                              "批核退款／釋放時數",
-                              "Approve refund / release hours",
-                            ),
-                          ],
-                          [
-                            "doctor_upload_link",
-                            text(
-                              "重發醫生指示文件上載連結",
-                              "Resend doctor document upload link",
-                            ),
-                          ],
-                          ["repost", text("再次招募", "Repost")],
-                          [
-                            "reschedule",
-                            text("改期交人手", "Manual reschedule"),
-                          ],
-                          [
-                            "manual_cancel",
-                            text(
-                              "結束未收款人工個案",
-                              "Close unpaid manual case",
-                            ),
-                          ],
-                          ...(!session
-                            ? [
-                                [
-                                  "doctor_failed",
-                                  text(
-                                    "醫生指示核對失敗",
-                                    "Doctor order failed",
-                                  ),
-                                ],
-                              ]
-                            : []),
-                        ].map(([a, label]) => (
-                          <button
-                            type="button"
-                            disabled={
-                              busy ||
-                              (a === "issue_quote" &&
-                                (c.intake_channel === "conversation" ||
-                                  c.status !== "MANUAL" ||
-                                  c.remote_tier === "UNMATCHED" ||
-                                  (manualNightQuote && !validManualNightQuote)))
-                            }
-                            className="button secondary"
-                            key={a}
-                            onClick={() =>
-                              run(() => action(a), {
-                                pending: text(
-                                  "正在處理，請稍候…",
-                                  "Processing, please wait…",
-                                ),
-                                success:
-                                  a === "remote"
-                                    ? text(
-                                        "已儲存地點覆核及交通津貼分類。核實其餘服務資料後，可按「人工處理後發報價」。",
-                                        "Location and allowance review saved. After verifying the remaining service details, issue the quote below.",
-                                      )
-                                    : a === "issue_quote"
-                                      ? text(
-                                          "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
-                                          "Quote created and queued for email delivery. Check Messages for the delivery result.",
-                                        )
-                                      : text("操作已儲存。", "Action saved."),
-                              })
-                            }
+                        <label>
+                          {text(
+                            "偏遠分類（只影響護士交通津貼）",
+                            "Remote tier (nurse allowance only)",
+                          )}
+                          <select
+                            value={remoteTier}
+                            onChange={(e) => setRemoteTier(e.target.value)}
                           >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      {actionFeedback && (
-                        <div
-                          ref={actionFeedbackRef}
-                          tabIndex={-1}
-                          role={error ? "alert" : "status"}
-                          className={error ? "ev-error" : "staff-notice"}
-                        >
-                          {error || actionFeedback}
+                            {["A", "B", "C"].map((v) => (
+                              <option key={v}>{v}</option>
+                            ))}
+                          </select>
+                        </label>
+                        {c.status === "MANUAL" &&
+                          ["NIGHT10", "NIGHT12"].includes(c.shift || "") &&
+                          c.intake_channel !== "conversation" && (
+                            <fieldset>
+                              <legend>
+                                {text(
+                                  "星期日／公眾假期夜更人工報價",
+                                  "Manual Sunday / holiday night quote",
+                                )}
+                              </legend>
+                              <p className="form-hint">
+                                {text(
+                                  "暫未有統一加價規則。如發報價時提示夜更涉及星期日／公眾假期，請先核實逐單收費，再填寫金額。此功能只適用於該類夜更。",
+                                  "There is no standard surcharge rule yet. If quoting is blocked because the night visit involves a Sunday or public holiday, verify this visit's charges before entering amounts. This option applies only to those night visits.",
+                                )}
+                              </p>
+                              <label className="ev-check">
+                                <input
+                                  type="checkbox"
+                                  checked={manualNightQuote}
+                                  onChange={(e) => {
+                                    setManualNightQuote(e.target.checked);
+                                    setManualNightConfirmed(false);
+                                  }}
+                                />
+                                {text(
+                                  "使用人工確認的夜更收費",
+                                  "Use manually reviewed night charges",
+                                )}
+                              </label>
+                              {manualNightQuote && (
+                                <>
+                                  <div className="ev-form-grid">
+                                    <label>
+                                      {text(
+                                        "人工基本費 HKD（整數）",
+                                        "Manual base fee HKD (whole dollars)",
+                                      )}
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={manualNightBase}
+                                        onChange={(e) => {
+                                          setManualNightBase(e.target.value);
+                                          setManualNightConfirmed(false);
+                                        }}
+                                      />
+                                    </label>
+                                    <label>
+                                      {text(
+                                        "人工附加費 HKD（無附加費請填 0）",
+                                        "Manual surcharge HKD (enter 0 for none)",
+                                      )}
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={manualNightSurcharge}
+                                        onChange={(e) => {
+                                          setManualNightSurcharge(
+                                            e.target.value,
+                                          );
+                                          setManualNightConfirmed(false);
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                  <p>
+                                    {text("人工報價總額", "Manual quote total")}
+                                    : HK$
+                                    {/^\d+$/.test(manualNightBase) &&
+                                    /^\d+$/.test(manualNightSurcharge)
+                                      ? (
+                                          Number(manualNightBase) +
+                                          Number(manualNightSurcharge)
+                                        ).toLocaleString("en-HK")
+                                      : "—"}
+                                  </p>
+                                  <p className="form-hint">
+                                    {text(
+                                      "請在上方「覆核／操作原因」記錄至少 10 字的收費依據；原因只供內部紀錄。報價電郵會列出基本費、附加費及總額。",
+                                      "Record the pricing basis in the review / action reason above (at least 10 characters, for internal records). The quote email will show the base fee, surcharge and total.",
+                                    )}
+                                  </p>
+                                  <label className="ev-check">
+                                    <input
+                                      type="checkbox"
+                                      checked={manualNightConfirmed}
+                                      onChange={(e) =>
+                                        setManualNightConfirmed(
+                                          e.target.checked,
+                                        )
+                                      }
+                                    />
+                                    {text(
+                                      "我已核實此夜更的基本費、附加費及總額，確認按以上金額發報價。",
+                                      "I have verified this night's base fee, surcharge and total and confirm issuing the quote for these amounts.",
+                                    )}
+                                  </label>
+                                </>
+                              )}
+                            </fieldset>
+                          )}
+                        {c.status === "MANUAL" && quoteBlockers.length > 0 && (
+                          <div
+                            id="quote-requirements"
+                            role="status"
+                            className="staff-notice"
+                          >
+                            <strong>
+                              {text(
+                                "發報價前尚欠以下步驟",
+                                "Complete these steps before issuing a quote",
+                              )}
+                            </strong>
+                            <ul>
+                              {quoteBlockers.map((reason) => (
+                                <li key={reason}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="ev-actions">
+                          {[
+                            [
+                              "remote",
+                              text(
+                                "覆核地點及交通津貼",
+                                "Review location / allowance",
+                              ),
+                            ],
+                            [
+                              "issue_quote",
+                              text(
+                                "人工處理後發報價",
+                                "Issue quote after review",
+                              ),
+                            ],
+                            [
+                              "manual_refund",
+                              text(
+                                "人工決定退款／放回時數（待批核）",
+                                "Request refund for paid manual case",
+                              ),
+                            ],
+                            [
+                              "refund",
+                              text(
+                                "批核退款／釋放時數",
+                                "Approve refund / release hours",
+                              ),
+                            ],
+                            [
+                              "doctor_upload_link",
+                              text(
+                                "重發醫生指示文件上載連結",
+                                "Resend doctor document upload link",
+                              ),
+                            ],
+                            ["repost", text("再次招募", "Repost")],
+                            [
+                              "reschedule",
+                              text("改期交人手", "Manual reschedule"),
+                            ],
+                            [
+                              "manual_cancel",
+                              text(
+                                "結束未收款人工個案",
+                                "Close unpaid manual case",
+                              ),
+                            ],
+                            ...(!session
+                              ? [
+                                  [
+                                    "doctor_failed",
+                                    text(
+                                      "醫生指示核對失敗",
+                                      "Doctor order failed",
+                                    ),
+                                  ],
+                                ]
+                              : []),
+                          ]
+                            .filter(
+                              ([a]) =>
+                                !operational ||
+                                (a === "remote"
+                                  ? ["MANUAL", "QUOTED", "PAID"].includes(
+                                      c.status,
+                                    )
+                                  : a === "issue_quote"
+                                    ? c.status === "MANUAL" &&
+                                      c.intake_channel !== "conversation"
+                                    : a === "manual_refund"
+                                      ? c.status === "MANUAL" &&
+                                        (!!c.amount_paid ||
+                                          c.order_type === "PACKAGE_EXISTING")
+                                      : a === "refund"
+                                        ? c.status === "FULL_REFUND" &&
+                                          c.refund_status === "PENDING"
+                                        : a === "doctor_upload_link"
+                                          ? [
+                                              "PAID",
+                                              "POSTED",
+                                              "MATCHED",
+                                            ].includes(c.status) &&
+                                            c.schedule_status ===
+                                              "PENDING_REVIEW" &&
+                                            c.services?.some(
+                                              (s) => s.doctor_order_required,
+                                            )
+                                          : a === "repost"
+                                            ? ["POSTED", "REMATCH"].includes(
+                                                c.status,
+                                              )
+                                            : a === "reschedule"
+                                              ? [
+                                                  "QUOTED",
+                                                  "PAID",
+                                                  "POSTED",
+                                                  "MATCHED",
+                                                  "READY",
+                                                ].includes(c.status)
+                                              : a === "manual_cancel"
+                                                ? c.status === "MANUAL" &&
+                                                  !c.amount_paid &&
+                                                  !c.package_id
+                                                : true),
+                            )
+                            .map(([a, label]) => (
+                              <button
+                                type="button"
+                                disabled={
+                                  busy ||
+                                  (a === "issue_quote" &&
+                                    quoteBlockers.length > 0)
+                                }
+                                aria-describedby={
+                                  a === "issue_quote" &&
+                                  quoteBlockers.length > 0
+                                    ? "quote-requirements"
+                                    : undefined
+                                }
+                                className="button secondary"
+                                key={a}
+                                onClick={() =>
+                                  run(() => action(a), {
+                                    pending: text(
+                                      "正在處理，請稍候…",
+                                      "Processing, please wait…",
+                                    ),
+                                    success:
+                                      a === "remote"
+                                        ? text(
+                                            "已儲存地點覆核及交通津貼分類。核實其餘服務資料後，可按「人工處理後發報價」。",
+                                            "Location and allowance review saved. After verifying the remaining service details, issue the quote below.",
+                                          )
+                                        : a === "issue_quote"
+                                          ? text(
+                                              "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
+                                              "Quote created and queued for email delivery. Check Messages for the delivery result.",
+                                            )
+                                          : text(
+                                              "操作已儲存。",
+                                              "Action saved.",
+                                            ),
+                                  })
+                                }
+                              >
+                                {label}
+                              </button>
+                            ))}
                         </div>
-                      )}
-                      {c.status === "MANUAL" &&
-                        c.remote_tier === "UNMATCHED" && (
-                          <p className="ev-error">
-                            {text(
-                              "尚未儲存地點覆核。請核實地址、選擇正確分類，再按「覆核地點及交通津貼」；只更改選單不會儲存，未完成前不能發報價。",
-                              "Location review has not been saved. Verify the address, select the correct tier and click Review location / allowance. Changing the selection alone does not save it; quoting is unavailable until review is saved.",
-                            )}
-                          </p>
+                        {actionFeedback && (
+                          <div
+                            ref={actionFeedbackRef}
+                            tabIndex={-1}
+                            role={error ? "alert" : "status"}
+                            className={error ? "ev-error" : "staff-notice"}
+                          >
+                            {error || actionFeedback}
+                          </div>
                         )}
-                      <p className="form-hint">
-                        {text(
-                          operational
-                            ? "未確認收款不能派單。退款須先批核，再由同事於銀行轉帳並獨立記錄。"
-                            : "未收款不能派單；退款只可由待批核狀態處理。真人收款／退款不屬本實驗。",
-                          operational
-                            ? "Dispatch requires verified payment. Refunds require approval followed by a separately recorded bank transfer."
-                            : "Dispatch needs payment. Refund approval requires a pending request. Live payment/refund is outside this experiment.",
-                        )}
-                      </p>
-                    </details>
+                        <p className="form-hint">
+                          {text(
+                            operational
+                              ? "未確認收款不能派單。退款須先批核，再由同事於銀行轉帳並獨立記錄。"
+                              : "未收款不能派單；退款只可由待批核狀態處理。真人收款／退款不屬本實驗。",
+                            operational
+                              ? "Dispatch requires verified payment. Refunds require approval followed by a separately recorded bank transfer."
+                              : "Dispatch needs payment. Refund approval requires a pending request. Live payment/refund is outside this experiment.",
+                          )}
+                        </p>
+                      </details>
+                    )}
                     {c.status === "MANUAL" && c.manual_reason && (
                       <p className="ev-error">{c.manual_reason}</p>
                     )}
-                    <ol className="ev-steps">
-                      <li>
+                    <details
+                      className="ev-workflow"
+                      open={[
+                        "PAID",
+                        "POSTED",
+                        "REMATCH",
+                        "MATCHED",
+                        "READY",
+                        "IN_SERVICE",
+                      ].includes(c.status)}
+                    >
+                      <summary>
                         {text(
-                          operational
-                            ? "請家屬從報價電郵中的連結確認接受報價。"
-                            : "到收件箱開 T1 連結，再在確認頁接受報價。",
-                          operational
-                            ? "The family confirms acceptance through the link in their quote email."
-                            : "Open T1 in the inbox, then confirm acceptance.",
+                          "派單及服務安排",
+                          "Dispatch and care arrangements",
                         )}
-                      </li>
-                      <li>
-                        {text(
-                          "家屬人手轉帳及提交資料，管理員核對銀行入帳；確認收款後預覽派單。",
-                          "Transfer manually and submit details; administrator verifies the bank receipt before approving dispatch.",
-                        )}
-                        <div>
-                          {workspace?.capabilities.payment === "mock" && (
-                            <button
-                              disabled={busy || c.status !== "PENDING_PAY"}
-                              className="button secondary"
-                              onClick={() => run(() => action("mock_paid"))}
-                            >
-                              {text("模擬付款成功", "Simulate paid")}
-                            </button>
+                      </summary>
+                      <ol className="ev-steps">
+                        <li>
+                          {text(
+                            operational
+                              ? "請家屬從報價電郵中的連結確認接受報價。"
+                              : "到收件箱開 T1 連結，再在確認頁接受報價。",
+                            operational
+                              ? "The family confirms acceptance through the link in their quote email."
+                              : "Open T1 in the inbox, then confirm acceptance.",
                           )}
-                          <button
-                            disabled={busy || c.status !== "PAID"}
-                            className="button primary"
-                            onClick={() => run(() => action("dispatch"))}
-                          >
-                            {text(
-                              "確認預覽並派單",
-                              "Approve preview and dispatch",
+                        </li>
+                        <li>
+                          {text(
+                            "家屬人手轉帳及提交資料，管理員核對銀行入帳；確認收款後預覽派單。",
+                            "Transfer manually and submit details; administrator verifies the bank receipt before approving dispatch.",
+                          )}
+                          <div>
+                            {workspace?.capabilities.payment === "mock" && (
+                              <button
+                                disabled={busy || c.status !== "PENDING_PAY"}
+                                className="button secondary"
+                                onClick={() => run(() => action("mock_paid"))}
+                              >
+                                {text("模擬付款成功", "Simulate paid")}
+                              </button>
                             )}
-                          </button>
-                        </div>
-                        <details>
+                            <button
+                              disabled={busy || c.status !== "PAID"}
+                              className="button primary"
+                              onClick={() => run(() => action("dispatch"))}
+                            >
+                              {text(
+                                "確認預覽並派單",
+                                "Approve preview and dispatch",
+                              )}
+                            </button>
+                          </div>
+                          <details>
+                            <summary>
+                              {text(
+                                "派單預覽（不含姓名、電話、單位）",
+                                "Dispatch preview (no name, phone or unit)",
+                              )}
+                            </summary>
+                            <pre>{c.dispatch_preview_body}</pre>
+                          </details>
+                        </li>
+                        <li>
+                          {text(
+                            "護士開自己嘅 T3 個人連結，第一個確認接單者得標。",
+                            "Nurses open individual T3 links; first confirmation wins.",
+                          )}
+                        </li>
+                        <li>
+                          {text(
+                            "家屬經 T16 提供單位；完成 Care Schedule 三關。",
+                            "Family provides the unit through T16; complete schedule review.",
+                          )}
+                          {session?.method === "google" && (
+                            <p className="form-hint">
+                              {text(
+                                "資深護士須用另一帳戶進入護理覆核工作台；完成覆核後，在此重新整理並作最終確認。",
+                                "A senior nurse must review from their own account. Refresh here after their review, then give final approval.",
+                              )}
+                            </p>
+                          )}
+                          <div className="ev-actions">
+                            {(["draft", "nurse", "admin"] as const).map(
+                              (step, i) => (
+                                <button
+                                  className="button secondary"
+                                  key={step}
+                                  disabled={
+                                    busy ||
+                                    (session?.method === "google" &&
+                                      step === "nurse") ||
+                                    !["PAID", "POSTED", "MATCHED"].includes(
+                                      c.status,
+                                    ) ||
+                                    (step === "draft"
+                                      ? !!c.schedule
+                                      : step === "nurse"
+                                        ? !c.schedule ||
+                                          c.schedule_status !== "PENDING_REVIEW"
+                                        : c.schedule_status !==
+                                          "NURSE_REVIEWED")
+                                  }
+                                  onClick={() => run(() => action(step))}
+                                >
+                                  {
+                                    [
+                                      text(
+                                        "產生規則草稿",
+                                        "Generate rules draft",
+                                      ),
+                                      text(
+                                        "資深護士覆核",
+                                        "Senior nurse review",
+                                      ),
+                                      text(
+                                        "管理員最終確認",
+                                        "Administrator final approval",
+                                      ),
+                                    ][i]
+                                  }
+                                </button>
+                              ),
+                            )}
+                          </div>
+                        </li>
+                        <li>
+                          {text(
+                            "配對、地址、排程齊備先寄 T11，轉為 READY。",
+                            "T11 is released only after assignment, address and schedule approval.",
+                          )}
+                        </li>
+                      </ol>
+                      <div className="ev-gates">
+                        <span>
+                          {text("得標護士", "Assigned nurse")}:{" "}
+                          {c.assigned_nurse || "—"}
+                        </span>
+                        <span>
+                          {text("地址", "Address")}: {c.address_status}
+                        </span>
+                        <span>Care Schedule: {c.schedule_status}</span>
+                      </div>
+                      {c.schedule && !session && (
+                        <details className="ev-admin">
                           <summary>
                             {text(
-                              "派單預覽（不含姓名、電話、單位）",
-                              "Dispatch preview (no name, phone or unit)",
+                              "人手修改時間表（須重新覆核）",
+                              "Edit schedule (requires reapproval)",
                             )}
                           </summary>
-                          <pre>{c.dispatch_preview_body}</pre>
-                        </details>
-                      </li>
-                      <li>
-                        {text(
-                          "護士開自己嘅 T3 個人連結，第一個確認接單者得標。",
-                          "Nurses open individual T3 links; first confirmation wins.",
-                        )}
-                      </li>
-                      <li>
-                        {text(
-                          "家屬經 T16 提供單位；完成 Care Schedule 三關。",
-                          "Family provides the unit through T16; complete schedule review.",
-                        )}
-                        {session?.method === "google" && (
-                          <p className="form-hint">
+                          <button
+                            className="button secondary"
+                            onClick={() =>
+                              setScheduleEdit(
+                                JSON.stringify(c.schedule, null, 2),
+                              )
+                            }
+                          >
+                            {text("載入現有草稿", "Load draft")}
+                          </button>
+                          <textarea
+                            aria-label="Schedule JSON"
+                            value={scheduleEdit}
+                            onChange={(e) => setScheduleEdit(e.target.value)}
+                          />
+                          <button
+                            className="button secondary"
+                            disabled={busy}
+                            onClick={() => run(() => action("schedule_edit"))}
+                          >
                             {text(
-                              "資深護士須用另一帳戶進入護理覆核工作台；完成覆核後，在此重新整理並作最終確認。",
-                              "A senior nurse must review from their own account. Refresh here after their review, then give final approval.",
+                              "記錄修改（需填原因）",
+                              "Record edit (reason required)",
                             )}
-                          </p>
-                        )}
-                        <div className="ev-actions">
-                          {(["draft", "nurse", "admin"] as const).map(
-                            (step, i) => (
-                              <button
-                                className="button secondary"
-                                key={step}
-                                disabled={
-                                  busy ||
-                                  (session?.method === "google" &&
-                                    step === "nurse") ||
-                                  !["PAID", "POSTED", "MATCHED"].includes(
-                                    c.status,
-                                  ) ||
-                                  (step === "draft"
-                                    ? !!c.schedule
-                                    : step === "nurse"
-                                      ? !c.schedule ||
-                                        c.schedule_status !== "PENDING_REVIEW"
-                                      : c.schedule_status !== "NURSE_REVIEWED")
-                                }
-                                onClick={() => run(() => action(step))}
-                              >
-                                {
-                                  [
-                                    text(
-                                      "產生規則草稿",
-                                      "Generate rules draft",
-                                    ),
-                                    text("資深護士覆核", "Senior nurse review"),
-                                    text(
-                                      "管理員最終確認",
-                                      "Administrator final approval",
-                                    ),
-                                  ][i]
-                                }
-                              </button>
-                            ),
-                          )}
-                        </div>
-                      </li>
-                      <li>
-                        {text(
-                          "配對、地址、排程齊備先寄 T11，轉為 READY。",
-                          "T11 is released only after assignment, address and schedule approval.",
-                        )}
-                      </li>
-                    </ol>
-                    <div className="ev-gates">
-                      <span>
-                        {text("得標護士", "Assigned nurse")}:{" "}
-                        {c.assigned_nurse || "—"}
-                      </span>
-                      <span>
-                        {text("地址", "Address")}: {c.address_status}
-                      </span>
-                      <span>Care Schedule: {c.schedule_status}</span>
-                    </div>
-                    {c.schedule && !session && (
-                      <details className="ev-admin">
-                        <summary>
-                          {text(
-                            "人手修改時間表（須重新覆核）",
-                            "Edit schedule (requires reapproval)",
-                          )}
-                        </summary>
-                        <button
-                          className="button secondary"
-                          onClick={() =>
-                            setScheduleEdit(JSON.stringify(c.schedule, null, 2))
-                          }
-                        >
-                          {text("載入現有草稿", "Load draft")}
-                        </button>
-                        <textarea
-                          aria-label="Schedule JSON"
-                          value={scheduleEdit}
-                          onChange={(e) => setScheduleEdit(e.target.value)}
-                        />
-                        <button
-                          className="button secondary"
-                          disabled={busy}
-                          onClick={() => run(() => action("schedule_edit"))}
-                        >
-                          {text(
-                            "記錄修改（需填原因）",
-                            "Record edit (reason required)",
-                          )}
-                        </button>
-                      </details>
-                    )}
-                    {c.schedule && (
-                      <pre>
-                        {c.schedule
-                          .map(
-                            (x) =>
-                              `${x.time} ${x.item}${x.note ? `（${x.note}）` : ""}`,
-                          )
-                          .join("\n")}
-                      </pre>
-                    )}
+                          </button>
+                        </details>
+                      )}
+                      {c.schedule && (
+                        <pre>
+                          {c.schedule
+                            .map(
+                              (x) =>
+                                `${x.time} ${x.item}${x.note ? `（${x.note}）` : ""}`,
+                            )
+                            .join("\n")}
+                        </pre>
+                      )}
+                    </details>
                     {workspace?.capabilities.test_clock && (
                       <details className="ev-admin">
                         <summary>
@@ -2734,12 +3068,16 @@ export function AdminWorkspace({
                         </button>
                       </details>
                     )}
-                    <p className="form-hint">
-                      {text(
-                        "護士自行安排的項目不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
-                        "Tasks arranged by the nurse have no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
-                      )}
-                    </p>
+                    {!["CANCELLED", "EXPIRED", "PAY_TIMEOUT", "DONE"].includes(
+                      c.status,
+                    ) && (
+                      <p className="form-hint">
+                        {text(
+                          "護士自行安排的項目不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
+                          "Tasks arranged by the nurse have no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
+                        )}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <p>{text("建立個案開始驗證。", "Create a case to begin.")}</p>

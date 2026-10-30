@@ -2,6 +2,7 @@ import { dispatchBody, quoteBody } from "./workflow-content.mjs";
 import { EVENT_ALIASES, TIMER_CODES, auditDetail } from "./audit.mjs";
 import { HOLIDAY_CATALOG } from "./catalog/holidays.mjs";
 import { eligibleNurse } from "./staff-workspace.mjs";
+import { validateTransferReport } from "./transfer-report.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -669,27 +670,11 @@ export const extendWorkflow = (Base) =>
               throw new Error("提交轉帳資料期限已過，請聯絡管理員核對");
             if (!this.isManualTransfer())
               throw new Error("此個案不是 人手轉帳對數模式");
-            const ref = String(input.reference || "").trim();
-            const amount = Number(input.amount);
-            const at = Date.parse(`${input.transferred_at}+08:00`);
-            if (
-              !ref ||
-              ref.length > 100 ||
-              !Number.isInteger(amount) ||
-              amount <= 0 ||
-              !Number.isFinite(at) ||
-              at > this.now() + 60000 ||
-              at < Math.floor(Date.parse(c.created_at) / 60000) * 60000
-            )
-              throw new Error(
-                "請填有效參考編號、正整數金額及個案建立後的轉帳時間",
-              );
+            const report = validateTransferReport(input, c, this.now());
             const submission = {
               id: randomUUID(),
               case_id: c.id,
-              reference: ref,
-              amount,
-              transferred_at: new Date(at).toISOString(),
+              ...report,
               submitted_at: this.stamp(),
               status: "PENDING_REVIEW",
               test_only: this.paymentMode === "fps_test",
@@ -699,7 +684,7 @@ export const extendWorkflow = (Base) =>
             this.event("payment.fps_reported", c, {
               actor: "family",
               submission_id: submission.id,
-              amount,
+              amount: report.amount,
             });
             this.email(
               c,

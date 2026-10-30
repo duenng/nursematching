@@ -22,10 +22,10 @@ const colors = {
   brand: "#750f6d",
   dark: "#4e154f",
   peach: "#f4c8b6",
-  cream: "#faf8f6",
-  text: "#473c4c",
+  cream: "#f6f3fa",
+  text: "#342046",
   muted: "#6f6177",
-  line: "#e4d9ea",
+  line: "#eeeaf2",
 };
 const font =
   "'Manrope', 'PingFang HK', 'Microsoft JhengHei', Arial, sans-serif";
@@ -138,9 +138,9 @@ export function emailHtml(mail) {
 body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
 table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 @media only screen and (max-width:600px) {
-  .email-shell { padding:16px 8px !important; }
-  .email-pad { padding-left:24px !important; padding-right:24px !important; }
-  .email-title { font-size:27px !important; }
+  .email-shell { padding:20px 8px !important; }
+  .email-pad { padding-left:28px !important; padding-right:28px !important; }
+  .email-title { font-size:32px !important; }
   .detail-label { width:76px !important; padding-left:12px !important; padding-right:8px !important; }
 }
 </style>
@@ -148,27 +148,28 @@ table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
 <body style="margin:0;padding:0;width:100%;background-color:${colors.cream};font-family:${font};color:${colors.text};">
 <div style="display:none;font-size:1px;color:${colors.cream};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escape(preheader)}</div>
 ${table(
-  `<tr><td class="email-shell" align="center" style="padding:40px 16px;">
-<!--[if mso]><table role="presentation" width="640" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;border-spacing:0;background:#ffffff;border:1px solid ${colors.line};border-radius:12px;overflow:hidden;">
-<tr><td height="6" bgcolor="${colors.peach}" style="height:6px;font-size:0;line-height:0;">&nbsp;</td></tr>
-<tr><td class="email-pad" bgcolor="${colors.dark}" style="padding:28px 40px 26px;background-color:${colors.dark};">
-${table(`<tr><td style="font-family:${font};font-size:28px;line-height:1.3;font-weight:700;letter-spacing:-1px;color:#ffffff;"><span aria-hidden="true" style="color:${colors.peach};font-size:32px;vertical-align:middle;">&#9829;</span>&nbsp; CareKnock<span style="color:${colors.peach};">.</span></td></tr><tr><td style="padding-top:9px;font-size:11px;line-height:1.7;letter-spacing:1.8px;color:#f4c8b6;">COMPASSIONATE CARE. CLOSER TO HOME.</td></tr>`)}
+  `<tr><td class="email-shell" align="center" style="padding:52px 16px 40px;background-color:${colors.cream};">
+<!--[if mso]><table role="presentation" width="680" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:680px;border-spacing:0;background:#ffffff;border-radius:28px;overflow:hidden;">
+<tr><td class="email-pad" style="padding:38px 52px 0;background:#ffffff;">
+<p style="margin:0;font-family:${font};font-size:25px;line-height:1.3;font-weight:600;letter-spacing:-1px;color:${colors.muted};">CareKnock<span style="color:${colors.peach};">.</span></p>
 </td></tr>
-<tr><td class="email-pad" style="padding:34px 40px 28px;border-bottom:1px solid ${colors.line};background-color:#fffdfb;">
-<p style="margin:0 0 12px;font-size:11px;line-height:1.7;letter-spacing:1.8px;font-weight:700;color:${colors.brand};">${eyebrow}</p>
-<h1 class="email-title" style="margin:0 0 18px;font-family:${font};font-size:32px;line-height:1.45;font-weight:700;letter-spacing:-0.7px;overflow-wrap:anywhere;word-break:break-word;color:${colors.dark};">${escape(mail.subject)}</h1>
-<p style="margin:0;font-size:13px;line-height:1.8;color:${colors.muted};">${description}${mail.case_id ? ` &nbsp;·&nbsp; <span style="font-weight:700;color:${colors.brand};">CASE ${escape(mail.case_id)}</span>` : ""}</p>
+<tr><td class="email-pad" style="padding:62px 52px 22px;background:#ffffff;">
+<p style="margin:0 0 16px;font-size:11px;line-height:1.7;letter-spacing:1.8px;font-weight:700;color:${colors.brand};">${eyebrow}</p>
+<h1 class="email-title" style="margin:0;font-family:${font};font-size:42px;line-height:1.25;font-weight:750;letter-spacing:-1.2px;overflow-wrap:anywhere;word-break:break-word;color:${colors.dark};">${escape(mail.subject)}</h1>
 </td></tr>
-<tr><td class="email-pad" style="padding:32px 40px 14px;">${bodyHtml(mail.body)}</td></tr>
-${links.length ? `<tr><td class="email-pad" style="padding:0 40px 26px;">${actionsHtml(links)}<p style="margin:18px 0 0;font-size:12px;line-height:1.9;color:${colors.muted};">請開啟確認頁後，再按確認掣。直接開啟電郵連結不會更改個案。</p></td></tr>` : ""}
-<tr><td class="email-pad" bgcolor="#f1e7f5" style="padding:24px 40px;background-color:#f1e7f5;">
-<p style="margin:0 0 6px;font-size:16px;font-weight:700;line-height:1.7;color:${colors.dark};">用心照顧，讓家更安心。</p>
+<tr><td class="email-pad" style="padding:6px 52px 24px;background:#ffffff;">
+<p style="margin:0;font-size:17px;line-height:1.8;color:${colors.dark};">${description}${mail.case_id ? ` &nbsp;·&nbsp; <span style="font-weight:700;color:${colors.brand};">CASE ${escape(mail.case_id)}</span>` : ""}</p>
+</td></tr>
+<tr><td class="email-pad" style="padding:12px 52px 18px;background:#ffffff;">${bodyHtml(mail.body)}</td></tr>
+${links.length ? `<tr><td class="email-pad" style="padding:6px 52px 32px;background:#ffffff;">${actionsHtml(links)}<p style="margin:18px 0 0;font-size:12px;line-height:1.9;color:${colors.muted};">請開啟確認頁後，再按確認掣。直接開啟電郵連結不會更改個案。</p></td></tr>` : ""}
+<tr><td class="email-pad" style="padding:34px 52px 42px;background:#ffffff;">
+<p style="margin:0 0 8px;font-size:17px;font-weight:650;line-height:1.7;color:${colors.dark};">用心照顧，讓家更安心。</p>
 <p style="margin:0;font-size:13px;line-height:1.9;color:${colors.muted};">如需協助，請回覆此電郵，讓我們一起安排下一步。</p>
 </td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
-<p style="margin:22px 0 6px;font-family:${font};font-size:12px;line-height:1.8;font-weight:700;letter-spacing:0.5px;color:${colors.dark};">CareKnock · 香港</p>
+<p style="margin:24px 0 6px;font-family:${font};font-size:12px;line-height:1.8;font-weight:700;letter-spacing:0.5px;color:${colors.dark};">CareKnock · 香港</p>
 <p style="margin:0;font-family:${font};font-size:11px;line-height:1.8;color:${colors.muted};">HOME NURSING &amp; CARE NAVIGATION</p>
 </td></tr>`,
   `background-color:${colors.cream};`,
