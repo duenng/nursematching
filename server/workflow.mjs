@@ -1,3 +1,6 @@
+import { TEMPLATE_VERSION } from "./templates.mjs";
+import { dispatchBody, quoteBody } from "./workflow-content.mjs";
+import { HOLIDAY_CATALOG } from "./catalog/holidays.mjs";
 import { eligibleNurse } from "./staff-workspace.mjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
@@ -9,43 +12,8 @@ import {
   hasRedFlag,
 } from "./extended-workflow.mjs";
 
-export const HOLIDAYS = [
-  "2026-01-01",
-  "2026-02-17",
-  "2026-02-18",
-  "2026-02-19",
-  "2026-04-03",
-  "2026-04-04",
-  "2026-04-06",
-  "2026-04-07",
-  "2026-05-01",
-  "2026-05-25",
-  "2026-06-19",
-  "2026-07-01",
-  "2026-09-26",
-  "2026-10-01",
-  "2026-10-19",
-  "2026-12-25",
-  "2026-12-26",
-  "2027-01-01",
-  "2027-02-06",
-  "2027-02-08",
-  "2027-02-09",
-  "2027-03-26",
-  "2027-03-27",
-  "2027-03-29",
-  "2027-04-05",
-  "2027-05-01",
-  "2027-05-13",
-  "2027-06-09",
-  "2027-07-01",
-  "2027-09-16",
-  "2027-10-01",
-  "2027-10-08",
-  "2027-12-25",
-  "2027-12-27",
-];
-// Dates are transcribed from the supplied draft; official source URLs travel with the data.
+export const HOLIDAYS = HOLIDAY_CATALOG.map((h) => h.date);
+// Official source checks and retrieval timestamps travel with the catalogue.
 const FOOTER = "\n\n此為 CUHK TSSSU 申請之模擬測試，所有資料均為虛構。";
 const transitions = {
   SUBMITTED: ["QUOTED", "MANUAL", "NO_DR_ORDER", "NO_FIRST_INSERT"],
@@ -71,6 +39,25 @@ export const defaults = {
   night_special_mode: "MANUAL",
   package_offer_rule: "MANUAL",
   dispatch_preview: true,
+  day_window_start: "07:00",
+  day_window_end: "22:00",
+  night_start: "22:00",
+  night_options: {
+    NIGHT10: { hours: 10, end: "08:00" },
+    NIGHT12: { hours: 12, end: "10:00" },
+  },
+  payment_reminder_hours: 12,
+  no_taker_hours: 24,
+  quote_reminder_hours: 24,
+  quote_expiry_after_reminder_hours: 24,
+  unit_chase_hours: 12,
+  pre_service_alert_hours: 24,
+  unit_alert_hours: 12,
+  rematch_window_hours: 24,
+  cancellation_free_hours: 24,
+  reminder_lead_minutes: 10,
+  reminder_chase_hours: 1,
+  reminder_escalation_minutes: 15,
 };
 export const special = (date) =>
   new Date(`${date}T12:00:00+08:00`).getUTCDay() === 0 ||
@@ -80,26 +67,31 @@ const nextDate = (date) =>
   new Date(Date.parse(`${date}T12:00:00Z`) + 86400000)
     .toISOString()
     .slice(0, 10);
-export function price(c, s = defaults) {
-  if (!["2026", "2027"].includes(c.date.slice(0, 4)))
+export function price(c, s = defaults, holidays = HOLIDAY_CATALOG) {
+  const isSpecial = (date) =>
+    new Date(`${date}T12:00:00+08:00`).getUTCDay() === 0 ||
+    holidays.some((h) => h.date === date);
+  if (
+    !holidays.some(
+      (h) => String(h.year ?? h.date.slice(0, 4)) === c.date.slice(0, 4),
+    )
+  )
     return { manual: "假期表未涵蓋該年份" };
   const hours =
     c.shift === "DAY"
       ? Math.max((min(c.end) - min(c.start)) / 60, s.day_min_hours)
-      : c.shift === "NIGHT10"
-        ? 10
-        : 12;
-  if (c.shift !== "DAY" && (special(c.date) || special(nextDate(c.date))))
+      : (s.night_options || defaults.night_options)[c.shift].hours;
+  if (c.shift !== "DAY" && (isSpecial(c.date) || isSpecial(nextDate(c.date))))
     return { manual: "夜更涉及星期日／公眾假期，待確認" };
   if (
     c.shift === "DAY" &&
-    special(c.date) &&
+    isSpecial(c.date) &&
     (min(c.end) - min(c.start)) / 60 < s.day_min_hours
   )
     return { manual: "假日不足四小時，待確認" };
   const base = hours * (c.shift === "DAY" ? s.day_rate : s.night_rate);
   const surcharge =
-    c.shift === "DAY" && special(c.date)
+    c.shift === "DAY" && isSpecial(c.date)
       ? hours * s.holiday_surcharge_per_hour
       : 0;
   return Number.isInteger(base + surcharge)
@@ -139,13 +131,17 @@ class BaseWorkflow {
             status: i < 4 ? "VERIFIED" : "APPLIED",
             email: `n0${i + 1}@example.test`,
           })),
-          holidays: HOLIDAYS.map((date) => ({
-            date,
-            source_url: `https://www.gov.hk/tc/about/abouthk/holiday/${date.slice(0, 4)}.htm`,
-            imported_from: "v3-email draft",
-            fetched_at: null,
-          })),
+          holidays: structuredClone(HOLIDAY_CATALOG),
         };
+    this.state.settings = {
+      ...structuredClone(defaults),
+      ...this.state.settings,
+    };
+    if (!row)
+      this.event("setup.completed", null, {
+        holidays: this.state.holidays.length,
+        nurses: this.state.nurses.length,
+      });
     this.save();
   }
   save() {
@@ -156,7 +152,7 @@ class BaseWorkflow {
       .run(JSON.stringify(this.state));
   }
   quote(c) {
-    return price(c, this.state.settings);
+    return price(c, this.state.settings, this.state.holidays);
   }
   stamp() {
     return new Date(this.now()).toISOString();
@@ -165,7 +161,7 @@ class BaseWorkflow {
     this.state.events.push({
       id: randomUUID(),
       at: this.stamp(),
-      case_id: c?.id,
+      case_id: c?.id ?? null,
       event,
       time_scale: this.state.settings.time_scale,
       ...detail,
@@ -185,7 +181,7 @@ class BaseWorkflow {
       id: randomUUID(),
       case_id: c.id,
       template_id,
-      template_version: "v3-email-draft",
+      template_version: TEMPLATE_VERSION,
       to,
       subject: c.intake_mode === "LIVE" ? subject : `【測試】${subject}`,
       body:
@@ -198,7 +194,10 @@ class BaseWorkflow {
       status: "queued",
       attempts: 0,
     });
-    this.event("email.queued", c, { template_id });
+    this.event("email.queued", c, {
+      template_id,
+      template_version: this.state.emails.at(-1).template_version,
+    });
   }
   token(c, actor, action, ref) {
     const serviceStart = Date.parse(`${c.date}T${c.start}:00+08:00`);
@@ -207,6 +206,7 @@ class BaseWorkflow {
       Date.parse(`${c.date}T23:59:00+08:00`) + 7 * 86400000,
     );
     const t = {
+      id: randomUUID(),
       token: randomBytes(24).toString("hex"),
       case_id: c.id,
       actor,
@@ -241,8 +241,13 @@ class BaseWorkflow {
         types.includes(t.type) &&
         !t.fired_at &&
         !t.cancelled_at
-      )
+      ) {
         t.cancelled_at = this.stamp();
+        this.event("timer.cancelled", c, {
+          timer_id: t.id,
+          timer_code: t.type,
+        });
+      }
   }
   voidTokens(c, actions) {
     for (const t of this.state.tokens)
@@ -305,8 +310,8 @@ class BaseWorkflow {
       input.shift === "DAY" &&
       (!time.test(input.start) ||
         !time.test(input.end) ||
-        input.start < "07:00" ||
-        input.end > "22:00" ||
+        input.start < this.state.settings.day_window_start ||
+        input.end > this.state.settings.day_window_end ||
         input.start >= input.end)
     )
       throw new Error("日間服務須在 07:00–22:00 內；時間每半小時一格");
@@ -321,7 +326,7 @@ class BaseWorkflow {
     if (
       input.intake_mode === "LIVE" &&
       Date.parse(
-        `${input.date}T${input.shift === "DAY" ? input.start : "22:00"}:00+08:00`,
+        `${input.date}T${input.shift === "DAY" ? input.start : this.state.settings.night_start}:00+08:00`,
       ) <= this.now()
     )
       throw new Error("服務時間必須在將來");
@@ -335,13 +340,12 @@ class BaseWorkflow {
       building: input.building.trim(),
       date: input.date,
       shift: input.shift,
-      start: input.shift === "DAY" ? input.start : "22:00",
+      start:
+        input.shift === "DAY" ? input.start : this.state.settings.night_start,
       end:
         input.shift === "DAY"
           ? input.end
-          : input.shift === "NIGHT10"
-            ? "08:00"
-            : "10:00",
+          : this.state.settings.night_options[input.shift].end,
       services: input.services.map((x) => ({
         id: x.id,
         label: serviceLabels[x.id],
@@ -398,7 +402,7 @@ class BaseWorkflow {
         "你好，所選服務需要醫生指示，暫時唔可以安排。",
       );
     } else {
-      const quote = price(c, this.state.settings);
+      const quote = this.quote(c);
       const risk = hasRedFlag(input);
       c.red_flag = risk;
       const lead = Date.parse(`${c.date}T${c.start}:00+08:00`) - this.now();
@@ -428,6 +432,10 @@ class BaseWorkflow {
       if (reason) this.manual(c, reason);
       else {
         c.quote = quote;
+        this.event("quote.calculated", c, {
+          quote_total: quote.total,
+          lines: quote,
+        });
         this.transition(c, "QUOTED");
         const links = ["accept_single", "modify", "decline"].map((a) =>
           this.token(c, "family", a),
@@ -437,7 +445,7 @@ class BaseWorkflow {
           "T1",
           email,
           `上門護理報價 – Case ${c.id}`,
-          `你好，${c.surname}先生／女士。多謝你查詢上門護理服務（Case ${c.id}）。\n服務：${c.date} ${c.start}–${c.end}\n服務內容：${c.services.map((x) => x.label).join("、")}\n收費明細：基本費 HK$${quote.base}｜公眾假期及星期日附加費 HK$${quote.surcharge}\n總額：HK$${quote.total}\n備註：所需工具及物料需由你自備。\n付款：確認後會收到付款連結，請喺 24 小時內付清，否則預約會自動取消。\n取消／改期：服務開始前 24 小時或以上通知免費；少於 24 小時：由同事跟進。`,
+          quoteBody(c, this.state.settings),
           links,
         );
       }
@@ -449,7 +457,9 @@ class BaseWorkflow {
     const t = this.state.tokens.find((t) => t.token === token);
     const c = this.state.cases.find((c) => c.id === t?.case_id);
     if (!t || !c) throw new Error("連結已失效");
+    t.opened_at ??= this.stamp();
     this.event("link.opened", c, {
+      token_id: t.id,
       action: t.action,
       actor: t.actor === "family" ? "family" : "nurse",
       actor_code: t.actor,
@@ -488,8 +498,8 @@ class BaseWorkflow {
             this.state.settings.time_scale,
       ).toISOString();
       this.voidTokens(c, ["accept_single", "modify", "decline"]);
-      this.timer(c, "PAY_REMIND", 12);
-      this.timer(c, "PAY_EXPIRE", 24);
+      this.timer(c, "PAY_REMIND", this.state.settings.payment_reminder_hours);
+      this.timer(c, "PAY_EXPIRE", this.state.settings.payment_window_hours);
       this.event("quote.accepted_single", c);
       if (this.paymentMode === "mock") this.paymentEmail(c);
       else if (["fps_test", "bank_transfer"].includes(this.paymentMode))
@@ -627,10 +637,10 @@ class BaseWorkflow {
         "T3",
         n.email,
         `新 Case ${c.id}`,
-        `📋 Case ${c.id}\n日期時間：${c.date} ${c.start}–${c.end}\n薪酬：HK$${c.shift === "DAY" ? this.state.settings.nurse_day_rate : this.state.settings.nurse_night_rate}／小時\n地區／大廈：${c.district} ${c.building}\n照顧重點：${c.services.map((x) => `${x.label} ${x.prn ? "（按需要）" : x.times.join("、")}`).join("；")}\n先到先得，有興趣請撳以下掣：`,
+        dispatchBody(c, this.state.settings),
         [this.token(c, n.id, "take_case")],
       );
-    this.timer(c, "NO_TAKER", 24);
+    this.timer(c, "NO_TAKER", this.state.settings.no_taker_hours);
     this.event("dispatch.posted", c);
     this.save();
   }
@@ -642,7 +652,7 @@ class BaseWorkflow {
         throw new Error("草稿已建立");
       c.schedule = c.services.flatMap((x) =>
         (x.prn ? ["PRN"] : x.times.length ? x.times : ["待補時間"]).map(
-          (time) => ({ time, item: x.label }),
+          (time) => ({ time, item: x.label, note: x.note || c.remarks || "" }),
         ),
       );
       this.event("schedule.drafted", c, {
@@ -683,14 +693,16 @@ class BaseWorkflow {
       "T11",
       n.email,
       `Case ${c.id} 詳情及 Care Schedule`,
-      `Case ${c.id} 已確認，詳情如下：\n地址：${c.district} ${c.building} ${c.unit}｜聯絡：${c.surname}先生／女士 ${c.phone || "（經平台電郵）"}\nCare Schedule：${c.schedule.map((x) => `${x.time} ${x.item}`).join("\n")}\n工具物料由客人提供。`,
+      `Case ${c.id} 已確認，詳情如下：\n服務：${c.date} ${c.start}–${c.end}\n地址：${c.district} ${c.building} ${c.unit}｜聯絡：${c.surname}先生／女士 ${c.phone || "（經平台電郵）"}\n年齡／性別：${c.age ?? "未提供"}／${c.gender ?? "未提供"}\n身高體重：${c.height_cm ?? "未提供"}cm／${c.weight_kg ?? "未提供"}kg\n行動力：${c.mobility || "未提供"}\n近三個月：${c.recent_3m?.join("、") || "未提供"}\n病史：${c.medical_history || "未提供"}\n陪伴：${c.companion || "未提供"}\n客人原文備註：${c.remarks || "無"}\nCare Schedule：${c.schedule.map((x) => `${x.time} ${x.item}${x.note ? `（${x.note}）` : ""}`).join("\n")}\n工具物料由客人提供。`,
     );
     c.reminders = [];
     for (const row of c.schedule.filter((x) => x.time !== "PRN")) {
       const id = randomUUID();
       let date = c.date;
       if (c.shift !== "DAY" && row.time < c.start) date = nextDate(date);
-      const due = Date.parse(`${date}T${row.time}:00+08:00`) - 600000;
+      const due =
+        Date.parse(`${date}T${row.time}:00+08:00`) -
+        this.state.settings.reminder_lead_minutes * 60000;
       c.reminders.push({ id, ...row, due_at: new Date(due).toISOString() });
     }
     this.event("case.ready", c);
@@ -772,7 +784,8 @@ class BaseWorkflow {
           !r.confirmed_at &&
           !r.chased_at &&
           this.now() - Date.parse(r.sent_at) >=
-            3600000 / this.state.settings.time_scale
+            (this.state.settings.reminder_chase_hours * 3600000) /
+              this.state.settings.time_scale
         ) {
           r.chased_at = this.stamp();
           this.email(

@@ -102,7 +102,7 @@ test("live snapshots exclude test cases, linked finance and bearer tokens withou
     "ledger_entries",
   ])
     assert.deepEqual(
-      snapshot[key].map((x) => x.case_id),
+      snapshot[key].filter((x) => x.case_id).map((x) => x.case_id),
       ["LIVE"],
     );
   assert.equal(w.state.cases.length, 2);

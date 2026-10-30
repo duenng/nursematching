@@ -8,6 +8,9 @@ test("public server form displays service pricing and requires real enquiry deta
   );
   await page.goto("/#patient");
   await page.getByRole("button", { name: "Enquire now", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Use enquiry form", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Pricing and arrangements" }),
   ).toBeVisible();

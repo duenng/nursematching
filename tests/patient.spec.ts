@@ -52,6 +52,9 @@ test("homepage enquiry uses the server form without a browser-only consent claim
   await expect(
     page.getByRole("heading", { name: "Home nursing enquiry" }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Use enquiry form", exact: true })
+    .click();
   await expect(
     page.getByRole("checkbox", {
       name: /I agree that this information may be stored/,

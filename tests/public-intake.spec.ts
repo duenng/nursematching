@@ -18,6 +18,9 @@ test("family submits a server enquiry without staff login; privileged data stays
   ).toBeVisible();
   await expect(page.getByRole("tab", { name: /Test inbox/ })).toHaveCount(0);
   await expect(page.getByLabel("Admin key")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Use enquiry form", exact: true })
+    .click();
   await page.getByLabel("Email (required)").fill("family@example.test");
   await page.getByLabel("Surname").fill("Li");
   await page.getByLabel("Building (no unit at intake)").fill("Test Building");

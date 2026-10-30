@@ -54,6 +54,7 @@ test("Chinese homepage opens the server enquiry with meaningful data-use consent
   await expect(
     page.getByRole("heading", { name: "上門護理查詢", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "填寫表格", exact: true }).click();
   await expect(
     page.getByRole("checkbox", {
       name: "我同意將以上資料保存，用於跟進查詢、報價及安排服務。",

@@ -1,3 +1,4 @@
+import { dispatchBody } from "./workflow-content.mjs";
 import { randomUUID } from "node:crypto";
 
 const emailValid = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -8,8 +9,14 @@ export const eligibleNurse = (n, live) =>
   (!live || (realNurse(n) && !!n.registration && !!n.verified_by));
 export function staffSnapshot(state, live) {
   const { tokens, ...snapshot } = state;
-  if (!live) return snapshot;
-  const cases = state.cases.filter((c) => c.intake_mode === "LIVE");
+  const project = (c) => ({
+    ...c,
+    dispatch_preview_body: dispatchBody(c, state.settings),
+  });
+  if (!live) return { ...snapshot, cases: state.cases.map(project) };
+  const cases = state.cases
+    .filter((c) => c.intake_mode === "LIVE")
+    .map(project);
   const ids = new Set(cases.map((c) => c.id));
   return {
     ...snapshot,

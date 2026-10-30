@@ -95,7 +95,10 @@ test("HTTP confirmation safety, 10 concurrent claims, private address and persis
   for (let i = 0; i < 3; i++) {
     const r = await fetch(accept);
     assert.equal(r.status, 200);
-    assert.match(await r.text(), /form method="POST"/);
+    const page = await r.text();
+    assert.match(page, /form method="POST"/);
+    assert.match(page, /基本費 HK\$1220/);
+    assert.match(page, /總額：HK\$1220/);
   }
   assert.equal((await request("/api/workflow")).cases[0].status, "QUOTED");
   assert.equal((await fetch(accept, { method: "POST" })).status, 200);
@@ -106,6 +109,10 @@ test("HTTP confirmation safety, 10 concurrent claims, private address and persis
   const links = state.emails
     .filter((m) => m.template_id === "T3")
     .map((m) => m.links[0].url);
+  const nursePage = await (await fetch(links[0])).text();
+  assert.match(nursePage, /HK\$245／小時，共 HK\$980/);
+  assert.match(nursePage, /屯門 虛構大廈/);
+  assert.ok(!nursePage.includes("family@example.test"));
   const responses = await Promise.all(
     Array.from({ length: 10 }, (_, i) =>
       fetch(links[i % 4], { method: "POST" }),
@@ -115,6 +122,24 @@ test("HTTP confirmation safety, 10 concurrent claims, private address and persis
   state = await request("/api/workflow");
   assert.equal(state.events.filter((e) => e.event === "lock.won").length, 1);
   assert.ok(state.cases[0].assigned_nurse);
+  const losingLink = links.find(
+    (url) =>
+      !state.emails
+        .find(
+          (m) =>
+            m.template_id === "T3" &&
+            m.to ===
+              state.nurses.find((n) => n.id === state.cases[0].assigned_nurse)
+                .email,
+        )
+        .links.some((l) => l.url === url),
+  );
+  // A fresh outstanding link is shown as taken by GET; consumed links remain invalid.
+  if (losingLink)
+    assert.match(
+      await (await fetch(losingLink)).text(),
+      /連結已失效|已有護士接/,
+    );
   for (const action of ["draft", "nurse", "admin"])
     await request("/api/case-action", { id: c.id, action });
   state = await request("/api/workflow");

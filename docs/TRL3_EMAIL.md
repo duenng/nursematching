@@ -1,5 +1,7 @@
 # TRL 3 電郵及人手轉帳流程
 
+2026-10-30 更新：最新狀態以 [規格核對結果](WORKFLOW_V3_GAPS.md) 及 [實際程式驗證](TRL3_VALIDATION.md) 為準；以下舊實驗操作說明不代表目前正式工作區全部入口。外部項目由使用者確認完成，未在本輪重驗。
+
 目前使用者決定：**電郵先行，沒有 Stripe／FPS 接駁；客人人手銀行轉帳，同事查銀行入帳後確認收款，再派單**。本版本按這項決定調整附件 v3：補齊「切片＋加做」的實驗流程及人工分支，提供可重跑的驗證台。TRL 3 的正式認定取決於申請要求及實驗證據，程式不會自行宣告認證完成。
 
 ## 人手銀行轉帳設定（最新）
@@ -90,7 +92,7 @@ npm run test:workflow
 npm test
 ```
 
-`server/` 測試覆蓋計價、一次性 token、並發、套餐、重新配對、取消退款、銀行轉帳對數及邊界。瀏覽器測試使用獨立資料庫、5180／3002 ports，完整跑人手銀行轉帳套餐至完成扣時，不污染使用者的本機實驗資料。現時 workflow 46／46、browser 24／24 通過；參閱 [驗收對照表](TRL3_ACCEPTANCE.md)。
+`server/` 測試覆蓋計價、一次性 token、並發、套餐、重新配對、取消退款、銀行轉帳對數及邊界。瀏覽器測試使用獨立資料庫、5180／3002 ports，瀏覽器跑查詢、單次報價、人手銀行對數及配對；套餐完成扣時另由引擎回歸測試覆蓋，不污染使用者的本機實驗資料。本輪 workflow 70／70、browser 23／23 通過；參閱 [驗收對照表](TRL3_ACCEPTANCE.md)。
 
 證據頁允許追加 PASS／FAIL／PENDING、觀察條件及截圖代號；這是管理員記錄，不是系統自動驗收或認證。事件 CSV 不包含原始 token、病人姓名、電話、單位或銀行轉帳參考。完整 JSON 備份包含受控測試個案及動作連結，不能當公開報告分享。
 
@@ -100,6 +102,6 @@ Node.js＋SQLite，單程序同步狀態轉換、整次操作成功才保存；�
 
 `npm start` 提供 API、確認頁及每分鐘 worker，預設 3000；`npm run preview` 只有靜態頁。前後端分開時，Dokploy backend 設定 `PORT=3000`、`BASE_URL=https://api.example.com`、`FRONTEND_URL=https://care.example.com`、`CORS_ORIGINS=https://care.example.com`、`AUTH_MODE=google` 及 OAuth／角色名單，並掛載持久化 volume `/app/data`，只可一個 replica。Cloudflare Pages frontend 使用 `npm run build`、輸出 `dist`，並設定 `VITE_API_BASE_URL=https://api.example.com`。沒有管理員金鑰時只容許 localhost 管理。Google 登入模式提供管理員／資深護士獨立角色；本機／共用金鑰演練不作獨立身份證據。詳見 [職員登入及權限](STAFF_LOGIN.md)。
 
-目前沒有 live AI；草稿是依原有項目及時間做確定性整理。不得把這次測試描述成 AI 臨床能力驗證。正式 TRL 判準須與申請方確認。多次上門／跨日間夜間組合目前需分開查詢或人手處理；醫生指示可透過付款通知連結上載虛構 PDF／PNG／JPEG（最多 2 MB）；護士下載檢閱並記錄文件 ID、SHA-256、覆核說明。Google 模式需確認此文件版本先可完成護士覆核；不會自動判斷文件內容。
+Care Schedule 草稿依原有項目及時間做確定性整理；文字查詢另有可選 AI 整理，須設定及同意，不能自行報價。不得把這次測試描述成 AI 臨床能力驗證。正式 TRL 判準須與申請方確認。多次上門／跨日間夜間組合目前需分開查詢或人手處理；醫生指示可透過付款通知連結上載虛構 PDF／PNG／JPEG（最多 2 MB）；護士下載檢閱並記錄文件 ID、SHA-256、覆核說明。Google 模式需確認此文件版本先可完成護士覆核；不會自動判斷文件內容。
 
 附件原文保存在 [參考草稿](reference/workflow-v3-email-draft.md)，只作可追查資料。WhatsApp／SMS、真收款／真退款、入職全流程 T25／T26、正式改期 credit、遲到判定、套餐過期等依文件留待後續或交人手。Stripe adapter 及 FPS 回歸路線只作未來／測試用途，當前銀行轉帳路線無需相關帳戶或密鑰。

@@ -1,3 +1,4 @@
+import { confirmationDetails } from "./workflow-content.mjs";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import {
@@ -17,6 +18,8 @@ import {
 } from "./doctor-documents.mjs";
 import { staffSnapshot, saveNurse } from "./staff-workspace.mjs";
 import { publicIntake, createIntakeLimiter } from "./public-intake.mjs";
+import { organiseEnquiry, publicAssistantConfig } from "./intake-assistant.mjs";
+import { createConversationEnquiry } from "./conversation-intake.mjs";
 import { StaffAuth, canAccess, clinicalWorkspace } from "./auth.mjs";
 import nodemailer from "nodemailer";
 import { Workflow } from "./workflow.mjs";
@@ -349,16 +352,24 @@ async function integrations() {
         )
       )
         continue;
+      const mailCase = workflow.state.cases.find((c) => c.id === mail.case_id);
       if (!mailer) {
         mail.status = "captured";
         workflow.event(
           "email.captured",
           { id: mail.case_id },
-          { template_id: mail.template_id },
+          {
+            template_id: mail.template_id,
+            template_version: mail.template_version,
+            to_code:
+              workflow.state.nurses.find((n) => n.email === mail.to)?.id ||
+              (mail.to === mailCase?.email
+                ? `CLIENT-${mail.case_id}`
+                : "ADMIN"),
+          },
         );
         continue;
       }
-      const mailCase = workflow.state.cases.find((c) => c.id === mail.case_id);
       if (live && mailCase?.intake_mode !== "LIVE") continue;
       if ((!live || allowed.size > 0) && !allowed.has(mail.to.toLowerCase())) {
         mail.status = "blocked";
@@ -393,9 +404,30 @@ async function integrations() {
         mail.provider_id = info.messageId;
         mail.sent_at = workflow.stamp();
         workflow.event(
+          "email.sent",
+          { id: mail.case_id },
+          {
+            template_id: mail.template_id,
+            template_version: mail.template_version,
+            to_code:
+              workflow.state.nurses.find((n) => n.email === mail.to)?.id ||
+              (mail.to === mailCase?.email
+                ? `CLIENT-${mail.case_id}`
+                : "ADMIN"),
+          },
+        );
+        workflow.event(
           "email.smtp_accepted",
           { id: mail.case_id },
-          { template_id: mail.template_id },
+          {
+            template_id: mail.template_id,
+            template_version: mail.template_version,
+            to_code:
+              workflow.state.nurses.find((n) => n.email === mail.to)?.id ||
+              (mail.to === mailCase?.email
+                ? `CLIENT-${mail.case_id}`
+                : "ADMIN"),
+          },
         );
       } catch (error) {
         mail.status = "failed";
@@ -408,6 +440,8 @@ async function integrations() {
   }
 }
 const intakeAllowed = createIntakeLimiter();
+const assistantAllowed = createIntakeLimiter();
+let assistantRequests = 0;
 const server = http.createServer(async (req, res) => {
   res.req = req;
   const url = new URL(req.url, "http://localhost");
@@ -419,6 +453,40 @@ const server = http.createServer(async (req, res) => {
       if (!originAllowed(req))
         return reply(res, 403, { error: "Origin not allowed" });
       return reply(res, 204, "");
+    }
+    if (url.pathname === "/api/enquiries/assistant-config" && req.method === "GET")
+      return reply(res, 200, publicAssistantConfig());
+    if (url.pathname === "/api/enquiries/assistant" && req.method === "POST") {
+      if (
+        !originAllowed(req) ||
+        !req.headers["content-type"]?.includes("application/json")
+      )
+        return reply(res, 403, { error: "Origin or content type not allowed" });
+      if (!assistantAllowed(req.socket.remoteAddress) || assistantRequests >= 4)
+        return reply(res, 429, {
+          error: "AI 查詢繁忙，請稍後再試。 / Please try again shortly.",
+        });
+      assistantRequests++;
+      try {
+        return reply(res, 200, await organiseEnquiry(await body(req)));
+      } finally {
+        assistantRequests--;
+      }
+    }
+    if (
+      url.pathname === "/api/enquiries/conversation" &&
+      req.method === "POST"
+    ) {
+      if (
+        !originAllowed(req) ||
+        !req.headers["content-type"]?.includes("application/json")
+      )
+        return reply(res, 403, { error: "Origin or content type not allowed" });
+      if (!intakeAllowed(req.socket.remoteAddress))
+        return reply(res, 429, { error: "查詢過於頻密，請稍後再試" });
+      const c = createConversationEnquiry(workflow, await body(req));
+      void integrations().catch((error) => console.error(error.message));
+      return reply(res, 200, { id: c.id, status: c.status });
     }
     if (url.pathname === "/api/enquiries" && req.method === "POST") {
       if (
@@ -513,12 +581,22 @@ const server = http.createServer(async (req, res) => {
             ),
             "text/html",
           );
+        if (t.action === "take_case" && c.assigned_nurse)
+          return reply(
+            res,
+            200,
+            html(
+              "Case 已有人接",
+              `<p>Case ${escape(c.id)} 已有護士接咗，多謝你報名。</p>`,
+            ),
+            "text/html",
+          );
         return reply(
           res,
           200,
           html(
             names[t.action] || "確認操作",
-            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
+            `<p>Case ${escape(c.id)} · ${escape(c.status)}</p><pre>${escape(confirmationDetails(c, t.action, workflow.state.settings, workflow.now()))}</pre><p>開啟此頁不會接受報價、付款或接單。請按確認掣先執行。</p><form method="POST" action="/a?t=${escape(token)}">${t.action === "report_fps" ? `<p>應付 HK$${escape(c.payment_amount ?? c.quote.total)}。本頁只登記轉帳聲明，管理員須獨立核對入帳，先可派單。${mode === "bank_transfer" ? "請填寫已完成轉帳的資料；如已提交，請勿重複轉帳。" : "測試請使用虛構編號，不要轉帳。"}</p><label>轉帳參考編號<br><input name="reference" required maxlength="100" autocomplete="off"></label><br><label>轉帳金額 HKD<br><input name="amount" type="number" min="1" step="1" required></label><br><label>轉帳時間 HKT<br><input name="transferred_at" type="datetime-local" required></label><br>` : ""}${t.action === "drop" ? '<label>放飛原因<br><input name="reason" required maxlength="300"></label><p>放飛會記錄，累計 3 次將無法再接單。</p>' : ""}${t.action === "provide_unit" ? '<label>樓層及單位<br><input name="unit" required maxlength="200" autocomplete="off"></label><br>' : ""}<button type="submit">確認：${escape(names[t.action])}</button></form>`,
           ),
           "text/html",
         );
@@ -617,7 +695,7 @@ const server = http.createServer(async (req, res) => {
             email_delivery_enabled: !!mailer,
             email_restricted: !live || allowed.size > 0,
             payment: mode,
-            live_ai: false,
+            live_ai: publicAssistantConfig().enabled,
             bank_transfer_configured: workflow.bankTransferConfigured(),
             fps_configured: !!(
               process.env.FPS_TEST_RECIPIENT &&
@@ -987,7 +1065,7 @@ const server = http.createServer(async (req, res) => {
     const isAction = url.pathname === "/a";
     reply(
       res,
-      400,
+      error.status || 400,
       isAction || isAuth
         ? isAuth
           ? html(

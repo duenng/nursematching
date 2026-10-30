@@ -7,13 +7,14 @@ import {
   FlaskConical,
   LockKeyhole,
 } from "lucide-react";
-import { useLocale } from "../i18n";
+import { LanguageSwitcher, useLocale } from "../i18n";
 import { useStaffAccess } from "../StaffAccess";
 import type { StaffSession } from "../StaffAccess";
 import { apiUrl } from "../lib/api";
 import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
 import { EmailPreview } from "../EmailPreview";
+import { ConversationEnquiry } from "./ConversationEnquiry";
 
 type Service = { id: string; label: string; times: string[]; prn: boolean };
 export type Case = {
@@ -27,17 +28,27 @@ export type Case = {
   email: string;
   status: string;
   manual_reason?: string;
+  dispatch_preview_body?: string;
+  doctor_order?: string;
+  existing_tubes?: Record<string, string>;
+  remarks?: string;
+  other_need_text?: string;
+  medical_history?: string;
   red_flag?: boolean;
   date: string;
   start: string;
   end: string;
   district: string;
   building: string;
+  visits?: { date: string; shift?: string; start: string; end: string }[];
+  intake_channel?: string;
+  enquiry_summary?: string;
+  preferred_timing?: string;
   quote?: { total: number };
   assigned_nurse?: string;
   address_status: string;
   schedule_status: string;
-  schedule?: { time: string; item: string }[];
+  schedule?: { time: string; item: string; note?: string }[];
   payment_deadline?: string;
   order_type?: string;
   package_id?: string;
@@ -53,6 +64,7 @@ export type Case = {
     times: string[];
     prn: boolean;
     doctor_order_required?: boolean;
+    replace_only?: boolean;
   }[];
 };
 type Email = {
@@ -77,6 +89,13 @@ type Event = {
   actor?: string;
   actor_code?: string;
   auth_method?: string;
+  env?: string;
+  from_status?: string;
+  to_status?: string;
+  template_id?: string;
+  template_version?: string;
+  token_id?: string;
+  detail_json?: string;
 };
 export type Workspace = {
   settings: {
@@ -219,6 +238,9 @@ export function AdminWorkspace({
   );
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState("");
+  const [enquiryMode, setEnquiryMode] = useState<"conversation" | "form">(
+    "conversation",
+  );
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState(initialCaseId);
   const [mailId, setMailId] = useState("");
@@ -242,6 +264,7 @@ export function AdminWorkspace({
       allow_arrival_completion: false,
       package_release: false,
       notify_others: false,
+      notify_data_deletion: false,
     } as Record<string, boolean | string>,
   });
   const [form, setForm] = useState({
@@ -276,6 +299,9 @@ export function AdminWorkspace({
     doctor_order_file: "",
     intake_version: "v3",
   });
+  const [additionalVisits, setAdditionalVisits] = useState<
+    { date: string; shift: string; start: string; end: string }[]
+  >([]);
   const [intakeReview, setIntakeReview] = useState(false);
   const [receipt, setReceipt] = useState<{
     id: string;
@@ -431,6 +457,10 @@ export function AdminWorkspace({
   });
   const [remoteTier, setRemoteTier] = useState("C");
   const [scheduleEdit, setScheduleEdit] = useState("");
+  const [correctedOrder, setCorrectedOrder] = useState("UNSURE");
+  const [correctedTubes, setCorrectedTubes] = useState<Record<string, string>>(
+    {},
+  );
   const [clockTo, setClockTo] = useState("");
   const [remoteImport, setRemoteImport] = useState("");
   const [evidenceForm, setEvidenceForm] = useState({
@@ -448,6 +478,9 @@ export function AdminWorkspace({
         tier: remoteTier,
         red_flag_resolved: redFlagConfirmed,
         red_flag_resolution: redFlagResolution,
+        ...(action === "correct_intake"
+          ? { doctor_order: correctedOrder, existing_tubes: correctedTubes }
+          : {}),
         ...(action === "schedule_edit"
           ? { schedule: JSON.parse(scheduleEdit) }
           : {}),
@@ -465,6 +498,13 @@ export function AdminWorkspace({
         "time_scale",
         "actor_code",
         "auth_method",
+        "env",
+        "from_status",
+        "to_status",
+        "template_id",
+        "template_version",
+        "token_id",
+        "detail_json",
       ],
       ...workspace.events.map((e) => [
         e.id,
@@ -475,6 +515,13 @@ export function AdminWorkspace({
         e.time_scale,
         e.actor_code || "",
         e.auth_method || "",
+        e.env || "",
+        e.from_status || "",
+        e.to_status || "",
+        e.template_id || "",
+        e.template_version || "",
+        e.token_id || "",
+        e.detail_json || "",
       ]),
     ];
     const blob = new Blob(
@@ -483,7 +530,15 @@ export function AdminWorkspace({
           rows
             .map((r) =>
               r
-                .map((v) => '"' + String(v).replaceAll('"', '""') + '"')
+                .map(
+                  (v) =>
+                    '"' +
+                    (/^[=+@\-\t\r]/.test(String(v))
+                      ? "'" + String(v)
+                      : String(v)
+                    ).replaceAll('"', '""') +
+                    '"',
+                )
                 .join(","),
             )
             .join("\r\n"),
@@ -523,6 +578,13 @@ export function AdminWorkspace({
               ? "22:00–08:00"
               : "22:00–10:00"}
         </p>
+        {additionalVisits.length > 0 && (
+          <pre>
+            {additionalVisits
+              .map((v) => `${v.date} ${v.shift} ${v.start}–${v.end}`)
+              .join("\n")}
+          </pre>
+        )}
         <pre>
           {items
             .map(
@@ -558,6 +620,25 @@ export function AdminWorkspace({
                       ? { fictional: undefined }
                       : {}),
                     services: items,
+                    ...(additionalVisits.length
+                      ? {
+                          visits: [
+                            {
+                              date: form.date,
+                              shift: form.shift,
+                              start:
+                                form.shift === "DAY" ? form.start : "22:00",
+                              end:
+                                form.shift === "DAY"
+                                  ? form.end
+                                  : form.shift === "NIGHT10"
+                                    ? "08:00"
+                                    : "10:00",
+                            },
+                            ...additionalVisits,
+                          ],
+                        }
+                      : {}),
                   },
                 );
                 if (publicIntake) setReceipt(result);
@@ -782,6 +863,112 @@ export function AdminWorkspace({
             </>
           )}
         </div>
+        <details>
+          <summary>
+            {text("多次上門／日夜組合", "Additional visits / day and night")}
+          </summary>
+          <p>
+            {text(
+              "可記錄多段需求，由同事跟進；組合收費規則未確認，不會自動報價。",
+              "Record each requested visit for staff follow-up. Combined pricing requires manual review.",
+            )}
+          </p>
+          {additionalVisits.map((v, index) => (
+            <div className="ev-grid" key={index}>
+              <label>
+                {text("服務日期", "Visit date")}
+                <input
+                  type="date"
+                  required
+                  value={v.date}
+                  onChange={(e) =>
+                    setAdditionalVisits(
+                      additionalVisits.map((r, n) =>
+                        n === index ? { ...r, date: e.target.value } : r,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label>
+                {text("時段", "Visit shift")}
+                <select
+                  value={v.shift}
+                  onChange={(e) =>
+                    setAdditionalVisits(
+                      additionalVisits.map((r, n) =>
+                        n === index
+                          ? {
+                              ...r,
+                              shift: e.target.value,
+                              start:
+                                e.target.value === "DAY" ? "10:00" : "22:00",
+                              end:
+                                e.target.value === "DAY"
+                                  ? "14:00"
+                                  : e.target.value === "NIGHT10"
+                                    ? "08:00"
+                                    : "10:00",
+                            }
+                          : r,
+                      ),
+                    )
+                  }
+                >
+                  {["DAY", "NIGHT10", "NIGHT12"].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+              {(["start", "end"] as const).map((field) => (
+                <label key={field}>
+                  {text(
+                    field === "start" ? "開始" : "結束",
+                    field === "start" ? "Visit start" : "Visit end",
+                  )}
+                  <input
+                    type="time"
+                    step="1800"
+                    required
+                    disabled={v.shift !== "DAY"}
+                    value={v[field]}
+                    onChange={(e) =>
+                      setAdditionalVisits(
+                        additionalVisits.map((r, n) =>
+                          n === index ? { ...r, [field]: e.target.value } : r,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              ))}
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() =>
+                  setAdditionalVisits(
+                    additionalVisits.filter((_, n) => n !== index),
+                  )
+                }
+              >
+                {text("移除", "Remove")}
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="button secondary"
+            disabled={additionalVisits.length >= 29}
+            onClick={() =>
+              setAdditionalVisits([
+                ...additionalVisits,
+                { date: form.date, shift: "DAY", start: "10:00", end: "14:00" },
+              ])
+            }
+          >
+            {text("加入上門時段", "Add visit")}
+          </button>
+        </details>
         <fieldset>
           <legend>
             {text(
@@ -1036,68 +1223,97 @@ export function AdminWorkspace({
   if (publicIntake)
     return (
       <div className="email-validation ev-public">
+        <LanguageSwitcher />
         <div className="ev-heading">
           <div>
             <p className="eyebrow">CareKnock</p>
             <h1>{text("上門護理查詢", "Home nursing enquiry")}</h1>
             <p>
               {text(
-                "請填寫真實聯絡資料；查詢會由同事透過電郵跟進。轉帳資料須由管理員人手核對銀行入帳。",
-                "Use your real contact details. Staff will follow up by email; bank transfers are independently reconciled by an administrator.",
+                "先說說病人狀況，讓 AI 協助整理；你亦可選擇填寫表格。同事會透過電郵跟進查詢。",
+                "Start with the patient's situation and let AI help organise your enquiry, or choose the form. Staff will follow up by email.",
               )}
             </p>
           </div>
         </div>
-        <section className="panel ev-panel">
-          <h2>{text("收費及安排", "Pricing and arrangements")}</h2>
-          <p>
-            {text(
-              "日間 07:00–22:00：HK$305／小時，最低四小時；夜間 22:00–翌日08:00／10:00：HK$325／小時，固定10／12小時。星期日及公眾假期另加 HK$30／小時；跨日假期組合及未定規則交人手。",
-              "Day 07:00–22:00: HK$305/hour, four-hour minimum. Night 22:00–08:00/10:00: HK$325/hour, fixed 10/12 hours. Sundays and public holidays add HK$30/hour; unresolved cross-day rules require manual review.",
-            )}
-          </p>
-          <p>
-            {text(
-              "30 小時日間套餐 HK$8,650，適用條件由同事核實。工具物料由客人自備；偏遠地區不另向客人收費。確認報價後24小時付款；≥24小時取消免費，少於24小時及改期交人手。付款指示會透過電郵另行提供，提交轉帳資料後須由同事核對入帳。",
-              "30-hour day package HK$8,650, subject to staff confirmation of eligibility. Customers supply materials; remote locations do not add customer fees. Payment is due within 24 hours of quote acceptance. Cancellation at least 24 hours ahead is free; shorter notice and rescheduling require manual handling. Payment instructions are sent separately by email; staff verify the bank receipt after you submit transfer details.",
-            )}
-          </p>
-        </section>
-        {error && (
-          <p role="alert" className="ev-error">
-            {error}
-          </p>
-        )}
-        {receipt ? (
-          <section className="panel ev-panel" role="status">
-            <h2>
-              {text("已收到查詢", "Enquiry received")} · {receipt.id}
-            </h2>
+        <div
+          className="conversation-mode-switch"
+          role="group"
+          aria-label={text("查詢方式", "Enquiry method")}
+        >
+          <button
+            className="button"
+            aria-pressed={enquiryMode === "conversation"}
+            onClick={() => setEnquiryMode("conversation")}
+          >
+            {text("文字／AI 查詢", "Describe with AI")}
+          </button>
+          <button
+            className="button"
+            aria-pressed={enquiryMode === "form"}
+            onClick={() => setEnquiryMode("form")}
+          >
+            {text("填寫表格", "Use enquiry form")}
+          </button>
+        </div>
+        <div hidden={enquiryMode !== "conversation"}>
+          <ConversationEnquiry />
+        </div>
+        <div hidden={enquiryMode !== "form"}>
+          <section className="panel ev-panel">
+            <h2>{text("收費及安排", "Pricing and arrangements")}</h2>
             <p>
               {text(
-                "請留意電郵；需要核實嘅資料由同事跟進。收到報價後，請開啟電郵內連結並在確認頁操作。",
-                "Check your email. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page.",
+                "日間 07:00–22:00：HK$305／小時，最低四小時；夜間 22:00–翌日08:00／10:00：HK$325／小時，固定10／12小時。星期日及公眾假期另加 HK$30／小時；跨日假期組合及未定規則交人手。",
+                "Day 07:00–22:00: HK$305/hour, four-hour minimum. Night 22:00–08:00/10:00: HK$325/hour, fixed 10/12 hours. Sundays and public holidays add HK$30/hour; unresolved cross-day rules require manual review.",
               )}
             </p>
-            {receipt.quote && (
-              <p>
-                {text("報價總額", "Quoted total")}: HK$ {receipt.quote.total}
-              </p>
-            )}
-            <button
-              className="button secondary"
-              onClick={() => {
-                setReceipt(null);
-                setForm({ ...form, fictional: false, consent: false });
-              }}
-            >
-              {text("提交另一個查詢", "Submit another enquiry")}
-            </button>
+            <p>
+              {text(
+                "30 小時日間套餐 HK$8,650，適用條件由同事核實。工具物料由客人自備；偏遠地區不另向客人收費。確認報價後24小時付款；≥24小時取消免費，少於24小時及改期交人手。付款指示會透過電郵另行提供，提交轉帳資料後須由同事核對入帳。",
+                "30-hour day package HK$8,650, subject to staff confirmation of eligibility. Customers supply materials; remote locations do not add customer fees. Payment is due within 24 hours of quote acceptance. Cancellation at least 24 hours ahead is free; shorter notice and rescheduling require manual handling. Payment instructions are sent separately by email; staff verify the bank receipt after you submit transfer details.",
+              )}
+            </p>
           </section>
-        ) : (
-          intakePanel
-        )}
-        {reviewDialog}
+          {error && (
+            <p role="alert" className="ev-error">
+              {error}
+            </p>
+          )}
+          {receipt ? (
+            <section className="panel ev-panel" role="status">
+              <h2>
+                {text("已收到查詢", "Enquiry received")} · {receipt.id}
+              </h2>
+              <p>
+                {text(
+                  "請留意電郵；需要核實嘅資料由同事跟進。收到報價後，請開啟電郵內連結並在確認頁操作。",
+                  "Check your email. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page.",
+                )}
+              </p>
+              {receipt.quote && (
+                <p>
+                  {text("報價總額", "Quoted total")}: HK$ {receipt.quote.total}
+                </p>
+              )}
+              <button
+                className="button secondary"
+                onClick={() => {
+                  setReceipt(null);
+                  setForm({ ...form, fictional: false, consent: false });
+                }}
+              >
+                {text("提交另一個查詢", "Submit another enquiry")}
+              </button>
+            </section>
+          ) : (
+            intakePanel
+          )}
+          {reviewDialog}
+        </div>
+        <a className="conversation-home-link" href="/">
+          {text("返回主頁", "Back to home")}
+        </a>
       </div>
     );
 
@@ -1322,6 +1538,7 @@ export function AdminWorkspace({
                         allow_arrival_completion: "到達／完成確認",
                         package_release: "套餐取消釋放預留時數",
                         notify_others: "通知其他護士已接單",
+                        notify_data_deletion: "放飛／取消後要求刪除客人資料",
                       } as Record<string, string>
                     )[k] || k}
                   </>
@@ -1481,12 +1698,47 @@ export function AdminWorkspace({
                       <br />
                       {c.district} · {c.building}
                     </p>
+                    {c.visits && c.visits.length > 1 && (
+                      <pre>
+                        {c.visits
+                          .map(
+                            (v) =>
+                              `${v.date} ${v.shift || ""} ${v.start}–${v.end}`,
+                          )
+                          .join("\n")}
+                      </pre>
+                    )}
                     {operational && (
                       <p>
                         {c.patient_ref} · {c.surname}
                         <br />
                         {c.email} · {c.phone || "—"}
                       </p>
+                    )}
+                    {c.intake_channel === "conversation" && (
+                      <section className="conversation-summary">
+                        <h3>
+                          {text(
+                            "文字護理查詢（待核實）",
+                            "Care enquiry (verification pending)",
+                          )}
+                        </h3>
+                        {c.enquiry_summary && <p>{c.enquiry_summary}</p>}
+                        <p>
+                          {text("期望時間", "Preferred timing")}:{" "}
+                          {c.preferred_timing || text("待確認", "To confirm")}
+                        </p>
+                        <h4>
+                          {text("家屬原文", "Family's original description")}
+                        </h4>
+                        <p style={{ whiteSpace: "pre-wrap" }}>{c.remarks}</p>
+                        <p>
+                          {text(
+                            "請先與家屬核實，另建完整服務安排後才可報價。",
+                            "Follow up with the family and create a complete service request before quoting.",
+                          )}
+                        </p>
+                      </section>
                     )}
                     {c.quote && <h3>HK${c.quote.total.toLocaleString()}</h3>}
                     <div className="ev-gates">
@@ -1694,6 +1946,64 @@ export function AdminWorkspace({
                           onChange={(e) => setAdminReason(e.target.value)}
                         />
                       </label>
+                      {c.status === "MANUAL" && !c.package_id && (
+                        <details>
+                          <summary>
+                            {text(
+                              "更正醫生指示／現有喉管資料",
+                              "Correct doctor order / existing tube facts",
+                            )}
+                          </summary>
+                          <p>
+                            {text(
+                              "更正後仍須重新驗證及發報價；不代表醫生文件已核實。",
+                              "Corrections require revalidation and a new quote; they do not verify a doctor document.",
+                            )}
+                          </p>
+                          <label>
+                            {text("醫生指示", "Doctor order")}
+                            <select
+                              value={correctedOrder}
+                              onChange={(e) =>
+                                setCorrectedOrder(e.target.value)
+                              }
+                            >
+                              {["YES", "NO", "UNSURE", "NA"].map((v) => (
+                                <option key={v}>{v}</option>
+                              ))}
+                            </select>
+                          </label>
+                          {c.services
+                            ?.filter((s) => s.replace_only)
+                            .map((s) => (
+                              <label key={s.id}>
+                                {s.label}
+                                <select
+                                  value={correctedTubes[s.id!] || "UNSURE"}
+                                  onChange={(e) =>
+                                    setCorrectedTubes({
+                                      ...correctedTubes,
+                                      [s.id!]: e.target.value,
+                                    })
+                                  }
+                                >
+                                  {["YES", "NO_FIRST_INSERT", "UNSURE"].map(
+                                    (v) => (
+                                      <option key={v}>{v}</option>
+                                    ),
+                                  )}
+                                </select>
+                              </label>
+                            ))}
+                          <button
+                            className="button secondary"
+                            disabled={busy || !adminReason.trim()}
+                            onClick={() => run(() => action("correct_intake"))}
+                          >
+                            {text("記錄更正", "Record correction")}
+                          </button>
+                        </details>
+                      )}
                       {c.red_flag && (
                         <div>
                           <label>
@@ -1801,7 +2111,11 @@ export function AdminWorkspace({
                         ].map(([a, label]) => (
                           <button
                             type="button"
-                            disabled={busy}
+                            disabled={
+                              busy ||
+                              (a === "issue_quote" &&
+                                c.intake_channel === "conversation")
+                            }
                             className="button secondary"
                             key={a}
                             onClick={() => run(() => action(a))}
@@ -1868,21 +2182,7 @@ export function AdminWorkspace({
                               "Dispatch preview (no name, phone or unit)",
                             )}
                           </summary>
-                          <p>
-                            {c.date} {c.start}–{c.end}
-                            <br />
-                            {c.district} {c.building}
-                          </p>
-                          <p>
-                            {text(
-                              operational
-                                ? "派單會列出所選護理項目、偏好時間及已確認薪酬。"
-                                : "所選護理項目、偏好時間及已確認測試薪酬會列於 T3。",
-                              operational
-                                ? "Dispatch includes care items, preferred times and confirmed rates."
-                                : "T3 includes selected care items, times and confirmed test rates.",
-                            )}
-                          </p>
+                          <pre>{c.dispatch_preview_body}</pre>
                         </details>
                       </li>
                       <li>
@@ -1997,7 +2297,10 @@ export function AdminWorkspace({
                     {c.schedule && (
                       <pre>
                         {c.schedule
-                          .map((x) => `${x.time} ${x.item}`)
+                          .map(
+                            (x) =>
+                              `${x.time} ${x.item}${x.note ? `（${x.note}）` : ""}`,
+                          )
                           .join("\n")}
                       </pre>
                     )}
@@ -2543,6 +2846,9 @@ type ClinicalCase = Case & {
   gender?: string;
   medical_history?: string;
   remarks?: string;
+  enquiry_summary?: string;
+  preferred_timing?: string;
+  patient_age_description?: string;
   doctor_order?: string;
   doctor_order_status?: string;
   doctor_order_file?: string;
@@ -2748,7 +3054,7 @@ export function ClinicalWorkspace({ session }: { session: StaffSession }) {
               <dd>
                 {c.age != null && c.age !== ""
                   ? `${c.age}${text(" 歲", " years")}`
-                  : missing}
+                  : c.patient_age_description || missing}
               </dd>
             </div>
             <div>
@@ -2787,6 +3093,21 @@ export function ClinicalWorkspace({ session }: { session: StaffSession }) {
             )}
           </section>
           <div className="ev-clinical-notes">
+            {c.enquiry_summary && (
+              <section>
+                <h3>
+                  {text(
+                    "家屬已核對的 AI 整理摘要（待同事核實）",
+                    "Family-reviewed AI summary (staff verification pending)",
+                  )}
+                </h3>
+                <p>{c.enquiry_summary}</p>
+                <p>
+                  {text("期望時間", "Preferred timing")}:{" "}
+                  {c.preferred_timing || missing}
+                </p>
+              </section>
+            )}
             <section>
               <h3>{text("病史", "Medical history")}</h3>
               <p>{c.medical_history?.trim() || missing}</p>

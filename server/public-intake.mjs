@@ -25,6 +25,7 @@ const fields = [
   "remarks",
   "other",
   "services",
+  "visits",
 ];
 export const publicIntake = (input) => ({
   ...Object.fromEntries(

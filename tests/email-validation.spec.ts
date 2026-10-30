@@ -104,6 +104,8 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await expect(
     family.getByRole("button", { name: "確認：接受單次報價" }),
   ).toBeVisible();
+  await expect(family.locator("main")).toContainText("基本費 HK$1220");
+  await expect(family.locator("main")).toContainText("總額：HK$1220");
   expect(
     (await (await page.request.get("/api/workflow")).json()).cases.find(
       (x: { id: string }) => x.id === c.id,
@@ -156,6 +158,23 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
     .click();
   await expect(page.locator(".ev-state")).toContainText("PAID");
   await page
+    .getByText("Dispatch preview (no name, phone or unit)", { exact: true })
+    .click();
+  const preview = page
+    .locator("details")
+    .filter({
+      has: page.getByText("Dispatch preview (no name, phone or unit)", {
+        exact: true,
+      }),
+    });
+  await expect(preview).toContainText("HK$245／小時，共 HK$980");
+  await expect(preview).toContainText("Workflow Building");
+  await expect(preview).not.toContainText("family@careknock.invalid");
+  await page.screenshot({
+    path: "test-results/v3-dispatch-preview.png",
+    fullPage: true,
+  });
+  await page
     .getByRole("button", { name: "Approve preview and dispatch", exact: true })
     .click();
   await expect(page.locator(".ev-state")).toContainText("POSTED");
@@ -165,6 +184,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
       m.case_id === c.id && m.template_id === "T3" && m.to === provider.email,
   );
   expect(broadcast.body).not.toContain("family@careknock.invalid");
+  expect(broadcast.body).toContain("HK$245／小時，共 HK$980");
   expect((await page.request.post(broadcast.links[0].url)).ok()).toBeTruthy();
   await page.reload();
   await expect(page.locator(".ev-state")).toContainText("MATCHED");

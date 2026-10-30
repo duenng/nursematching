@@ -1,3 +1,6 @@
+import { dispatchBody, quoteBody } from "./workflow-content.mjs";
+import { EVENT_ALIASES, TIMER_CODES, auditDetail } from "./audit.mjs";
+import { HOLIDAY_CATALOG } from "./catalog/holidays.mjs";
 import { eligibleNurse } from "./staff-workspace.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
@@ -37,6 +40,7 @@ export const EXPERIMENT_POLICIES = {
   allow_arrival_completion: false,
   package_release: false,
   notify_others: false,
+  notify_data_deletion: false,
 };
 const operators = new AsyncLocalStorage();
 const hour = 3600000;
@@ -70,6 +74,7 @@ const policyDefaults = {
   package_hours: 30,
   package_price: 8650,
   package_discount: 500,
+  package_list_price: 9150,
   package_low_balance_hours: 4,
   nurse_travel_allowance: 150,
   max_drop_strikes: 3,
@@ -105,7 +110,12 @@ export const extendWorkflow = (Base) =>
       this.state.template_catalog = TEMPLATE_CATALOG;
       this.state.service_catalog = SERVICE_CATALOG;
       this.state.districts = DISTRICTS;
-      this.state.schema_version = 3;
+      this.state.schema_version = 4;
+      this.state.holidays = this.state.holidays.map((h) => ({
+        ...h,
+        ...HOLIDAY_CATALOG.find((r) => r.date === h.date),
+      }));
+      for (const t of this.state.tokens) t.id ??= randomUUID();
       this.state.payment_submissions ??= [];
       this.state.payment_reconciliations ??= [];
       this.state.evidence_requirements ??= [
@@ -178,6 +188,7 @@ export const extendWorkflow = (Base) =>
       super.timer(c, type, hours, ref);
       Object.assign(this.state.timers.at(-1), {
         start_at: this.stamp(),
+        timer_code: TIMER_CODES[type] || type,
         time_scale: this.state.settings.time_scale,
       });
     }
@@ -232,6 +243,8 @@ export const extendWorkflow = (Base) =>
       this.cancelAll(c);
     }
     event(event, c, detail = {}) {
+      c = this.state.cases.find((item) => item.id === c?.id) || c;
+      detail = auditDetail(detail, c);
       const actors = {
         "case.submitted": "family",
         "quote.accepted_single": "family",
@@ -256,7 +269,15 @@ export const extendWorkflow = (Base) =>
         actor_code:
           detail.nurse ||
           (actor === "nurse" ? c?.assigned_nurse : null) ||
-          actor,
+          (actor === "family" && c ? `CLIENT-${c.id}` : actor),
+        from_status: detail.from ?? c?.status ?? null,
+        to_status: detail.to ?? c?.status ?? null,
+        template_id: detail.template_id ?? null,
+        template_version:
+          detail.template_version ??
+          (detail.template_id ? TEMPLATE_VERSION : null),
+        token_id: detail.token_id ?? this.actionToken?.id ?? null,
+        detail_json: JSON.stringify(detail),
         ...detail,
         ...(operators.getStore()
           ? {
@@ -269,6 +290,24 @@ export const extendWorkflow = (Base) =>
             }
           : {}),
       });
+      const record = this.state.events.at(-1);
+      record.event_id = record.id;
+      record.ts = record.at;
+      record.timer_code =
+        TIMER_CODES[detail.timer_code] ||
+        detail.timer_code ||
+        TIMER_CODES[detail.type] ||
+        null;
+      if (EVENT_ALIASES[event]) {
+        const id = randomUUID();
+        this.state.events.push({
+          ...record,
+          id,
+          event_id: id,
+          event: EVENT_ALIASES[event],
+          legacy_event_id: record.id,
+        });
+      }
     }
     intakeFields(i) {
       return {
@@ -297,20 +336,26 @@ export const extendWorkflow = (Base) =>
         nurse_travel_allowance: 0,
         applicants: [],
         nurse_history: [],
-        visits: [
-          {
-            id: "V1",
-            date: i.date,
-            start: i.shift === "DAY" ? i.start : "22:00",
-            end:
-              i.shift === "DAY"
-                ? i.end
-                : i.shift === "NIGHT10"
-                  ? "08:00"
-                  : "10:00",
-            status: "PLANNED",
-          },
-        ],
+        visits: i.visits?.length
+          ? i.visits.map((v, index) => ({
+              ...v,
+              id: `V${index + 1}`,
+              status: "PLANNED",
+            }))
+          : [
+              {
+                id: "V1",
+                date: i.date,
+                start: i.shift === "DAY" ? i.start : "22:00",
+                end:
+                  i.shift === "DAY"
+                    ? i.end
+                    : i.shift === "NIGHT10"
+                      ? "08:00"
+                      : "10:00",
+                status: "PLANNED",
+              },
+            ],
       };
     }
     routingReason(c, i) {
@@ -352,6 +397,40 @@ export const extendWorkflow = (Base) =>
     }
     create(i) {
       return this.transaction(() => {
+        if (
+          i.visits !== undefined &&
+          (!Array.isArray(i.visits) ||
+            !i.visits.length ||
+            i.visits.length > 30 ||
+            i.visits.some(
+              (v) =>
+                !/^202[67]-\d{2}-\d{2}$/.test(v.date || "") ||
+                !Number.isFinite(Date.parse(`${v.date}T00:00:00Z`)) ||
+                new Date(`${v.date}T00:00:00Z`).toISOString().slice(0, 10) !==
+                  v.date ||
+                !/^([01]\d|2[0-3]):(00|30)$/.test(v.start || "") ||
+                !/^([01]\d|2[0-3]):(00|30)$/.test(v.end || "") ||
+                !["DAY", "NIGHT10", "NIGHT12"].includes(v.shift) ||
+                (v.shift === "DAY"
+                  ? v.start < "07:00" || v.end > "22:00" || v.start >= v.end
+                  : v.start !== "22:00" ||
+                    v.end !== (v.shift === "NIGHT10" ? "08:00" : "10:00")),
+            ))
+        )
+          throw new Error("每次上門須填有效日期、時段及半小時時間");
+        if (
+          i.visits?.length &&
+          (i.visits[0].date !== i.date ||
+            i.visits[0].shift !== i.shift ||
+            i.visits[0].start !== (i.shift === "DAY" ? i.start : "22:00") ||
+            i.visits[0].end !==
+              (i.shift === "DAY"
+                ? i.end
+                : i.shift === "NIGHT10"
+                  ? "08:00"
+                  : "10:00"))
+        )
+          throw new Error("首段上門資料須與主要服務時段相同");
         if (i.intake_version === "v3") {
           if (!i.patient_ref?.trim() || i.patient_ref.length > 100)
             throw new Error("請提供同一病人的固定代號");
@@ -403,6 +482,8 @@ export const extendWorkflow = (Base) =>
       });
     }
     email(c, id, to, subject, body, links = []) {
+      if (["T3", "T21"].includes(id))
+        body = dispatchBody(c, this.state.settings);
       if (id === "T14m" && c.remote_review_required) id = "T14g";
       if (["T1", "T1b"].includes(id) && c.quote) {
         const active = this.state.packages?.find(
@@ -428,9 +509,14 @@ export const extendWorkflow = (Base) =>
           body = `你好，${c.surname}先生／女士。多謝你再次預約（Case ${c.id}）。\n服務：${c.date} ${c.start}–${c.end}\n服務內容：${c.services.map((s) => s.label).join("、")}\n套餐扣時：今次會由你嘅 30 小時套餐（${active.id}）扣 ${c.quote.hours} 小時（完成服務後先扣），而家可用 ${available(active)} 小時。\n如時數不足、夜間或假期規則未確認，將交人手核實，不會自動扣款。`;
         } else if (c.package_offer_visible) {
           links = [...links, this.token(c, "family", "accept_package")];
-          body += `\n\n💡 30 小時套餐優惠：一次過買 30 小時日間服務，原價 HK$9,150，套餐價 HK$${this.state.settings.package_price}（慳 HK$500，平均約 HK$288.3／小時）。今次服務會由套餐扣 ${c.quote.hours} 小時，餘下 ${this.state.settings.package_hours - c.quote.hours} 小時可以下次預約用。`;
+          body += `\n\n💡 ${this.state.settings.package_hours} 小時套餐優惠：一次過買 ${this.state.settings.package_hours} 小時日間服務，原價 HK$${this.state.settings.package_list_price.toLocaleString("en-HK")}，套餐價 HK$${this.state.settings.package_price}（慳 HK$${this.state.settings.package_discount}，平均約 HK$${(this.state.settings.package_price / this.state.settings.package_hours).toFixed(1)}／小時）。今次服務會由套餐扣 ${c.quote.hours} 小時，餘下 ${this.state.settings.package_hours - c.quote.hours} 小時可以下次預約用。`;
         }
-        if (this.state.settings.quote_expiry) this.timer(c, "QUOTE_REMIND", 24);
+        if (this.state.settings.quote_expiry)
+          this.timer(
+            c,
+            "QUOTE_REMIND",
+            this.state.settings.quote_reminder_hours,
+          );
       }
       if (
         ["T9", "T9b"].includes(id) &&
@@ -452,19 +538,55 @@ export const extendWorkflow = (Base) =>
             this.token(c, c.assigned_nurse, a),
           ),
         ];
+      if (id === "T11" && !links.some((l) => l.label === "drop"))
+        links = [...links, this.token(c, c.assigned_nurse, "drop")];
       if (
         id === "T16" &&
         this.state.settings.unit_chase &&
         !c.unit_chase_scheduled
       ) {
         c.unit_chase_scheduled = true;
-        this.timer(c, "UNIT_CHASE", 12);
+        this.timer(c, "UNIT_CHASE", this.state.settings.unit_chase_hours);
       }
-      super.email(c, id, to, subject, canonical(id, c, body), links);
+      if (id === "T10") {
+        const original = this.state.emails.findLast(
+          (m) => m.case_id === c.id && ["T8", "T8b"].includes(m.template_id),
+        );
+        links = original?.links || [];
+      }
+      body = canonical(id, c, body);
+      if (id === "T24" && this.state.settings.notify_data_deletion)
+        body +=
+          "\n請刪除先前收到的客人聯絡、地址及護理資料，並勿再使用相關資料。";
+      super.email(c, id, to, subject, body, links);
       const mail = this.state.emails.at(-1);
       mail.template_version = TEMPLATE_VERSION;
+      if (["T8", "T8b"].includes(id))
+        this.event("payment.link_created", c, {
+          amount: c.payment_amount ?? c.quote.total,
+        });
+      if (id === "T10b") this.event("payment.timeout", c);
+      if (id.startsWith("T14"))
+        this.event("admin.alert", c, { template_id: id });
+      if (["T9", "T9b"].includes(id) && this.state.settings.dispatch_preview) {
+        this.email(
+          c,
+          "T14",
+          this.state.admin_email || "admin@example.test",
+          `派單預覽 – Case ${c.id}`,
+          `${dispatchBody(c, this.state.settings)}\n\n請登入工作台核對內容及薪酬後按「確認預覽並派單」。本信不會自動派單。`,
+          [{ label: "開職員工作台", url: `${this.baseUrl}/#staff` }],
+        );
+      }
     }
     valid(t, c) {
+      if (
+        ["cancel", "report_fps"].includes(t.action) &&
+        c.status === "PENDING_PAY" &&
+        Date.parse(c.payment_deadline) <= this.now() &&
+        c.payment_review_status !== "PENDING_REVIEW"
+      )
+        throw new Error("連結已失效；付款時限已過");
       if (t.action === "take_case" && this.startAt(c) <= this.now())
         throw new Error("連結已失效");
       const own = {
@@ -509,172 +631,208 @@ export const extendWorkflow = (Base) =>
         throw new Error("此連結不屬於目前得標護士");
     }
     act(token, input = {}) {
-      return this.transaction(() => {
-        const t = this.state.tokens.find((t) => t.token === token);
-        const c = this.state.cases.find((c) => c.id === t?.case_id);
-        if (!t || !c) throw new Error("連結已失效");
-        this.valid(t, c);
-        if (
-          this.paymentMode === "bank_transfer" &&
-          ["accept_single", "accept_package"].includes(t.action) &&
-          !this.bankTransferConfigured()
-        )
-          throw new Error(
-            "收款銀行資料未設定，請聯絡同事；暫時未能接受付款預約",
-          );
-        if (t.action === "upload_doctor") throw new Error("請使用文件上載表格");
-        if (t.action === "report_fps") {
-          if (this.now() > Date.parse(c.payment_deadline))
-            throw new Error("提交轉帳資料期限已過，請聯絡管理員核對");
-          if (!this.isManualTransfer())
-            throw new Error("此個案不是 人手轉帳對數模式");
-          const ref = String(input.reference || "").trim();
-          const amount = Number(input.amount);
-          const at = Date.parse(`${input.transferred_at}+08:00`);
+      const previousToken = this.actionToken;
+      this.actionToken = this.state.tokens.find((t) => t.token === token);
+      try {
+        return this.transaction(() => {
+          const t = this.state.tokens.find((t) => t.token === token);
+          const c = this.state.cases.find((c) => c.id === t?.case_id);
+          if (!t || !c) throw new Error("連結已失效");
+          this.valid(t, c);
+          if (t.action === "take_case")
+            this.event("nurse.click", c, {
+              actor: "nurse",
+              nurse: t.actor,
+              click_ms: this.now(),
+            });
+          if (t.action === "modify")
+            this.event("quote.modify_requested", c, { actor: "family" });
+          if (t.action === "decline")
+            this.event("quote.declined", c, { actor: "family" });
+          if (t.action === "cancel")
+            this.event("cancel.requested", c, {
+              actor: "family",
+              notice_hours: (this.startAt(c) - this.now()) / hour,
+            });
           if (
-            !ref ||
-            ref.length > 100 ||
-            !Number.isInteger(amount) ||
-            amount <= 0 ||
-            !Number.isFinite(at) ||
-            at > this.now() + 60000 ||
-            at < Math.floor(Date.parse(c.created_at) / 60000) * 60000
+            this.paymentMode === "bank_transfer" &&
+            ["accept_single", "accept_package"].includes(t.action) &&
+            !this.bankTransferConfigured()
           )
             throw new Error(
-              "請填有效參考編號、正整數金額及個案建立後的轉帳時間",
+              "收款銀行資料未設定，請聯絡同事；暫時未能接受付款預約",
             );
-          const submission = {
-            id: randomUUID(),
-            case_id: c.id,
-            reference: ref,
-            amount,
-            transferred_at: new Date(at).toISOString(),
-            submitted_at: this.stamp(),
-            status: "PENDING_REVIEW",
-            test_only: this.paymentMode === "fps_test",
-          };
-          this.state.payment_submissions.push(submission);
-          c.payment_review_status = "PENDING_REVIEW";
-          this.event("payment.fps_reported", c, {
-            actor: "family",
-            submission_id: submission.id,
-            amount,
-          });
-          this.email(
-            c,
-            "T14",
-            this.state.admin_email || "admin@example.test",
-            `轉帳待對數 – Case ${c.id}`,
-            `Case ${c.id} 客人已提交 轉帳資料。此為客人聲明；須由管理員核對銀行入帳後才可確認收款。`,
-          );
-          t.used_at = this.stamp();
-          return "已收到轉帳資料，等候管理員對數。尚未確認收款，未派單。";
-        }
-        if (["accept_package", "accept_existing_package"].includes(t.action)) {
-          this.acceptPackage(c, t.action);
-          t.used_at = this.stamp();
-          this.voidTokens(c, decisionActions);
-          this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
-          return "套餐預約已確認。";
-        }
-        if (t.action === "cancel" && !["PENDING_PAY"].includes(c.status)) {
-          this.cancel(c);
-          t.used_at = this.stamp();
-          return "取消要求已記錄；請查看測試電郵及退款狀態。";
-        }
-        if (t.action === "drop") {
-          if (!input.reason?.trim()) throw new Error("請填寫放飛原因");
-          this.drop(c, input.reason);
-          t.used_at = this.stamp();
-          return "已記錄並安排重新配對。";
-        }
-        if (["arrived", "visit_done"].includes(t.action)) {
-          if (!this.state.settings.allow_arrival_completion)
-            throw new Error("尚未啟用到達／完成確認");
-          if (t.action === "arrived") {
-            if (this.now() < this.startAt(c))
-              throw new Error("尚未到服務開始時間");
-            this.transition(c, "IN_SERVICE");
-            c.arrived_at = this.stamp();
-            this.event("visit.arrived", c, { actor: "nurse", nurse: t.actor });
-          } else this.complete(c);
-          t.used_at = this.stamp();
-          return "已確認，謝謝。";
-        }
-        if (t.action === "take_case") {
-          const n = this.state.nurses.find((n) => n.id === t.actor);
-          if (n && eligibleNurse(n, this.live) && !c.assigned_nurse) {
-            if (c.dropped_nurses?.includes(n.id))
-              throw new Error("原放飛護士不能重新接同一個案");
-            const clash = this.state.cases.some(
-              (o) =>
-                o.id !== c.id &&
-                o.assigned_nurse === n.id &&
-                ["MATCHED", "READY", "IN_SERVICE"].includes(o.status) &&
-                this.startAt(o) < this.endAt(c) &&
-                this.endAt(o) > this.startAt(c),
+          if (t.action === "upload_doctor")
+            throw new Error("請使用文件上載表格");
+          if (t.action === "report_fps") {
+            if (this.now() > Date.parse(c.payment_deadline))
+              throw new Error("提交轉帳資料期限已過，請聯絡管理員核對");
+            if (!this.isManualTransfer())
+              throw new Error("此個案不是 人手轉帳對數模式");
+            const ref = String(input.reference || "").trim();
+            const amount = Number(input.amount);
+            const at = Date.parse(`${input.transferred_at}+08:00`);
+            if (
+              !ref ||
+              ref.length > 100 ||
+              !Number.isInteger(amount) ||
+              amount <= 0 ||
+              !Number.isFinite(at) ||
+              at > this.now() + 60000 ||
+              at < Math.floor(Date.parse(c.created_at) / 60000) * 60000
+            )
+              throw new Error(
+                "請填有效參考編號、正整數金額及個案建立後的轉帳時間",
+              );
+            const submission = {
+              id: randomUUID(),
+              case_id: c.id,
+              reference: ref,
+              amount,
+              transferred_at: new Date(at).toISOString(),
+              submitted_at: this.stamp(),
+              status: "PENDING_REVIEW",
+              test_only: this.paymentMode === "fps_test",
+            };
+            this.state.payment_submissions.push(submission);
+            c.payment_review_status = "PENDING_REVIEW";
+            this.event("payment.fps_reported", c, {
+              actor: "family",
+              submission_id: submission.id,
+              amount,
+            });
+            this.email(
+              c,
+              "T14",
+              this.state.admin_email || "admin@example.test",
+              `轉帳待對數 – Case ${c.id}`,
+              `Case ${c.id} 客人已提交 轉帳資料。此為客人聲明；須由管理員核對銀行入帳後才可確認收款。`,
             );
-            if (clash) {
-              this.event("lock.lost", c, { nurse: n.id, reason: "CLASH" });
-              t.used_at = this.stamp();
-              return "服務時段與現有個案重疊，未能接單。";
+            t.used_at = this.stamp();
+            return "已收到轉帳資料，等候管理員對數。尚未確認收款，未派單。";
+          }
+          if (
+            ["accept_package", "accept_existing_package"].includes(t.action)
+          ) {
+            this.event(
+              `quote.accepted_${t.action === "accept_package" ? "package" : "existing_package"}`,
+              c,
+              { actor: "family", quote_version: c.quote_version },
+            );
+            this.acceptPackage(c, t.action);
+            t.used_at = this.stamp();
+            this.voidTokens(c, decisionActions);
+            this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
+            return "套餐預約已確認。";
+          }
+          if (t.action === "cancel" && !["PENDING_PAY"].includes(c.status)) {
+            this.cancel(c);
+            t.used_at = this.stamp();
+            return "取消要求已記錄；請查看測試電郵及退款狀態。";
+          }
+          if (t.action === "drop") {
+            if (!input.reason?.trim()) throw new Error("請填寫放飛原因");
+            this.drop(c, input.reason);
+            t.used_at = this.stamp();
+            return "已記錄並安排重新配對。";
+          }
+          if (["arrived", "visit_done"].includes(t.action)) {
+            if (!this.state.settings.allow_arrival_completion)
+              throw new Error("尚未啟用到達／完成確認");
+            if (t.action === "arrived") {
+              if (this.now() < this.startAt(c))
+                throw new Error("尚未到服務開始時間");
+              this.transition(c, "IN_SERVICE");
+              c.arrived_at = this.stamp();
+              this.event("visit.arrived", c, {
+                actor: "nurse",
+                nurse: t.actor,
+              });
+            } else this.complete(c);
+            t.used_at = this.stamp();
+            return "已確認，謝謝。";
+          }
+          if (t.action === "take_case") {
+            const n = this.state.nurses.find((n) => n.id === t.actor);
+            if (n && eligibleNurse(n, this.live) && !c.assigned_nurse) {
+              if (c.dropped_nurses?.includes(n.id))
+                throw new Error("原放飛護士不能重新接同一個案");
+              const clash = this.state.cases.some(
+                (o) =>
+                  o.id !== c.id &&
+                  o.assigned_nurse === n.id &&
+                  ["MATCHED", "READY", "IN_SERVICE"].includes(o.status) &&
+                  this.startAt(o) < this.endAt(c) &&
+                  this.endAt(o) > this.startAt(c),
+              );
+              if (clash) {
+                this.event("lock.lost", c, { nurse: n.id, reason: "CLASH" });
+                t.used_at = this.stamp();
+                return "服務時段與現有個案重疊，未能接單。";
+              }
             }
           }
-        }
-        const hadUnit = c.address_status === "PROVIDED";
-        const result = super.act(token, input);
-        if (t.action === "take_case" && hadUnit && c.assigned_nurse === t.actor)
-          c.address_status = "PROVIDED";
-        if (t.action === "accept_single") {
-          c.order_type = "SINGLE";
-          c.payment_amount = c.quote.total;
-          this.voidTokens(c, decisionActions);
-          this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
-        }
-        if (
-          t.action === "decline" ||
-          (t.action === "cancel" && c.status === "CANCELLED")
-        ) {
-          c.cancel_type = "CLIENT_BEFORE_PAY";
-          this.release(c);
-          this.cancelAll(c);
-        }
-        if (t.action === "modify") {
-          this.voidTokens(c, decisionActions);
-          this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
-          this.email(c, "X04", c.email, "收到修改要求", "");
-        }
-        if (t.action === "take_case") {
-          c.applicants ??= [];
-          c.applicants.push({
-            nurse_id: t.actor,
-            at: this.stamp(),
-            result: c.assigned_nurse === t.actor ? "WON" : "LOST",
-          });
-          if (c.assigned_nurse === t.actor) {
-            c.matched_at = this.stamp();
-            c.nurse_history ??= [];
-            c.nurse_history.push({
-              nurse_id: t.actor,
-              matched_at: this.stamp(),
-            });
-            this.cancelTimers(c, [
-              "REMATCH_EXPIRE",
-              "NO_TAKER",
-              "NO_TAKER_REPEAT",
-            ]);
-            if (this.state.settings.notify_others)
-              for (const n of this.state.nurses.filter(
-                (n) => n.status === "VERIFIED" && n.id !== t.actor,
-              ))
-                this.email(c, "T5", n.email, `Case ${c.id} 已俾人做`, "");
-            this.ready(c);
+          const hadUnit = c.address_status === "PROVIDED";
+          const result = super.act(token, input);
+          if (
+            t.action === "take_case" &&
+            hadUnit &&
+            c.assigned_nurse === t.actor
+          )
+            c.address_status = "PROVIDED";
+          if (t.action === "accept_single") {
+            c.order_type = "SINGLE";
+            c.payment_amount = c.quote.total;
+            this.voidTokens(c, decisionActions);
+            this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
           }
-        }
-        if (t.action === "provide_unit")
-          this.cancelTimers(c, ["UNIT_CHASE", "UNIT_ALERT"]);
-        return result;
-      });
+          if (
+            t.action === "decline" ||
+            (t.action === "cancel" && c.status === "CANCELLED")
+          ) {
+            c.cancel_type = "CLIENT_BEFORE_PAY";
+            this.release(c);
+            this.cancelAll(c);
+          }
+          if (t.action === "modify") {
+            this.voidTokens(c, decisionActions);
+            this.cancelTimers(c, ["QUOTE_REMIND", "QUOTE_EXPIRE"]);
+            this.email(c, "X04", c.email, "收到修改要求", "");
+          }
+          if (t.action === "take_case") {
+            c.applicants ??= [];
+            c.applicants.push({
+              nurse_id: t.actor,
+              at: this.stamp(),
+              result: c.assigned_nurse === t.actor ? "WON" : "LOST",
+            });
+            if (c.assigned_nurse === t.actor) {
+              c.matched_at = this.stamp();
+              c.nurse_history ??= [];
+              c.nurse_history.push({
+                nurse_id: t.actor,
+                matched_at: this.stamp(),
+              });
+              this.cancelTimers(c, [
+                "REMATCH_EXPIRE",
+                "NO_TAKER",
+                "NO_TAKER_REPEAT",
+              ]);
+              if (this.state.settings.notify_others)
+                for (const n of this.state.nurses.filter(
+                  (n) => n.status === "VERIFIED" && n.id !== t.actor,
+                ))
+                  this.email(c, "T5", n.email, `Case ${c.id} 已俾人做`, "");
+              this.ready(c);
+            }
+          }
+          if (t.action === "provide_unit")
+            this.cancelTimers(c, ["UNIT_CHASE", "UNIT_ALERT"]);
+          return result;
+        });
+      } finally {
+        this.actionToken = previousToken;
+      }
     }
     startAt(c) {
       return Date.parse(`${c.date}T${c.start}:00+08:00`);
@@ -688,7 +846,7 @@ export const extendWorkflow = (Base) =>
               Number(c.start.slice(0, 2)) * 60 -
               Number(c.start.slice(3))) *
             60000
-          : (c.shift === "NIGHT10" ? 10 : 12) * hour)
+          : this.state.settings.night_options[c.shift].hours * hour)
       );
     }
     ledger(p, c, type, hours, reason = "") {
@@ -804,8 +962,8 @@ export const extendWorkflow = (Base) =>
           (this.state.settings.payment_window_hours * hour) /
             this.state.settings.time_scale,
       ).toISOString();
-      this.timer(c, "PAY_REMIND", 12);
-      this.timer(c, "PAY_EXPIRE", 24);
+      this.timer(c, "PAY_REMIND", this.state.settings.payment_reminder_hours);
+      this.timer(c, "PAY_EXPIRE", this.state.settings.payment_window_hours);
       if (this.paymentMode === "mock") this.paymentEmail(c);
       else if (this.isManualTransfer()) this.paymentEmail(c);
       else c.checkout_pending = true;
@@ -903,17 +1061,19 @@ ${instructions}
             : this.state.settings.nurse_night_rate;
         c.nurse_pay_total =
           rate * c.quote.hours + (c.nurse_travel_allowance || 0);
-        for (const m of this.state.emails.filter(
-          (m) => m.case_id === c.id && m.template_id === "T3",
-        ))
-          m.body = m.body.replace(
-            "／小時\n",
-            `／小時，共 HK$${rate * c.quote.hours}\n`,
-          );
         if (this.state.settings.pre_service_alerts) {
           this.absoluteTimer(c, "NO_NURSE_START", this.startAt(c));
-          this.absoluteTimer(c, "PRE_SERVICE", this.startAt(c) - 24 * hour);
-          this.absoluteTimer(c, "UNIT_ALERT", this.startAt(c) - 12 * hour);
+          this.absoluteTimer(
+            c,
+            "PRE_SERVICE",
+            this.startAt(c) -
+              this.state.settings.pre_service_alert_hours * hour,
+          );
+          this.absoluteTimer(
+            c,
+            "UNIT_ALERT",
+            this.startAt(c) - this.state.settings.unit_alert_hours * hour,
+          );
         }
       });
     }
@@ -923,6 +1083,7 @@ ${instructions}
         case_id: c.id,
         type,
         start_at: this.stamp(),
+        timer_code: TIMER_CODES[type] || type,
         time_scale: this.state.settings.time_scale,
         due_at: new Date(
           this.now() +
@@ -931,9 +1092,13 @@ ${instructions}
       });
     }
     cancelAll(c) {
-      for (const t of this.state.timers)
-        if (t.case_id === c.id && !t.fired_at && !t.cancelled_at)
-          t.cancelled_at = this.stamp();
+      this.cancelTimers(c, [
+        ...new Set(
+          this.state.timers
+            .filter((t) => t.case_id === c.id)
+            .map((t) => t.type),
+        ),
+      ]);
       for (const t of this.state.tokens)
         if (t.case_id === c.id && !t.used_at) t.void_at = this.stamp();
     }
@@ -957,7 +1122,10 @@ ${instructions}
       const notice = (this.startAt(c) - this.now()) / hour;
       c.cancel_requested_at = this.stamp();
       c.notice_hours = notice;
-      if (["MATCHED", "READY"].includes(c.status) && notice >= 24) {
+      if (
+        ["MATCHED", "READY"].includes(c.status) &&
+        notice >= this.state.settings.cancellation_free_hours
+      ) {
         const n = this.state.nurses.find((n) => n.id === c.assigned_nurse);
         this.requestRefund(c, "CLIENT_GE24H");
         if (c.status === "FULL_REFUND") {
@@ -975,7 +1143,7 @@ ${instructions}
           c,
           c.status === "POSTED" || c.status === "PAID"
             ? "未配對取消規則待確認"
-            : notice < 24
+            : notice < this.state.settings.cancellation_free_hours
               ? "少於 24 小時取消費未確認"
               : "服務開始後取消，交人手",
         );
@@ -1179,10 +1347,22 @@ ${instructions}
         "visit_done",
         "confirm_reminder",
       ]);
+      if (this.state.settings.notify_data_deletion)
+        this.email(
+          c,
+          "T22",
+          n.email,
+          "請刪除客人資料",
+          "你已不再負責此個案。請刪除先前收到的客人聯絡、地址及護理資料，並勿再使用相關資料。",
+        );
       c.assigned_nurse = null;
       this.event("nurse.dropped", c, { nurse: n.id, drop_count: n.drop_count });
       if (n.drop_count >= this.state.settings.max_drop_strikes) {
         n.status = "SUSPENDED";
+        this.event("nurse.suspended", c, {
+          nurse: n.id,
+          drop_count: n.drop_count,
+        });
         this.email(
           c,
           "T14f",
@@ -1205,12 +1385,15 @@ ${instructions}
           "放飛記錄",
           `你好，已記錄你放飛 Case ${c.id}，累計 ${n.drop_count}／3 次。累計 3 次將無法再接單。`,
         );
-      if ((this.startAt(c) - this.now()) / hour < 24) {
+      if (
+        (this.startAt(c) - this.now()) / hour <
+        this.state.settings.rematch_window_hours
+      ) {
         this.manual(c, "護士於服務前不足 24 小時放飛，期限待確認");
         return;
       }
       this.transition(c, "REMATCH");
-      this.timer(c, "REMATCH_EXPIRE", 24);
+      this.timer(c, "REMATCH_EXPIRE", this.state.settings.rematch_window_hours);
       c.rematch_deadline = this.state.timers.at(-1).due_at;
       this.repost(c, true);
       this.email(
@@ -1271,6 +1454,7 @@ ${instructions}
           !p.low_balance_notified_at
         ) {
           p.low_balance_notified_at = this.stamp();
+          this.event("package.low_balance", c, { package_id: p.id, remaining });
           this.email(
             c,
             "T29",
@@ -1282,6 +1466,7 @@ ${instructions}
         if (remaining === 0) {
           p.status = "PKG_USED_UP";
           p.used_up_notified_at = this.stamp();
+          this.event("package.used_up", c, { package_id: p.id, remaining });
           this.email(
             c,
             "T30",
@@ -1364,7 +1549,63 @@ ${instructions}
           this.event("remote.reviewed", c, { actor: "admin", tier: i.tier });
           return;
         }
+        if (action === "correct_intake") {
+          if (c.intake_channel === "conversation")
+            throw new Error("文字查詢須另建完整服務安排");
+          if (
+            c.status !== "MANUAL" ||
+            c.amount_paid ||
+            c.package_id ||
+            !i.reason?.trim()
+          )
+            throw new Error("只可更正未收款人工個案，並須填更正原因");
+          if (!["YES", "NO", "UNSURE", "NA"].includes(i.doctor_order))
+            throw new Error("醫生指示狀態無效");
+          if (
+            c.services.some((s) => s.doctor_order_required) &&
+            i.doctor_order === "NA"
+          )
+            throw new Error("B 類服務必須回答醫生指示狀態");
+          const replacements = c.services.filter((s) => s.replace_only);
+          if (
+            replacements.some(
+              (s) =>
+                !["YES", "NO_FIRST_INSERT", "UNSURE"].includes(
+                  i.existing_tubes?.[s.id],
+                ),
+            )
+          )
+            throw new Error("每條喉管必須回答現有／首次插入／不確定");
+          c.intake_corrections ??= [];
+          c.intake_corrections.push({
+            at: this.stamp(),
+            by: this.operatorId("admin"),
+            reason: i.reason,
+            before: {
+              doctor_order: c.doctor_order,
+              existing_tubes: c.existing_tubes,
+            },
+          });
+          c.doctor_order = i.doctor_order;
+          c.doctor_order_status =
+            i.doctor_order === "YES" ? "PENDING_CHECK" : "NA";
+          c.existing_tubes = Object.fromEntries(
+            replacements.map((s) => [s.id, i.existing_tubes[s.id]]),
+          );
+          for (const service of replacements)
+            service.existing_tube = c.existing_tubes[service.id];
+          this.voidTokens(c, decisionActions);
+          this.event("case.intake_corrected", c, {
+            actor: "admin",
+            fields: ["doctor_order", "existing_tubes"],
+          });
+          return;
+        }
         if (action === "issue_quote") {
+          if (c.intake_channel === "conversation")
+            throw new Error(
+              "文字查詢須先由同事核實資料，並另建完整服務安排後才可報價",
+            );
           if (c.amount_paid || c.package_id)
             throw new Error(
               "已付款／套餐個案不可重新發付款報價；請先處理人工服務或退款",
@@ -1401,9 +1642,17 @@ ${instructions}
             );
           if (c.remote_tier === "UNMATCHED")
             throw new Error("請先覆核偏遠地區");
+          if (c.visits?.length > 1)
+            throw new Error(
+              "多次上門／日夜組合規則待確認，須分開建立完整服務安排",
+            );
           const calculated = this.quote(c);
           if (calculated.manual) throw new Error(calculated.manual);
           c.quote = calculated;
+          this.event("quote.calculated", c, {
+            quote_total: calculated.total,
+            lines: calculated,
+          });
           this.voidTokens(c, decisionActions);
           c.quote_version++;
           this.transition(c, "QUOTED");
@@ -1412,7 +1661,7 @@ ${instructions}
             "T1",
             c.email,
             "上門護理報價",
-            `你好，${c.surname}先生／女士。多謝你查詢上門護理服務（Case ${c.id}）。\n服務：${c.date} ${c.start}–${c.end}\n服務內容：${c.services.map((s) => s.label).join("、")}\n總額：HK$${c.quote.total}\n工具及物料由客人自備。\n確認後請於 24 小時內付款。少於 24 小時取消：由同事跟進。`,
+            quoteBody(c, this.state.settings),
             decisionActions
               .filter(
                 (a) =>
@@ -1458,7 +1707,13 @@ ${instructions}
             before: c.schedule,
             reason: i.reason,
           });
-          c.schedule = i.schedule;
+          c.schedule = i.schedule.map((row) => ({
+            ...row,
+            note:
+              c.services.find((s) => s.label === row.item)?.note ||
+              c.remarks ||
+              "",
+          }));
           c.schedule_status = "PENDING_REVIEW";
           delete c.reviewed_by;
           delete c.confirmed_by;
@@ -1535,7 +1790,11 @@ ${instructions}
         if (t.type === "NO_TAKER" && c.status === "POSTED") {
           if (this.state.settings.repost) this.repost(c);
           if (this.state.settings.repeat_no_taker)
-            this.timer(c, "NO_TAKER_REPEAT", 24);
+            this.timer(
+              c,
+              "NO_TAKER_REPEAT",
+              this.state.settings.no_taker_hours,
+            );
         }
         if (t.type === "QUOTE_REMIND" && c.status === "QUOTED") {
           const original = this.state.emails.find(
@@ -1549,7 +1808,11 @@ ${instructions}
             `你好，提提你 Case ${c.id} 嘅報價仲未確認。如需安排護士，請撳以下其中一個掣：`,
             original?.links || [],
           );
-          this.timer(c, "QUOTE_EXPIRE", 24);
+          this.timer(
+            c,
+            "QUOTE_EXPIRE",
+            this.state.settings.quote_expiry_after_reminder_hours,
+          );
         }
         if (t.type === "QUOTE_EXPIRE" && c.status === "QUOTED") {
           this.transition(c, "EXPIRED");
@@ -1575,7 +1838,7 @@ ${instructions}
             "仍未有護士",
             `Case ${c.id} 仍未有護士接單。`,
           );
-          this.timer(c, "NO_TAKER_REPEAT", 24);
+          this.timer(c, "NO_TAKER_REPEAT", this.state.settings.no_taker_hours);
         }
         if (
           t.type === "UNIT_CHASE" &&
@@ -1627,7 +1890,8 @@ ${instructions}
             !r.confirmed_at &&
             !r.alerted_at &&
             this.now() - Date.parse(r.chased_at) >=
-              hour / 4 / this.state.settings.time_scale
+              (this.state.settings.reminder_escalation_minutes * 60000) /
+                this.state.settings.time_scale
           ) {
             r.alerted_at = this.stamp();
             this.email(

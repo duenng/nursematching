@@ -172,7 +172,8 @@ export class StaffAuth {
     };
   }
   verifyMutation(req, user) {
-    if (req.headers.origin && !this.allowedOrigins.has(req.headers.origin)) return false;
+    if (req.headers.origin && !this.allowedOrigins.has(req.headers.origin))
+      return false;
     if (user?.method !== "google") return true;
     return (
       this.allowedOrigins.has(req.headers.origin) &&
@@ -321,6 +322,11 @@ export function clinicalWorkspace(state) {
     "recent_3m",
     "medical_history",
     "remarks",
+    "intake_channel",
+    "enquiry_summary",
+    "care_needs",
+    "preferred_timing",
+    "patient_age_description",
     "other_need_text",
     "services",
     "doctor_order",
