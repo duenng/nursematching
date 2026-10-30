@@ -13,10 +13,16 @@ import type { StaffSession } from "../StaffAccess";
 import { apiUrl } from "../lib/api";
 import "./email-validation.css";
 import catalog from "../../server/catalog/services.json";
+import { EmailPreview } from "../EmailPreview";
 
 type Service = { id: string; label: string; times: string[]; prn: boolean };
-type Case = {
+export type Case = {
   id: string;
+  client_id?: string;
+  patient_ref?: string;
+  phone?: string;
+  intake_mode?: string;
+  created_at?: string;
   surname: string;
   email: string;
   status: string;
@@ -72,14 +78,23 @@ type Event = {
   actor_code?: string;
   auth_method?: string;
 };
-type Workspace = {
+export type Workspace = {
   settings: {
     time_scale: number;
     nurse_day_rate: number | null;
     nurse_night_rate: number | null;
     [key: string]: unknown;
   };
-  nurses: { id: string; status: string; email: string }[];
+  nurses: {
+    id: string;
+    status: string;
+    email: string;
+    name?: string;
+    category?: string;
+    registration?: string;
+    verification_note?: string;
+    verified_by?: string;
+  }[];
   cases: Case[];
   emails: Email[];
   events: Event[];
@@ -132,6 +147,9 @@ type Workspace = {
   template_catalog: Record<string, { scope: string; description: string }>;
   remote_list: { place: string; tier: string; list_version: string }[];
   capabilities: {
+    workspace?: string;
+    email_delivery_enabled?: boolean;
+    email_restricted?: boolean;
     email: string;
     payment: string;
     bank_transfer_configured: boolean;
@@ -177,12 +195,18 @@ const status: Record<string, string> = {
   NO_DR_ORDER: "缺少醫生指示",
   NO_FIRST_INSERT: "不提供首次插喉",
 };
-function AdminWorkspace({
+export function AdminWorkspace({
   session,
   publicIntake = false,
+  operational = false,
+  section = "requests",
+  initialCaseId = "",
 }: {
   session: StaffSession | null;
   publicIntake?: boolean;
+  operational?: boolean;
+  section?: string;
+  initialCaseId?: string;
 }) {
   const { language } = useLocale();
   const zh = language === "zh-HK";
@@ -193,16 +217,16 @@ function AdminWorkspace({
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialCaseId);
   const [mailId, setMailId] = useState("");
   const [tab, setTab] = useState<
     "cases" | "inbox" | "events" | "ledger" | "acceptance"
-  >("cases");
+  >(section === "ledger" ? "ledger" : "cases");
   const [config, setConfig] = useState({
     time_scale: 1,
     nurse_day_rate: "",
     nurse_night_rate: "",
-    admin_email: "admin@example.test",
+    admin_email: operational ? "" : "admin@example.test",
     nurses: [] as Workspace["nurses"],
     policies: {
       package_offer_rule: "MANUAL",
@@ -218,14 +242,15 @@ function AdminWorkspace({
     } as Record<string, boolean | string>,
   });
   const [form, setForm] = useState({
-    surname: publicIntake ? "" : "陳",
-    email: publicIntake ? "" : "family@example.test",
+    surname: publicIntake || operational ? "" : "陳",
+    email: publicIntake || operational ? "" : "family@example.test",
     phone: "",
-    district: publicIntake ? "" : "屯門",
-    building: publicIntake ? "" : "康樂大廈（虛構）",
-    date: publicIntake
-      ? new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10)
-      : "2026-11-10",
+    district: publicIntake || operational ? "" : "屯門",
+    building: publicIntake || operational ? "" : "康樂大廈（虛構）",
+    date:
+      publicIntake || operational
+        ? new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10)
+        : "2026-11-10",
     shift: "DAY",
     start: "10:00",
     end: "14:00",
@@ -235,13 +260,13 @@ function AdminWorkspace({
     other: "",
     fictional: false,
     consent: false,
-    gender: publicIntake ? "" : "M",
-    age: publicIntake ? "" : "78",
-    weight_kg: publicIntake ? "" : "65",
-    height_cm: publicIntake ? "" : "165",
-    mobility: publicIntake ? "" : "需人輔助",
-    companion: publicIntake ? "" : "YES",
-    patient_ref: publicIntake ? "" : "TEST-PATIENT-01",
+    gender: publicIntake || operational ? "" : "M",
+    age: publicIntake || operational ? "" : "78",
+    weight_kg: publicIntake || operational ? "" : "65",
+    height_cm: publicIntake || operational ? "" : "165",
+    mobility: publicIntake || operational ? "" : "需人輔助",
+    companion: publicIntake || operational ? "" : "YES",
+    patient_ref: publicIntake || operational ? "" : "TEST-PATIENT-01",
     medical_history: "",
     recent_3m: [] as string[],
     existing_tubes: {} as Record<string, string>,
@@ -254,9 +279,9 @@ function AdminWorkspace({
     status: string;
     quote?: { total: number };
   } | null>(null);
-  const [items, setItems] = useState<Service[]>([
-    { ...services[0], times: ["12:00"], prn: false },
-  ]);
+  const [items, setItems] = useState<Service[]>(
+    operational ? [] : [{ ...services[0], times: ["12:00"], prn: false }],
+  );
   async function request(path: string, body?: unknown) {
     const res = await fetch(apiUrl(path), {
       method: body === undefined ? "GET" : "POST",
@@ -278,14 +303,17 @@ function AdminWorkspace({
   }
   async function refresh(initial = false) {
     const data: Workspace = await request("/api/workflow");
+    if (operational && !initial)
+      window.dispatchEvent(new Event("staff-workflow-updated"));
     setWorkspace(data);
     if (initial)
       setConfig({
         time_scale: data.settings.time_scale,
         nurse_day_rate: String(data.settings.nurse_day_rate ?? ""),
         nurse_night_rate: String(data.settings.nurse_night_rate ?? ""),
-        admin_email: data.admin_email || "admin@example.test",
-        nurses: data.nurses,
+        admin_email:
+          data.admin_email || (operational ? "" : "admin@example.test"),
+        nurses: data.nurses || [],
         policies: Object.fromEntries(
           Object.keys(config.policies).map((k) => [
             k,
@@ -300,7 +328,11 @@ function AdminWorkspace({
     setError("");
     try {
       await fn();
-      if (!publicIntake) await refresh();
+      if (!publicIntake) {
+        await refresh();
+        if (operational)
+          window.dispatchEvent(new Event("staff-workflow-updated"));
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -338,7 +370,9 @@ function AdminWorkspace({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "trl3-email-evidence.json";
+    a.download = operational
+      ? "careknock-workspace.json"
+      : "trl3-email-evidence.json";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -370,6 +404,14 @@ function AdminWorkspace({
       });
   }
 
+  const [payoutForm, setPayoutForm] = useState({
+    id: "",
+    amount: "",
+    bank_reference: "",
+    paid_at: "",
+    note: "",
+    verified: false,
+  });
   const [remoteTier, setRemoteTier] = useState("C");
   const [scheduleEdit, setScheduleEdit] = useState("");
   const [clockTo, setClockTo] = useState("");
@@ -495,13 +537,17 @@ function AdminWorkspace({
                   publicIntake ? "/api/enquiries" : "/api/cases",
                   {
                     ...form,
-                    ...(publicIntake ? { fictional: undefined } : {}),
+                    ...(publicIntake || operational
+                      ? { fictional: undefined }
+                      : {}),
                     services: items,
                   },
                 );
                 if (publicIntake) setReceipt(result);
                 else setSelected(result.id);
                 setIntakeReview(false);
+                if (operational)
+                  window.location.hash = `staff/requests/${result.id}`;
               })
             }
           >
@@ -516,11 +562,23 @@ function AdminWorkspace({
       <h2>
         {publicIntake
           ? text("提交護理查詢", "Submit a care enquiry")
-          : text("1. 建立虛構查詢", "1. Create a fictional enquiry")}
+          : operational
+            ? text("建立護理查詢", "Create a care enquiry")
+            : text("1. 建立虛構查詢", "1. Create a fictional enquiry")}
       </h2>
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (!items.length) {
+            setError(
+              text(
+                "請選擇至少一項護理服務。",
+                "Select at least one care service.",
+              ),
+            );
+            return;
+          }
+          setError("");
           setIntakeReview(true);
         }}
       >
@@ -914,17 +972,19 @@ function AdminWorkspace({
           <input
             required
             type="checkbox"
-            checked={publicIntake ? form.consent : form.fictional}
+            checked={
+              publicIntake || operational ? form.consent : form.fictional
+            }
             onChange={(e) =>
               setForm({
                 ...form,
-                ...(publicIntake
+                ...(publicIntake || operational
                   ? { consent: e.target.checked }
                   : { fictional: e.target.checked }),
               })
             }
           />
-          {publicIntake
+          {publicIntake || operational
             ? text(
                 "我同意將以上資料保存，用於跟進查詢、報價及安排服務。",
                 "I agree that this information may be stored and used to follow up my enquiry, quote and arrange care.",
@@ -935,7 +995,7 @@ function AdminWorkspace({
               )}
         </label>
         <p className="form-hint">
-          {publicIntake
+          {publicIntake || operational
             ? text(
                 "查詢會儲存在伺服器，由同事核實服務需要及地點後跟進。確認報價及收款後才安排派單。",
                 "Your enquiry is stored on the server. Staff review your care needs and location before following up. Dispatch follows quote acceptance and verified payment.",
@@ -1026,19 +1086,21 @@ function AdminWorkspace({
 
   return (
     <div className="email-validation">
-      <div className="ev-heading">
-        <div>
-          <p className="eyebrow">TRL 3 · EMAIL PROOF OF CONCEPT</p>
-          <h1>{text("電郵流程驗證台", "Email validation workspace")}</h1>
-          <p>
-            {text(
-              "用虛構個案驗證關鍵流程，保留可追查證據。TRL 3 達標狀態仍待實驗及審核。",
-              "Validate the workflow with fictional cases and traceable evidence. TRL 3 achievement remains subject to testing and review.",
-            )}
-          </p>
+      {!operational && (
+        <div className="ev-heading">
+          <div>
+            <p className="eyebrow">TRL 3 · EMAIL PROOF OF CONCEPT</p>
+            <h1>{text("電郵流程驗證台", "Email validation workspace")}</h1>
+            <p>
+              {text(
+                "用虛構個案驗證關鍵流程，保留可追查證據。TRL 3 達標狀態仍待實驗及審核。",
+                "Validate the workflow with fictional cases and traceable evidence. TRL 3 achievement remains subject to testing and review.",
+              )}
+            </p>
+          </div>
+          <FlaskConical size={35} />
         </div>
-        <FlaskConical size={35} />
-      </div>
+      )}
       {!!workspace?.capabilities.clock_offset_ms && (
         <p className="ev-error">
           {text(
@@ -1051,9 +1113,13 @@ function AdminWorkspace({
       <div className="ev-capabilities">
         <span>
           <Mail size={16} />
-          {workspace?.capabilities.email === "smtp_test"
-            ? text("SMTP 測試寄信（白名單）", "SMTP test / allowlist")
-            : text("本機測試收件箱", "Local test inbox")}
+          {["smtp", "smtp_test"].includes(workspace?.capabilities.email || "")
+            ? operational
+              ? text("SMTP 寄信", "SMTP delivery")
+              : text("SMTP 測試寄信（白名單）", "SMTP test / allowlist")
+            : operational
+              ? text("寄信尚未啟用", "Email delivery not enabled")
+              : text("本機測試收件箱", "Local test inbox")}
         </span>
         <span>
           {workspace?.capabilities.payment === "bank_transfer"
@@ -1078,200 +1144,234 @@ function AdminWorkspace({
         </span>
         <span>{text("伺服器 SQLite 儲存", "Server SQLite storage")}</span>
       </div>
-      <details className="panel ev-config">
-        <summary>
-          <LockKeyhole size={16} />{" "}
-          {text("測試設定及管理員連線", "Test settings and admin connection")}
-        </summary>
-        <p>
-          {text(
-            "全部測試收件人必須由團隊控制。護士薪酬未確認，請先輸入本次實驗值；有進行中個案時設定會鎖定。",
-            "Use team-controlled test recipients. Confirm experimental nurse rates before dispatch. Settings lock while cases are active.",
-          )}
-        </p>
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() =>
-            setConfig({
-              ...config,
-              policies: Object.fromEntries(
-                Object.keys(config.policies).map((k) => [
-                  k,
-                  k === "package_offer_rule" ? "WEEKDAY_DAY_LE30" : true,
-                ]),
-              ),
-            })
-          }
-        >
-          {text(
-            "選取完整實驗組合（仍須確認儲存）",
-            "Select full experiment policies (save to confirm)",
-          )}
-        </button>
-        <div className="ev-form-grid">
-          {!session && (
-            <label>
-              {text("管理員金鑰", "Admin key")}
-              <input
-                type="password"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-          )}
-          {!session && (
+      {(!operational || section === "settings") && (
+        <details className="panel ev-config" open={operational}>
+          <summary>
+            <LockKeyhole size={16} />{" "}
+            {operational
+              ? text("服務設定", "Service settings")
+              : text(
+                  "測試設定及管理員連線",
+                  "Test settings and admin connection",
+                )}
+          </summary>
+          <p>
+            {text(
+              operational
+                ? "請確認護士薪酬及跟進電郵。有進行中個案時，計價及流程設定會鎖定。護士資料請到護理人員頁管理。"
+                : "全部測試收件人必須由團隊控制。護士薪酬未確認，請先輸入本次實驗值；有進行中個案時設定會鎖定。",
+              operational
+                ? "Confirm nurse rates and the follow-up email. Pricing and workflow settings lock while cases are active. Manage nurses on the provider page."
+                : "Use team-controlled test recipients. Confirm experimental nurse rates before dispatch. Settings lock while cases are active.",
+            )}
+          </p>
+          {!operational && (
             <button
-              disabled={busy}
+              type="button"
               className="button secondary"
               onClick={() =>
-                run(async () => {
-                  sessionStorage.setItem("workflow-admin-key", key);
-                  await refresh(true);
+                setConfig({
+                  ...config,
+                  policies: Object.fromEntries(
+                    Object.keys(config.policies).map((k) => [
+                      k,
+                      k === "package_offer_rule" ? "WEEKDAY_DAY_LE30" : true,
+                    ]),
+                  ),
                 })
               }
             >
-              {text("連線", "Connect")}
+              {text(
+                "選取完整實驗組合（仍須確認儲存）",
+                "Select full experiment policies (save to confirm)",
+              )}
             </button>
           )}
-          <label>
-            {text("計時倍率", "Time scale")}
-            <select
-              value={config.time_scale}
-              onChange={(e) =>
-                setConfig({ ...config, time_scale: Number(e.target.value) })
-              }
-            >
-              <option value={1}>1 · {text("真實時間", "Real time")}</option>
-              <option
-                value={60}
-                disabled={
-                  workspace?.capabilities.payment === "bank_transfer" ||
-                  workspace?.capabilities.payment === "stripe_test"
+          <div className="ev-form-grid">
+            {!session && !operational && (
+              <label>
+                {text("管理員金鑰", "Admin key")}
+                <input
+                  type="password"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+            )}
+            {!session && !operational && (
+              <button
+                disabled={busy}
+                className="button secondary"
+                onClick={() =>
+                  run(async () => {
+                    sessionStorage.setItem("workflow-admin-key", key);
+                    await refresh(true);
+                  })
                 }
               >
-                60 ·{" "}
-                {text(
-                  "一小時當一分鐘（只限虛構實驗）",
-                  "1 hour = 1 minute (fictional experiment)",
-                )}
-              </option>
-            </select>
-          </label>
-          <label>
-            {text("日間護士時薪（測試值）", "Day nurse rate (test)")}
-            <input
-              type="number"
-              min="1"
-              value={config.nurse_day_rate}
-              onChange={(e) =>
-                setConfig({ ...config, nurse_day_rate: e.target.value })
-              }
-            />
-          </label>
-          <label>
-            {text("夜間護士時薪（測試值）", "Night nurse rate (test)")}
-            <input
-              type="number"
-              min="1"
-              value={config.nurse_night_rate}
-              onChange={(e) =>
-                setConfig({ ...config, nurse_night_rate: e.target.value })
-              }
-            />
-          </label>
-          <label>
-            {text("管理員電郵", "Admin email")}
-            <input
-              type="email"
-              value={config.admin_email}
-              onChange={(e) =>
-                setConfig({ ...config, admin_email: e.target.value })
-              }
-            />
-          </label>
-          {Object.entries(config.policies).map(([k, v]) => (
-            <label className={typeof v === "boolean" ? "ev-check" : ""} key={k}>
-              {typeof v === "boolean" ? (
-                <>
-                  <input
-                    type="checkbox"
-                    checked={v}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        policies: { ...config.policies, [k]: e.target.checked },
-                      })
-                    }
-                  />
-                  {(
-                    {
-                      quote_expiry: "報價提醒及失效",
-                      repost: "24h 無人重發",
-                      repeat_no_taker: "之後每 24h 只警示管理員",
-                      unit_chase: "12h 追問單位",
-                      pre_service_alerts: "服務前資料檢查及無人警示",
-                      reminder_escalation: "追問後 15 分鐘警示管理員",
-                      allow_arrival_completion: "到達／完成按掣（實驗政策）",
-                      package_release: "套餐取消釋放預留時數",
-                      notify_others: "通知其他護士已接單",
-                    } as Record<string, string>
-                  )[k] || k}
-                </>
-              ) : (
-                <>
-                  {text("套餐顯示（實驗政策）", "Package offer (experiment)")}
-                  <select
-                    value={String(v)}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        policies: { ...config.policies, [k]: e.target.value },
-                      })
-                    }
-                  >
-                    <option value="MANUAL">
-                      MANUAL · {text("預設交人手", "Manual default")}
-                    </option>
-                    <option value="WEEKDAY_DAY_LE30">
-                      {text("平日日間 ≤30h 顯示套餐", "Weekday day ≤30h")}
-                    </option>
-                  </select>
-                </>
-              )}
-            </label>
-          ))}
-          {config.nurses.map((n) => (
-            <label key={n.id}>
-              {n.id} · {n.status}
-              <input
-                type="email"
-                value={n.email}
+                {text("連線", "Connect")}
+              </button>
+            )}
+            <label>
+              {text("計時倍率", "Time scale")}
+              <select
+                value={config.time_scale}
                 onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    nurses: config.nurses.map((x) =>
-                      x.id === n.id ? { ...x, email: e.target.value } : x,
-                    ),
-                  })
+                  setConfig({ ...config, time_scale: Number(e.target.value) })
+                }
+              >
+                <option value={1}>1 · {text("真實時間", "Real time")}</option>
+                <option
+                  value={60}
+                  disabled={
+                    operational ||
+                    workspace?.capabilities.payment === "bank_transfer" ||
+                    workspace?.capabilities.payment === "stripe_test"
+                  }
+                >
+                  60 ·{" "}
+                  {text(
+                    "一小時當一分鐘（只限虛構實驗）",
+                    "1 hour = 1 minute (fictional experiment)",
+                  )}
+                </option>
+              </select>
+            </label>
+            <label>
+              {operational
+                ? text("日間護士時薪 HKD", "Day nurse rate HKD")
+                : text("日間護士時薪（測試值）", "Day nurse rate (test)")}
+              <input
+                type="number"
+                min="1"
+                value={config.nurse_day_rate}
+                onChange={(e) =>
+                  setConfig({ ...config, nurse_day_rate: e.target.value })
                 }
               />
             </label>
-          ))}
-        </div>
-        <button
-          className="button primary"
-          disabled={busy}
-          onClick={() => run(() => request("/api/settings", config))}
-        >
-          {text("確認並儲存測試設定", "Confirm test settings")}
-        </button>
-      </details>
+            <label>
+              {operational
+                ? text("夜間護士時薪 HKD", "Night nurse rate HKD")
+                : text("夜間護士時薪（測試值）", "Night nurse rate (test)")}
+              <input
+                type="number"
+                min="1"
+                value={config.nurse_night_rate}
+                onChange={(e) =>
+                  setConfig({ ...config, nurse_night_rate: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              {text("管理員電郵", "Admin email")}
+              <input
+                type="email"
+                value={config.admin_email}
+                onChange={(e) =>
+                  setConfig({ ...config, admin_email: e.target.value })
+                }
+              />
+            </label>
+            {Object.entries(config.policies).map(([k, v]) => (
+              <label
+                className={typeof v === "boolean" ? "ev-check" : ""}
+                key={k}
+              >
+                {typeof v === "boolean" ? (
+                  <>
+                    <input
+                      type="checkbox"
+                      checked={v}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          policies: {
+                            ...config.policies,
+                            [k]: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    {(
+                      {
+                        quote_expiry: "報價提醒及失效",
+                        repost: "24h 無人重發",
+                        repeat_no_taker: "之後每 24h 只警示管理員",
+                        unit_chase: "12h 追問單位",
+                        pre_service_alerts: "服務前資料檢查及無人警示",
+                        reminder_escalation: "追問後 15 分鐘警示管理員",
+                        allow_arrival_completion: "到達／完成確認",
+                        package_release: "套餐取消釋放預留時數",
+                        notify_others: "通知其他護士已接單",
+                      } as Record<string, string>
+                    )[k] || k}
+                  </>
+                ) : (
+                  <>
+                    {operational
+                      ? text("套餐顯示規則", "Package offer rules")
+                      : text(
+                          "套餐顯示（實驗政策）",
+                          "Package offer (experiment)",
+                        )}
+                    <select
+                      value={String(v)}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          policies: { ...config.policies, [k]: e.target.value },
+                        })
+                      }
+                    >
+                      <option value="MANUAL">
+                        MANUAL · {text("預設交人手", "Manual default")}
+                      </option>
+                      <option value="WEEKDAY_DAY_LE30">
+                        {text("平日日間 ≤30h 顯示套餐", "Weekday day ≤30h")}
+                      </option>
+                    </select>
+                  </>
+                )}
+              </label>
+            ))}
+            {!operational &&
+              config.nurses.map((n) => (
+                <label key={n.id}>
+                  {n.id} · {n.status}
+                  <input
+                    type="email"
+                    value={n.email}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        nurses: config.nurses.map((x) =>
+                          x.id === n.id ? { ...x, email: e.target.value } : x,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+              ))}
+          </div>
+          <button
+            className="button primary"
+            disabled={busy || !workspace}
+            onClick={() => run(() => request("/api/settings", config))}
+          >
+            {operational
+              ? text("儲存服務設定", "Save service settings")
+              : text("確認並儲存測試設定", "Confirm test settings")}
+          </button>
+        </details>
+      )}
       <div className="ev-toolbar">
-        <div role="tablist">
-          {(["cases", "inbox", "events", "ledger", "acceptance"] as const).map(
-            (t, i) => (
+        {!operational && (
+          <div role="tablist">
+            {(
+              ["cases", "inbox", "events", "ledger", "acceptance"] as const
+            ).map((t, i) => (
               <button
                 role="tab"
                 aria-selected={tab === t}
@@ -1289,9 +1389,9 @@ function AdminWorkspace({
                 }{" "}
                 {t === "inbox" ? `(${workspace?.emails.length || 0})` : ""}
               </button>
-            ),
-          )}
-        </div>
+            ))}
+          </div>
+        )}
         <button
           className="button secondary"
           disabled={busy}
@@ -1314,549 +1414,619 @@ function AdminWorkspace({
           {error}
         </div>
       )}
-      <label className="ev-case-select">
-        {text("查看個案", "View case")}
-        <select
-          value={selected}
-          onChange={(e) => {
-            setSelected(e.target.value);
-            setMailId("");
-          }}
-        >
-          <option value="">
-            {text("全部／最新個案", "All / latest case")}
-          </option>
-          {workspace?.cases.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.id} · {status[c.status] || c.status}
+      {(!operational || section === "requests") && (
+        <label className="ev-case-select">
+          {text("查看個案", "View case")}
+          <select
+            value={selected}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              if (operational)
+                window.location.hash = `staff/requests/${e.target.value}`;
+              setMailId("");
+            }}
+          >
+            <option value="">
+              {text("全部／最新個案", "All / latest case")}
             </option>
-          ))}
-        </select>
-      </label>
+            {workspace?.cases.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.id} · {status[c.status] || c.status}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {reviewDialog}
-      {tab === "cases" && (
-        <div className="ev-columns">
-          {intakePanel}
-          <section className="panel ev-panel">
-            <h2>{text("2. 驗證個案流程", "2. Validate the case flow")}</h2>
-            {c ? (
-              <>
-                <div className="ev-state">
-                  <strong>{c.id}</strong>
-                  <span>
-                    {status[c.status] || c.status} · {c.status}
-                  </span>
-                </div>
-                <p>
-                  {c.date} {c.start}–{c.end}
-                  <br />
-                  {c.district} · {c.building}
-                </p>
-                {c.quote && <h3>HK${c.quote.total.toLocaleString()}</h3>}
-                <div className="ev-gates">
-                  <span>
-                    {c.order_type || "SINGLE"} · {c.package_id || "—"}
-                  </span>
-                  <span>
-                    {text("偏遠分類", "Remote tier")}: {c.remote_tier || "—"}
-                  </span>
-                  <span>
-                    {text("退款", "Refund")}: {c.refund_status || "—"} · HK$
-                    {c.refund_amount ?? 0}
-                  </span>
-                </div>
-                {["bank_transfer", "fps_test"].includes(
-                  workspace?.capabilities.payment || "",
-                ) && (
-                  <section className="ev-gates">
-                    <h3>
-                      {text(
-                        "轉帳對數及退款紀錄",
-                        "Transfer reconciliation and refund record",
-                      )}
-                    </h3>
+      {tab === "cases" &&
+        (!operational || ["requests", "enquiries"].includes(section)) && (
+          <div className="ev-columns">
+            {(!operational || section === "enquiries") && intakePanel}
+            {(!operational || section === "requests") && (
+              <section className="panel ev-panel">
+                <h2>
+                  {operational
+                    ? text("個案處理", "Case management")
+                    : text("2. 驗證個案流程", "2. Validate the case flow")}
+                </h2>
+                {c ? (
+                  <>
+                    <div className="ev-state">
+                      <strong>{c.id}</strong>
+                      <span>
+                        {status[c.status] || c.status} · {c.status}
+                      </span>
+                    </div>
                     <p>
-                      {workspace?.capabilities.payment === "bank_transfer"
-                        ? text(
-                            "客人提交資料後，請登入銀行核對實際入帳；確認收款前不會派單。系統不會自動查銀行或轉帳。",
-                            "Check the actual receipt in your bank after the customer submits a report. Dispatch waits for confirmation; the system does not access your bank or transfer funds.",
-                          )
-                        : text(
-                            "客人提交資料只代表聲明，未確認入帳前不會派單。此為 TRL 3 測試，請用虛構交易。",
-                            "A customer report is a claim; dispatch waits for independent bank verification. Use fictional transactions for TRL 3.",
-                          )}
+                      {c.date} {c.start}–{c.end}
+                      <br />
+                      {c.district} · {c.building}
                     </p>
-                    {workspace?.capabilities.payment === "bank_transfer" &&
-                      !workspace.capabilities.bank_transfer_configured && (
-                        <p className="ev-error">
+                    {operational && (
+                      <p>
+                        {c.patient_ref} · {c.surname}
+                        <br />
+                        {c.email} · {c.phone || "—"}
+                      </p>
+                    )}
+                    {c.quote && <h3>HK${c.quote.total.toLocaleString()}</h3>}
+                    <div className="ev-gates">
+                      <span>
+                        {c.order_type || "SINGLE"} · {c.package_id || "—"}
+                      </span>
+                      <span>
+                        {text("偏遠分類", "Remote tier")}:{" "}
+                        {c.remote_tier || "—"}
+                      </span>
+                      <span>
+                        {text("退款", "Refund")}: {c.refund_status || "—"} · HK$
+                        {c.refund_amount ?? 0}
+                      </span>
+                    </div>
+                    {["bank_transfer", "fps_test"].includes(
+                      workspace?.capabilities.payment || "",
+                    ) && (
+                      <section className="ev-gates">
+                        <h3>
                           {text(
-                            "收款銀行資料未設定：暫時不能接受付款預約。請在 .env 填寫 BANK_NAME、BANK_ACCOUNT_NAME、BANK_ACCOUNT_NUMBER 後重啟。",
-                            "Bank details are not configured. Payment bookings are unavailable until BANK_NAME, BANK_ACCOUNT_NAME and BANK_ACCOUNT_NUMBER are set and the server restarts.",
+                            "轉帳對數及退款紀錄",
+                            "Transfer reconciliation and refund record",
                           )}
+                        </h3>
+                        <p>
+                          {workspace?.capabilities.payment === "bank_transfer"
+                            ? text(
+                                "客人提交資料後，請登入銀行核對實際入帳；確認收款前不會派單。系統不會自動查銀行或轉帳。",
+                                "Check the actual receipt in your bank after the customer submits a report. Dispatch waits for confirmation; the system does not access your bank or transfer funds.",
+                              )
+                            : text(
+                                "客人提交資料只代表聲明，未確認入帳前不會派單。此為 TRL 3 測試，請用虛構交易。",
+                                "A customer report is a claim; dispatch waits for independent bank verification. Use fictional transactions for TRL 3.",
+                              )}
                         </p>
-                      )}
-
-                    <p>
-                      {text("對數狀態", "Review status")}:{" "}
-                      {c.payment_review_status || "—"}
-                    </p>
-                    <div className="ev-form-grid">
-                      <label>
-                        {text("待對數轉帳聲明", "Pending transfer report")}
-                        <select
-                          value={fps.submission_id}
-                          onChange={(e) => {
-                            const sub = workspace?.payment_submissions.find(
-                              (s) => s.id === e.target.value,
-                            );
-                            setFps({
-                              ...fps,
-                              submission_id: e.target.value,
-                              amount: String(
-                                sub?.amount ||
-                                  c.payment_amount ||
-                                  c.quote?.total ||
-                                  "",
-                              ),
-                            });
-                          }}
-                        >
-                          <option value="">{text("請選擇", "Select")}</option>
-                          {workspace?.payment_submissions
-                            .filter(
-                              (s) =>
-                                s.case_id === c.id &&
-                                s.status === "PENDING_REVIEW",
-                            )
-                            .map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.reference} · HK${s.amount}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                      <label>
-                        {text(
-                          "銀行入帳／退款轉帳參考",
-                          "Bank receipt / refund reference",
-                        )}
-                        <input
-                          value={fps.bank_reference}
-                          onChange={(e) =>
-                            setFps({ ...fps, bank_reference: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {text("核實金額 HKD", "Verified amount HKD")}
-                        <input
-                          type="number"
-                          min="1"
-                          value={fps.amount}
-                          onChange={(e) =>
-                            setFps({ ...fps, amount: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        {text(
-                          "銀行入帳／退款轉帳時間 HKT",
-                          "Bank receipt / refund time HKT",
-                        )}
-                        <input
-                          type="datetime-local"
-                          value={fps.received_at}
-                          onChange={(e) =>
-                            setFps({ ...fps, received_at: e.target.value })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <label>
-                      {text("對數／退款說明", "Reconciliation / refund note")}
-                      <textarea
-                        value={adminReason}
-                        onChange={(e) => setAdminReason(e.target.value)}
-                      />
-                    </label>
-                    <label className="ev-check">
-                      <input
-                        type="checkbox"
-                        checked={fps.verified}
-                        onChange={(e) =>
-                          setFps({ ...fps, verified: e.target.checked })
-                        }
-                      />
-                      {workspace?.capabilities.payment === "bank_transfer"
-                        ? text(
-                            "我已登入銀行獨立核對實際入帳／退款，金額及參考正確。",
-                            "I independently checked the actual bank receipt or refund, amount and reference.",
-                          )
-                        : text(
-                            "我已獨立核對銀行紀錄，金額及參考正確（測試用虛構銀行紀錄）。",
-                            "I independently checked the bank record, amount and reference (fictional bank record for testing).",
+                        {workspace?.capabilities.payment === "bank_transfer" &&
+                          !workspace.capabilities.bank_transfer_configured && (
+                            <p className="ev-error">
+                              {text(
+                                "收款銀行資料未設定：暫時不能接受付款預約。請在 .env 填寫 BANK_NAME、BANK_ACCOUNT_NAME、BANK_ACCOUNT_NUMBER 後重啟。",
+                                "Bank details are not configured. Payment bookings are unavailable until BANK_NAME, BANK_ACCOUNT_NAME and BANK_ACCOUNT_NUMBER are set and the server restarts.",
+                              )}
+                            </p>
                           )}
-                    </label>
-                    <div className="ev-actions">
-                      <button
-                        className="button primary"
-                        disabled={busy || c.status !== "PENDING_PAY"}
-                        onClick={() => run(() => fpsAction("reconcile_fps"))}
-                      >
-                        {text(
-                          "確認銀行入帳，完成對數",
-                          "Confirm bank receipt after reconciliation",
-                        )}
-                      </button>
-                      <button
-                        className="button secondary"
-                        disabled={busy || c.status !== "PENDING_PAY"}
-                        onClick={() => run(() => fpsAction("reject_fps"))}
-                      >
-                        {text(
-                          "對數不符，退回跟進",
-                          "Reject unmatched transfer report",
-                        )}
-                      </button>
-                      <button
-                        className="button secondary"
-                        disabled={busy || c.refund_status !== "APPROVED"}
-                        onClick={() =>
-                          run(() => fpsAction("record_fps_refund"))
-                        }
-                      >
-                        {text(
-                          "記錄已完成轉帳退款",
-                          "Record completed bank transfer refund",
-                        )}
-                      </button>
-                    </div>
-                  </section>
-                )}
-                <details className="ev-admin">
-                  <summary>
-                    {text(
-                      "人工覆核／取消退款／重新招募",
-                      "Manual review, cancellation, refunds and reposting",
+
+                        <p>
+                          {text("對數狀態", "Review status")}:{" "}
+                          {c.payment_review_status || "—"}
+                        </p>
+                        <div className="ev-form-grid">
+                          <label>
+                            {text("待對數轉帳聲明", "Pending transfer report")}
+                            <select
+                              value={fps.submission_id}
+                              onChange={(e) => {
+                                const sub = workspace?.payment_submissions.find(
+                                  (s) => s.id === e.target.value,
+                                );
+                                setFps({
+                                  ...fps,
+                                  submission_id: e.target.value,
+                                  amount: String(
+                                    sub?.amount ||
+                                      c.payment_amount ||
+                                      c.quote?.total ||
+                                      "",
+                                  ),
+                                });
+                              }}
+                            >
+                              <option value="">
+                                {text("請選擇", "Select")}
+                              </option>
+                              {workspace?.payment_submissions
+                                .filter(
+                                  (s) =>
+                                    s.case_id === c.id &&
+                                    s.status === "PENDING_REVIEW",
+                                )
+                                .map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.reference} · HK${s.amount}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                          <label>
+                            {text(
+                              "銀行入帳／退款轉帳參考",
+                              "Bank receipt / refund reference",
+                            )}
+                            <input
+                              value={fps.bank_reference}
+                              onChange={(e) =>
+                                setFps({
+                                  ...fps,
+                                  bank_reference: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {text("核實金額 HKD", "Verified amount HKD")}
+                            <input
+                              type="number"
+                              min="1"
+                              value={fps.amount}
+                              onChange={(e) =>
+                                setFps({ ...fps, amount: e.target.value })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {text(
+                              "銀行入帳／退款轉帳時間 HKT",
+                              "Bank receipt / refund time HKT",
+                            )}
+                            <input
+                              type="datetime-local"
+                              value={fps.received_at}
+                              onChange={(e) =>
+                                setFps({ ...fps, received_at: e.target.value })
+                              }
+                            />
+                          </label>
+                        </div>
+                        <label>
+                          {text(
+                            "對數／退款說明",
+                            "Reconciliation / refund note",
+                          )}
+                          <textarea
+                            value={adminReason}
+                            onChange={(e) => setAdminReason(e.target.value)}
+                          />
+                        </label>
+                        <label className="ev-check">
+                          <input
+                            type="checkbox"
+                            checked={fps.verified}
+                            onChange={(e) =>
+                              setFps({ ...fps, verified: e.target.checked })
+                            }
+                          />
+                          {workspace?.capabilities.payment === "bank_transfer"
+                            ? text(
+                                "我已登入銀行獨立核對實際入帳／退款，金額及參考正確。",
+                                "I independently checked the actual bank receipt or refund, amount and reference.",
+                              )
+                            : text(
+                                "我已獨立核對銀行紀錄，金額及參考正確（測試用虛構銀行紀錄）。",
+                                "I independently checked the bank record, amount and reference (fictional bank record for testing).",
+                              )}
+                        </label>
+                        <div className="ev-actions">
+                          <button
+                            className="button primary"
+                            disabled={busy || c.status !== "PENDING_PAY"}
+                            onClick={() =>
+                              run(() => fpsAction("reconcile_fps"))
+                            }
+                          >
+                            {text(
+                              "確認銀行入帳，完成對數",
+                              "Confirm bank receipt after reconciliation",
+                            )}
+                          </button>
+                          <button
+                            className="button secondary"
+                            disabled={busy || c.status !== "PENDING_PAY"}
+                            onClick={() => run(() => fpsAction("reject_fps"))}
+                          >
+                            {text(
+                              "對數不符，退回跟進",
+                              "Reject unmatched transfer report",
+                            )}
+                          </button>
+                          <button
+                            className="button secondary"
+                            disabled={busy || c.refund_status !== "APPROVED"}
+                            onClick={() =>
+                              run(() => fpsAction("record_fps_refund"))
+                            }
+                          >
+                            {text(
+                              "記錄已完成轉帳退款",
+                              "Record completed bank transfer refund",
+                            )}
+                          </button>
+                        </div>
+                      </section>
                     )}
-                  </summary>
-                  <label>
-                    {text("覆核／操作原因", "Review / action reason")}
-                    <textarea
-                      value={adminReason}
-                      onChange={(e) => setAdminReason(e.target.value)}
-                    />
-                  </label>
-                  {c.red_flag && (
-                    <div>
-                      <label>
-                        {text(
-                          "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
-                          "Red-flag resolution / referral (at least 10 characters; required before quoting)",
-                        )}
-                        <textarea
-                          value={redFlagResolution}
-                          onChange={(e) => setRedFlagResolution(e.target.value)}
-                          minLength={10}
-                        />
-                      </label>
-                      <label className="ev-check">
-                        <input
-                          type="checkbox"
-                          checked={redFlagConfirmed}
-                          onChange={(e) =>
-                            setRedFlagConfirmed(e.target.checked)
-                          }
-                        />
-                        {text(
-                          "我確認已記錄臨床處置／轉介結果，並解除此個案的報價阻擋。",
-                          "I confirm the clinical resolution or referral is recorded and this case may proceed to quoting.",
-                        )}
-                      </label>
-                    </div>
-                  )}
-                  <label>
-                    {text(
-                      "偏遠分類（只影響護士交通津貼）",
-                      "Remote tier (nurse allowance only)",
-                    )}
-                    <select
-                      value={remoteTier}
-                      onChange={(e) => setRemoteTier(e.target.value)}
-                    >
-                      {["A", "B", "C"].map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="ev-actions">
-                    {[
-                      [
-                        "remote",
-                        text(
-                          "覆核地點及交通津貼",
-                          "Review location / allowance",
-                        ),
-                      ],
-                      [
-                        "issue_quote",
-                        text("人工處理後發報價", "Issue quote after review"),
-                      ],
-                      [
-                        "manual_refund",
-                        text(
-                          "人工決定退款／放回時數（待批核）",
-                          "Request refund for paid manual case",
-                        ),
-                      ],
-                      [
-                        "refund",
-                        text(
-                          "批核退款／釋放時數",
-                          "Approve refund / release hours",
-                        ),
-                      ],
-                      [
-                        "doctor_upload_link",
-                        text(
-                          "重發醫生指示文件上載連結",
-                          "Resend doctor document upload link",
-                        ),
-                      ],
-                      ["repost", text("再次招募", "Repost")],
-                      ["reschedule", text("改期交人手", "Manual reschedule")],
-                      [
-                        "manual_cancel",
-                        text("結束未收款人工個案", "Close unpaid manual case"),
-                      ],
-                      ...(!session
-                        ? [
-                            [
-                              "doctor_failed",
-                              text("醫生指示核對失敗", "Doctor order failed"),
-                            ],
-                          ]
-                        : []),
-                    ].map(([a, label]) => (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        className="button secondary"
-                        key={a}
-                        onClick={() => run(() => action(a))}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="form-hint">
-                    {text(
-                      "未收款不能派單；退款只可由待批核狀態處理。真人收款／退款不屬本實驗。",
-                      "Dispatch needs payment. Refund approval requires a pending request. Live payment/refund is outside this experiment.",
-                    )}
-                  </p>
-                </details>
-                {c.status === "MANUAL" && c.manual_reason && (
-                  <p className="ev-error">{c.manual_reason}</p>
-                )}
-                <ol className="ev-steps">
-                  <li>
-                    {text(
-                      "到收件箱開 T1 連結，再在確認頁接受報價。",
-                      "Open T1 in the inbox, then confirm acceptance.",
-                    )}
-                  </li>
-                  <li>
-                    {text(
-                      "家屬人手轉帳及提交資料，管理員核對銀行入帳；確認收款後預覽派單。",
-                      "Transfer manually and submit details; administrator verifies the bank receipt before approving dispatch.",
-                    )}
-                    <div>
-                      {workspace?.capabilities.payment === "mock" && (
-                        <button
-                          disabled={busy || c.status !== "PENDING_PAY"}
-                          className="button secondary"
-                          onClick={() => run(() => action("mock_paid"))}
-                        >
-                          {text("模擬付款成功", "Simulate paid")}
-                        </button>
-                      )}
-                      <button
-                        disabled={busy || c.status !== "PAID"}
-                        className="button primary"
-                        onClick={() => run(() => action("dispatch"))}
-                      >
-                        {text("確認預覽並派單", "Approve preview and dispatch")}
-                      </button>
-                    </div>
-                    <details>
+                    <details className="ev-admin">
                       <summary>
                         {text(
-                          "派單預覽（不含姓名、電話、單位）",
-                          "Dispatch preview (no name, phone or unit)",
+                          "人工覆核／取消退款／重新招募",
+                          "Manual review, cancellation, refunds and reposting",
                         )}
                       </summary>
-                      <p>
-                        {c.date} {c.start}–{c.end}
-                        <br />
-                        {c.district} {c.building}
-                      </p>
-                      <p>
+                      <label>
+                        {text("覆核／操作原因", "Review / action reason")}
+                        <textarea
+                          value={adminReason}
+                          onChange={(e) => setAdminReason(e.target.value)}
+                        />
+                      </label>
+                      {c.red_flag && (
+                        <div>
+                          <label>
+                            {text(
+                              "紅旗處置／轉介結果（至少 10 字；未填不可發報價）",
+                              "Red-flag resolution / referral (at least 10 characters; required before quoting)",
+                            )}
+                            <textarea
+                              value={redFlagResolution}
+                              onChange={(e) =>
+                                setRedFlagResolution(e.target.value)
+                              }
+                              minLength={10}
+                            />
+                          </label>
+                          <label className="ev-check">
+                            <input
+                              type="checkbox"
+                              checked={redFlagConfirmed}
+                              onChange={(e) =>
+                                setRedFlagConfirmed(e.target.checked)
+                              }
+                            />
+                            {text(
+                              "我確認已記錄臨床處置／轉介結果，並解除此個案的報價阻擋。",
+                              "I confirm the clinical resolution or referral is recorded and this case may proceed to quoting.",
+                            )}
+                          </label>
+                        </div>
+                      )}
+                      <label>
                         {text(
-                          "所選護理項目、偏好時間及已確認測試薪酬會列於 T3。",
-                          "T3 includes selected care items, times and confirmed test rates.",
+                          "偏遠分類（只影響護士交通津貼）",
+                          "Remote tier (nurse allowance only)",
+                        )}
+                        <select
+                          value={remoteTier}
+                          onChange={(e) => setRemoteTier(e.target.value)}
+                        >
+                          {["A", "B", "C"].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="ev-actions">
+                        {[
+                          [
+                            "remote",
+                            text(
+                              "覆核地點及交通津貼",
+                              "Review location / allowance",
+                            ),
+                          ],
+                          [
+                            "issue_quote",
+                            text(
+                              "人工處理後發報價",
+                              "Issue quote after review",
+                            ),
+                          ],
+                          [
+                            "manual_refund",
+                            text(
+                              "人工決定退款／放回時數（待批核）",
+                              "Request refund for paid manual case",
+                            ),
+                          ],
+                          [
+                            "refund",
+                            text(
+                              "批核退款／釋放時數",
+                              "Approve refund / release hours",
+                            ),
+                          ],
+                          [
+                            "doctor_upload_link",
+                            text(
+                              "重發醫生指示文件上載連結",
+                              "Resend doctor document upload link",
+                            ),
+                          ],
+                          ["repost", text("再次招募", "Repost")],
+                          [
+                            "reschedule",
+                            text("改期交人手", "Manual reschedule"),
+                          ],
+                          [
+                            "manual_cancel",
+                            text(
+                              "結束未收款人工個案",
+                              "Close unpaid manual case",
+                            ),
+                          ],
+                          ...(!session
+                            ? [
+                                [
+                                  "doctor_failed",
+                                  text(
+                                    "醫生指示核對失敗",
+                                    "Doctor order failed",
+                                  ),
+                                ],
+                              ]
+                            : []),
+                        ].map(([a, label]) => (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            className="button secondary"
+                            key={a}
+                            onClick={() => run(() => action(a))}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="form-hint">
+                        {text(
+                          operational
+                            ? "未確認收款不能派單。退款須先批核，再由同事於銀行轉帳並獨立記錄。"
+                            : "未收款不能派單；退款只可由待批核狀態處理。真人收款／退款不屬本實驗。",
+                          operational
+                            ? "Dispatch requires verified payment. Refunds require approval followed by a separately recorded bank transfer."
+                            : "Dispatch needs payment. Refund approval requires a pending request. Live payment/refund is outside this experiment.",
                         )}
                       </p>
                     </details>
-                  </li>
-                  <li>
-                    {text(
-                      "護士開自己嘅 T3 個人連結，第一個確認接單者得標。",
-                      "Nurses open individual T3 links; first confirmation wins.",
+                    {c.status === "MANUAL" && c.manual_reason && (
+                      <p className="ev-error">{c.manual_reason}</p>
                     )}
-                  </li>
-                  <li>
-                    {text(
-                      "家屬經 T16 提供單位；完成 Care Schedule 三關。",
-                      "Family provides the unit through T16; complete schedule review.",
-                    )}
-                    {session?.method === "google" && (
-                      <p className="form-hint">
+                    <ol className="ev-steps">
+                      <li>
                         {text(
-                          "資深護士須用另一帳戶進入護理覆核工作台；完成覆核後，在此重新整理並作最終確認。",
-                          "A senior nurse must review from their own account. Refresh here after their review, then give final approval.",
+                          operational
+                            ? "請家屬從報價電郵中的連結確認接受報價。"
+                            : "到收件箱開 T1 連結，再在確認頁接受報價。",
+                          operational
+                            ? "The family confirms acceptance through the link in their quote email."
+                            : "Open T1 in the inbox, then confirm acceptance.",
                         )}
-                      </p>
-                    )}
-                    <div className="ev-actions">
-                      {(["draft", "nurse", "admin"] as const).map((step, i) => (
+                      </li>
+                      <li>
+                        {text(
+                          "家屬人手轉帳及提交資料，管理員核對銀行入帳；確認收款後預覽派單。",
+                          "Transfer manually and submit details; administrator verifies the bank receipt before approving dispatch.",
+                        )}
+                        <div>
+                          {workspace?.capabilities.payment === "mock" && (
+                            <button
+                              disabled={busy || c.status !== "PENDING_PAY"}
+                              className="button secondary"
+                              onClick={() => run(() => action("mock_paid"))}
+                            >
+                              {text("模擬付款成功", "Simulate paid")}
+                            </button>
+                          )}
+                          <button
+                            disabled={busy || c.status !== "PAID"}
+                            className="button primary"
+                            onClick={() => run(() => action("dispatch"))}
+                          >
+                            {text(
+                              "確認預覽並派單",
+                              "Approve preview and dispatch",
+                            )}
+                          </button>
+                        </div>
+                        <details>
+                          <summary>
+                            {text(
+                              "派單預覽（不含姓名、電話、單位）",
+                              "Dispatch preview (no name, phone or unit)",
+                            )}
+                          </summary>
+                          <p>
+                            {c.date} {c.start}–{c.end}
+                            <br />
+                            {c.district} {c.building}
+                          </p>
+                          <p>
+                            {text(
+                              operational
+                                ? "派單會列出所選護理項目、偏好時間及已確認薪酬。"
+                                : "所選護理項目、偏好時間及已確認測試薪酬會列於 T3。",
+                              operational
+                                ? "Dispatch includes care items, preferred times and confirmed rates."
+                                : "T3 includes selected care items, times and confirmed test rates.",
+                            )}
+                          </p>
+                        </details>
+                      </li>
+                      <li>
+                        {text(
+                          "護士開自己嘅 T3 個人連結，第一個確認接單者得標。",
+                          "Nurses open individual T3 links; first confirmation wins.",
+                        )}
+                      </li>
+                      <li>
+                        {text(
+                          "家屬經 T16 提供單位；完成 Care Schedule 三關。",
+                          "Family provides the unit through T16; complete schedule review.",
+                        )}
+                        {session?.method === "google" && (
+                          <p className="form-hint">
+                            {text(
+                              "資深護士須用另一帳戶進入護理覆核工作台；完成覆核後，在此重新整理並作最終確認。",
+                              "A senior nurse must review from their own account. Refresh here after their review, then give final approval.",
+                            )}
+                          </p>
+                        )}
+                        <div className="ev-actions">
+                          {(["draft", "nurse", "admin"] as const).map(
+                            (step, i) => (
+                              <button
+                                className="button secondary"
+                                key={step}
+                                disabled={
+                                  busy ||
+                                  (session?.method === "google" &&
+                                    step === "nurse") ||
+                                  !["PAID", "POSTED", "MATCHED"].includes(
+                                    c.status,
+                                  ) ||
+                                  (step === "draft"
+                                    ? !!c.schedule
+                                    : step === "nurse"
+                                      ? !c.schedule ||
+                                        c.schedule_status !== "PENDING_REVIEW"
+                                      : c.schedule_status !== "NURSE_REVIEWED")
+                                }
+                                onClick={() => run(() => action(step))}
+                              >
+                                {
+                                  [
+                                    text(
+                                      "產生規則草稿",
+                                      "Generate rules draft",
+                                    ),
+                                    text("資深護士覆核", "Senior nurse review"),
+                                    text(
+                                      "管理員最終確認",
+                                      "Administrator final approval",
+                                    ),
+                                  ][i]
+                                }
+                              </button>
+                            ),
+                          )}
+                        </div>
+                      </li>
+                      <li>
+                        {text(
+                          "配對、地址、排程齊備先寄 T11，轉為 READY。",
+                          "T11 is released only after assignment, address and schedule approval.",
+                        )}
+                      </li>
+                    </ol>
+                    <div className="ev-gates">
+                      <span>
+                        {text("得標護士", "Assigned nurse")}:{" "}
+                        {c.assigned_nurse || "—"}
+                      </span>
+                      <span>
+                        {text("地址", "Address")}: {c.address_status}
+                      </span>
+                      <span>Care Schedule: {c.schedule_status}</span>
+                    </div>
+                    {c.schedule && !session && (
+                      <details className="ev-admin">
+                        <summary>
+                          {text(
+                            "人手修改時間表（須重新覆核）",
+                            "Edit schedule (requires reapproval)",
+                          )}
+                        </summary>
                         <button
                           className="button secondary"
-                          key={step}
-                          disabled={
-                            busy ||
-                            (session?.method === "google" &&
-                              step === "nurse") ||
-                            !["PAID", "POSTED", "MATCHED"].includes(c.status) ||
-                            (step === "draft"
-                              ? !!c.schedule
-                              : step === "nurse"
-                                ? !c.schedule ||
-                                  c.schedule_status !== "PENDING_REVIEW"
-                                : c.schedule_status !== "NURSE_REVIEWED")
+                          onClick={() =>
+                            setScheduleEdit(JSON.stringify(c.schedule, null, 2))
                           }
-                          onClick={() => run(() => action(step))}
                         >
-                          {
-                            [
-                              text("產生規則草稿", "Generate rules draft"),
-                              text("資深護士覆核", "Senior nurse review"),
-                              text("Yi 最終確認", "Yi final approval"),
-                            ][i]
-                          }
+                          {text("載入現有草稿", "Load draft")}
                         </button>
-                      ))}
-                    </div>
-                  </li>
-                  <li>
-                    {text(
-                      "配對、地址、排程齊備先寄 T11，轉為 READY。",
-                      "T11 is released only after assignment, address and schedule approval.",
+                        <textarea
+                          aria-label="Schedule JSON"
+                          value={scheduleEdit}
+                          onChange={(e) => setScheduleEdit(e.target.value)}
+                        />
+                        <button
+                          className="button secondary"
+                          disabled={busy}
+                          onClick={() => run(() => action("schedule_edit"))}
+                        >
+                          {text(
+                            "記錄修改（需填原因）",
+                            "Record edit (reason required)",
+                          )}
+                        </button>
+                      </details>
                     )}
-                  </li>
-                </ol>
-                <div className="ev-gates">
-                  <span>
-                    {text("得標護士", "Assigned nurse")}:{" "}
-                    {c.assigned_nurse || "—"}
-                  </span>
-                  <span>
-                    {text("地址", "Address")}: {c.address_status}
-                  </span>
-                  <span>Care Schedule: {c.schedule_status}</span>
-                </div>
-                {c.schedule && !session && (
-                  <details className="ev-admin">
-                    <summary>
+                    {c.schedule && (
+                      <pre>
+                        {c.schedule
+                          .map((x) => `${x.time} ${x.item}`)
+                          .join("\n")}
+                      </pre>
+                    )}
+                    {workspace?.capabilities.test_clock && (
+                      <details className="ev-admin">
+                        <summary>
+                          {text(
+                            "虛擬時鐘測試（不代表真實 24h 證據）",
+                            "Virtual clock (not real 24h evidence)",
+                          )}
+                        </summary>
+                        <label>
+                          {text("向前推進至 HKT", "Advance to HKT")}
+                          <input
+                            type="datetime-local"
+                            value={clockTo}
+                            onChange={(e) => setClockTo(e.target.value)}
+                          />
+                        </label>
+                        <button
+                          className="button secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            run(() =>
+                              request("/api/test-clock", {
+                                to: new Date(clockTo + "+08:00").toISOString(),
+                              }),
+                            )
+                          }
+                        >
+                          {text("推進虛擬時間", "Advance virtual clock")}
+                        </button>
+                      </details>
+                    )}
+                    <p className="form-hint">
                       {text(
-                        "人手修改時間表（須重新覆核）",
-                        "Edit schedule (requires reapproval)",
+                        "PRN 不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
+                        "PRN has no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
                       )}
-                    </summary>
-                    <button
-                      className="button secondary"
-                      onClick={() =>
-                        setScheduleEdit(JSON.stringify(c.schedule, null, 2))
-                      }
-                    >
-                      {text("載入現有草稿", "Load draft")}
-                    </button>
-                    <textarea
-                      aria-label="Schedule JSON"
-                      value={scheduleEdit}
-                      onChange={(e) => setScheduleEdit(e.target.value)}
-                    />
-                    <button
-                      className="button secondary"
-                      disabled={busy}
-                      onClick={() => run(() => action("schedule_edit"))}
-                    >
-                      {text(
-                        "記錄修改（需填原因）",
-                        "Record edit (reason required)",
-                      )}
-                    </button>
-                  </details>
+                    </p>
+                  </>
+                ) : (
+                  <p>{text("建立個案開始驗證。", "Create a case to begin.")}</p>
                 )}
-                {c.schedule && (
-                  <pre>
-                    {c.schedule.map((x) => `${x.time} ${x.item}`).join("\n")}
-                  </pre>
-                )}
-                {workspace?.capabilities.test_clock && (
-                  <details className="ev-admin">
-                    <summary>
-                      {text(
-                        "虛擬時鐘測試（不代表真實 24h 證據）",
-                        "Virtual clock (not real 24h evidence)",
-                      )}
-                    </summary>
-                    <label>
-                      {text("向前推進至 HKT", "Advance to HKT")}
-                      <input
-                        type="datetime-local"
-                        value={clockTo}
-                        onChange={(e) => setClockTo(e.target.value)}
-                      />
-                    </label>
-                    <button
-                      className="button secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        run(() =>
-                          request("/api/test-clock", {
-                            to: new Date(clockTo + "+08:00").toISOString(),
-                          }),
-                        )
-                      }
-                    >
-                      {text("推進虛擬時間", "Advance virtual clock")}
-                    </button>
-                  </details>
-                )}
-                <p className="form-hint">
-                  {text(
-                    "PRN 不設提醒。定時項目提前 10 分鐘提醒，未確認一小時後追問。計時器每分鐘執行一次。",
-                    "PRN has no reminders. Timed tasks notify 10 minutes before, with a one-hour follow-up. Worker runs every minute.",
-                  )}
-                </p>
-              </>
-            ) : (
-              <p>{text("建立個案開始驗證。", "Create a case to begin.")}</p>
+              </section>
             )}
-          </section>
-        </div>
-      )}
+          </div>
+        )}
       {tab === "inbox" && (
         <div className="ev-inbox">
           <section className="panel ev-mail-list">
@@ -1909,21 +2079,27 @@ function AdminWorkspace({
                   </button>
                 )}
                 {mail.error && <p className="ev-error">{mail.error}</p>}
-                <pre>{mail.body}</pre>
-                <div className="ev-actions">
-                  {mail.links.map((l) => (
-                    <a
-                      className="button primary"
-                      href={l.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      key={l.url}
-                    >
-                      {labels[l.label] || l.label}
-                      <ArrowRight size={15} />
-                    </a>
-                  ))}
-                </div>
+                <EmailPreview mail={mail} />
+                <details className="ev-email-plain">
+                  <summary>
+                    {text("純文字及操作連結", "Plain text and action links")}
+                  </summary>
+                  <pre>{mail.body}</pre>
+                  <div className="ev-actions">
+                    {mail.links.map((l) => (
+                      <a
+                        className="button primary"
+                        href={l.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        key={l.url}
+                      >
+                        {labels[l.label] || l.label}
+                        <ArrowRight size={15} />
+                      </a>
+                    ))}
+                  </div>
+                </details>
                 <p className="form-hint">
                   {text(
                     "連結只開確認頁；按確認先更改個案。操作後按重新整理。",
@@ -1987,6 +2163,125 @@ function AdminWorkspace({
               "Nurse payouts: records only, no transfers",
             )}
           </h3>
+          {operational && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void run(async () => {
+                  await request("/api/payout", {
+                    ...payoutForm,
+                    amount: Number(payoutForm.amount),
+                    paid_at: new Date(
+                      payoutForm.paid_at + "+08:00",
+                    ).toISOString(),
+                  });
+                  setPayoutForm({
+                    id: "",
+                    amount: "",
+                    bank_reference: "",
+                    paid_at: "",
+                    note: "",
+                    verified: false,
+                  });
+                });
+              }}
+            >
+              <h3>
+                {text("記錄已轉帳薪酬", "Record completed payout transfer")}
+              </h3>
+              <div className="ev-form-grid">
+                <label>
+                  {text("待付薪酬", "Pending payout")}
+                  <select
+                    required
+                    value={payoutForm.id}
+                    onChange={(e) => {
+                      const p = workspace?.payouts.find(
+                        (p) => p.id === e.target.value,
+                      );
+                      setPayoutForm({
+                        ...payoutForm,
+                        id: e.target.value,
+                        amount: String(p?.total || ""),
+                      });
+                    }}
+                  >
+                    <option value="">{text("請選擇", "Select")}</option>
+                    {workspace?.payouts
+                      .filter((p) => p.status === "PENDING")
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.case_id} · {p.nurse_id} · HK${p.total}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  {text("已轉帳金額 HKD", "Transferred amount HKD")}
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    value={payoutForm.amount}
+                    onChange={(e) =>
+                      setPayoutForm({ ...payoutForm, amount: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  {text("銀行轉帳參考", "Bank transfer reference")}
+                  <input
+                    required
+                    value={payoutForm.bank_reference}
+                    onChange={(e) =>
+                      setPayoutForm({
+                        ...payoutForm,
+                        bank_reference: e.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  {text("轉帳時間（香港）", "Transfer time (Hong Kong)")}
+                  <input
+                    required
+                    type="datetime-local"
+                    value={payoutForm.paid_at}
+                    onChange={(e) =>
+                      setPayoutForm({ ...payoutForm, paid_at: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
+              <label>
+                {text("付款說明", "Payment note")}
+                <textarea
+                  required
+                  value={payoutForm.note}
+                  onChange={(e) =>
+                    setPayoutForm({ ...payoutForm, note: e.target.value })
+                  }
+                />
+              </label>
+              <label className="ev-check">
+                <input
+                  required
+                  type="checkbox"
+                  checked={payoutForm.verified}
+                  onChange={(e) =>
+                    setPayoutForm({ ...payoutForm, verified: e.target.checked })
+                  }
+                />
+                {text(
+                  "我已核對銀行紀錄，確認薪酬已轉帳。",
+                  "I checked the bank record and confirm the payout was transferred.",
+                )}
+              </label>
+              <button className="button primary" disabled={busy}>
+                {text("記錄已付款", "Record payment")}
+              </button>
+            </form>
+          )}
           {workspace?.payouts.map((p) => (
             <p key={p.id}>
               {p.case_id} · {p.nurse_id} · HK${p.total} · {p.status}
@@ -2230,7 +2525,7 @@ type ClinicalCase = Case & {
   confirmed_by?: string;
 };
 
-function ClinicalWorkspace({ session }: { session: StaffSession }) {
+export function ClinicalWorkspace({ session }: { session: StaffSession }) {
   const { language } = useLocale();
   const text = (zh: string, en: string) => (language === "zh-HK" ? zh : en);
   const [cases, setCases] = useState<ClinicalCase[]>([]);

@@ -119,9 +119,18 @@ export function StaffAccess({ children }: { children: ReactNode }) {
       const r = await fetch(apiUrl("/auth/logout"), {
         method: "POST",
         credentials: "include",
-        headers: { "X-CSRF-Token": session?.user?.csrf || "" },
+        headers: {
+          "X-CSRF-Token": session?.user?.csrf || "",
+          ...(sessionStorage.getItem("workflow-admin-key")
+            ? {
+                Authorization: `Bearer ${sessionStorage.getItem("workflow-admin-key")}`,
+              }
+            : {}),
+        },
       });
       if (!r.ok) throw new Error("Logout failed. Refresh and try again.");
+      sessionStorage.removeItem("workflow-admin-key");
+      setKey("");
       setSession(null);
       setChecking(true);
       await load();

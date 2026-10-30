@@ -23,31 +23,11 @@ test("public server form displays service pricing and requires real enquiry deta
   ).not.toBeChecked();
 });
 
-test("mock integrations sandbox runs payment, dispatch, assignment, drop and onboarding flows", async ({
-  page,
-}) => {
-  await page.addInitScript(() =>
-    localStorage.setItem("kindred-language", "en"),
-  );
-  await page.goto("/#staff");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const sandbox = page.locator(".mock-sandbox");
-  await expect(sandbox).toContainText("MOCK ONLY");
-  await sandbox.getByRole("button", { name: /Generate mock quote/ }).click();
-  await sandbox.getByRole("button", { name: /Mark mock payment paid/ }).click();
-  await expect(sandbox).toContainText("Paid");
-  await sandbox
-    .getByRole("button", { name: /Send mock email dispatch/ })
-    .click();
-  await sandbox
-    .getByRole("button", { name: /First eligible nurse accepts/ })
-    .click();
-  await expect(sandbox).toContainText("Assigned");
-  await sandbox.getByRole("button", { name: /Mock nurse cancels/ }).click();
-  await expect(sandbox).toContainText("Rematching");
-  await sandbox.getByRole("button", { name: /Mock full refund/ }).click();
-  await expect(sandbox).toContainText("Full refund");
-  await sandbox.getByLabel("Demo nurse").selectOption("P-006");
-  await sandbox.getByRole("button", { name: /Mock interview/ }).click();
-  await expect(sandbox).toContainText("已核實");
+test("staff settings expose real connections and contain no mock payment controls", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("kindred-language", "en"));
+  await page.goto("/#staff/settings");
+  await expect(page.getByRole("heading", { name: "Connections and audit trail" })).toBeVisible();
+  await expect(page.getByText("Service settings", { exact: true })).toBeVisible();
+  await expect(page.locator(".mock-sandbox")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /mock|simulate|reset demo/i })).toHaveCount(0);
 });

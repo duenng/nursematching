@@ -231,6 +231,7 @@ test("senior nurse worklist supports draft, edit, review and logout without fina
     path: testInfo.outputPath("senior-mobile.png"),
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Open menu", exact: true }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Staff sign in" }),

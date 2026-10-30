@@ -1,20 +1,5 @@
-export const TEMPLATE_VERSION = "v3-email-trl3-1";
-export const ACTION_LABELS = {
-  upload_doctor: "上載醫生指示文件",
-  report_fps: "提交轉帳資料",
-  accept_single: "接受單次報價",
-  accept_package: "30 小時套餐",
-  accept_existing_package: "使用現有套餐",
-  modify: "我想修改",
-  decline: "取消預約",
-  cancel: "取消預約",
-  take_case: "我要做此個案",
-  provide_unit: "填寫單位",
-  confirm_reminder: "確認已收到提醒",
-  arrived: "已到達",
-  visit_done: "完成",
-  drop: "我唔可以做",
-};
+export const TEMPLATE_VERSION = "v3-email-trl3-2";
+export { ACTION_LABELS, emailHtml } from "./email-template.mjs";
 export const TEMPLATE_CATALOG = {
   T1: { scope: "SLICE", description: "單次報價及可選套餐" },
   T1b: { scope: "EXTRA", description: "現有套餐報價" },
@@ -96,19 +81,4 @@ export function canonical(id, c, body) {
     X05: `你好，Case ${c.id} 嘅預約已取消，今次唔收任何費用。如仍需要服務，歡迎重新查詢。`,
   };
   return fixed[id] ?? body;
-}
-export function emailHtml(mail) {
-  const esc = (s) =>
-    String(s).replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[c],
-    );
-  return `<html lang="zh-HK"><body style="font:18px/1.8 system-ui;color:#302044"><h1 style="font-size:24px">${esc(mail.subject)}</h1><p style="white-space:pre-wrap">${esc(mail.body)}</p>${mail.links.map((l) => `<p><a style="display:inline-block;background:#694084;color:white;padding:12px 20px;border-radius:8px;text-decoration:none" href="${esc(l.url)}">${esc(ACTION_LABELS[l.label] || l.label)}</a></p>`).join("")}<small>請開啟確認頁後，再按確認掣。直接開啟電郵連結不會更改個案。</small></body></html>`;
 }

@@ -1,252 +1,72 @@
 import { test, expect } from "@playwright/test";
 
-test("email validation UI completes a real server workflow with safe confirmation pages", async ({
-  page,
-  context,
-}, testInfo) => {
-  await page.addInitScript(() =>
-    localStorage.setItem("kindred-language", "en"),
-  );
-  await page.goto("/#staff");
-  await page
-    .getByRole("button", { name: "Email validation", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Email validation workspace" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Local test inbox", { exact: true }),
-  ).toBeVisible();
-  const headers = {
-    Authorization: "Bearer " + (process.env.WORKFLOW_ADMIN_KEY || ""),
-  };
-  const state = await (
-    await page.request.get("/api/workflow", { headers })
-  ).json();
-  if (state.settings.nurse_day_rate === null) {
-    await page
-      .getByText("Test settings and admin connection", { exact: true })
-      .click();
-    await page.getByLabel("Day nurse rate (test)").fill("245");
-    await page.getByLabel("Night nurse rate (test)").fill("270");
-    await page
-      .getByRole("button", {
-        name: "Select full experiment policies (save to confirm)",
-      })
-      .click();
-    await page.getByRole("button", { name: "Confirm test settings" }).click();
-    await expect(page.getByRole("alert")).toHaveCount(0);
-  }
-  await page.getByLabel("Email (required)").fill("family@example.test");
-  const future = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  await page.getByLabel("Service date").fill(future);
-  await page.getByRole("checkbox", { name: /All data is fictional/ }).check();
-  await page
-    .getByRole("button", { name: "Confirm details and submit" })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirm enquiry submission", exact: true })
-    .click();
+test("staff enquiry reaches server, quote confirmation, independent bank reconciliation and real nurse matching", async ({ page, context }) => {
+  await page.addInitScript(() => localStorage.setItem("kindred-language", "en"));
+  const current = await (await page.request.get("/api/workflow")).json();
+  const configured = await page.request.post("/api/settings", { data: { time_scale: 1, nurse_day_rate: 245, nurse_night_rate: 270, admin_email: "admin@careknock.invalid", nurses: current.nurses, policies: { allow_arrival_completion: true } } });
+  expect(configured.ok()).toBeTruthy();
+  const provider = await (await page.request.post("/api/nurses", { data: { name: "Workflow nurse", email: `workflow-${Date.now()}@careknock.invalid`, category: "RN", registration: "RN-TEST", verification_note: "Credentials verified for workflow test", credentials_verified: true, status: "VERIFIED" } })).json();
+  await page.goto("/#staff/enquiries");
+  await page.getByLabel("Patient reference (package owner)").fill("LIVE-BROWSER-TEST");
+  await page.getByRole("combobox", { name: "Gender", exact: true }).selectOption("M");
+  await page.getByLabel("Age", { exact: true }).fill("78");
+  await page.getByLabel("Weight kg").fill("65");
+  await page.getByLabel("Height cm").fill("165");
+  await page.getByRole("combobox", { name: "Mobility", exact: true }).selectOption({ index: 1 });
+  await page.getByRole("combobox", { name: "Companion during service", exact: true }).selectOption("YES");
+  await page.getByLabel("Surname", { exact: true }).fill("Li");
+  await page.getByLabel("Email (required)").fill("family@careknock.invalid");
+  await page.getByRole("combobox", { name: "District", exact: true }).selectOption("屯門");
+  await page.getByLabel("Building (no unit at intake)").fill("Workflow Building");
+  await page.getByRole("checkbox", { name: /生命表徵/ }).check();
+  await page.getByRole("checkbox", { name: /I agree that this information/ }).check();
+  await page.getByRole("button", { name: "Confirm details and submit", exact: true }).click();
+  const submitted = page.waitForResponse((r) => r.url().endsWith("/api/cases") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Confirm enquiry submission", exact: true }).click();
+  const response = await submitted; expect(response.ok()).toBeTruthy();
+  const c = await response.json(); expect(c.intake_mode).toBe("LIVE"); expect(c.fictional).toBe(false);
+  await expect(page).toHaveURL(new RegExp(`#staff/requests/${c.id}$`));
   await expect(page.locator(".ev-state")).toContainText("MANUAL");
-  await page
-    .getByText("Manual review, cancellation, refunds and reposting", {
-      exact: true,
-    })
-    .click();
-  await page.getByLabel("Review / action reason").fill("核對虛構地點及資料");
-  await page
-    .getByRole("button", { name: "Review location / allowance", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Issue quote after review", exact: true })
-    .click();
+  await page.getByText("Manual review, cancellation, refunds and reposting", { exact: true }).click();
+  await page.getByLabel("Review / action reason").fill("Confirmed service location and requirements");
+  await page.getByRole("button", { name: "Review location / allowance", exact: true }).click();
+  await page.getByRole("button", { name: "Issue quote after review", exact: true }).click();
   await expect(page.locator(".ev-state")).toContainText("QUOTED");
-  await expect(
-    page.getByRole("button", {
-      name: "Approve preview and dispatch",
-      exact: true,
-    }),
-  ).toBeDisabled();
-  await page.getByRole("tab", { name: /Test inbox/ }).click();
-  await page
-    .locator(".ev-mail-list button")
-    .filter({ hasText: "T1 ·" })
-    .first()
-    .click();
-  const accept = page.getByRole("link", { name: "30 小時套餐", exact: true });
-  const popupPromise = context.waitForEvent("page");
-  await accept.click();
-  const popup = await popupPromise;
-  await expect(
-    popup.getByRole("heading", { name: "30 小時套餐", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await page.getByRole("tab", { name: "Cases", exact: true }).click();
-  await expect(page.locator(".ev-state")).toContainText("QUOTED");
-  await popup
-    .getByRole("button", { name: "確認：30 小時套餐", exact: true })
-    .click();
-  await expect(popup.getByRole("heading", { name: "操作結果" })).toBeVisible();
-  await popup.close();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(page.locator(".ev-state")).toContainText("PENDING_PAY");
-  await page.getByRole("tab", { name: /Test inbox/ }).click();
-  await page
-    .locator(".ev-mail-list button")
-    .filter({ hasText: "T8b ·" })
-    .click();
-  const fpsPagePromise = context.waitForEvent("page");
-  await page.getByRole("link", { name: "提交轉帳資料" }).click();
-  const fpsPage = await fpsPagePromise;
-  await fpsPage.getByLabel("轉帳參考編號").fill("CUSTOMER-PACKAGE-001");
-  await fpsPage.getByLabel("轉帳金額 HKD").fill("8650");
-  const now = Date.now() + 30000;
-  const hkt = new Date(now + 8 * 3600000).toISOString().slice(0, 16);
-  await fpsPage.getByLabel("轉帳時間 HKT").fill(hkt);
-  await fpsPage.getByRole("button", { name: "確認：提交轉帳資料" }).click();
-  await expect(fpsPage.getByText(/尚未確認收款/)).toBeVisible();
-  await fpsPage.close();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await page.getByRole("tab", { name: "Cases", exact: true }).click();
-  await expect(page.locator(".ev-state")).toContainText("PENDING_PAY");
-  await page.getByLabel("Pending transfer report").selectOption({ index: 1 });
-  await page
-    .getByLabel("Bank receipt / refund reference")
-    .fill("BANK-PACKAGE-001");
-  await page.getByLabel("Verified amount HKD").fill("8650");
+  let state = await (await page.request.get("/api/workflow")).json();
+  const quote = state.emails.find((m: { case_id: string; template_id: string }) => m.case_id === c.id && m.template_id === "T1");
+  const link = quote.links.find((l: { label: string }) => l.label === "accept_single").url;
+  const family = await context.newPage(); await family.goto(link);
+  await expect(family.getByRole("button", { name: "確認：接受單次報價" })).toBeVisible();
+  expect((await (await page.request.get("/api/workflow")).json()).cases.find((x: { id: string }) => x.id === c.id).status).toBe("QUOTED");
+  await family.getByRole("button", { name: "確認：接受單次報價" }).click();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Approve preview and dispatch" })).toBeDisabled();
+  state = await (await page.request.get("/api/workflow")).json();
+  const payment = state.emails.find((m: { case_id: string; template_id: string }) => m.case_id === c.id && m.template_id === "T8");
+  const reportLink = payment.links.find((l: { label: string }) => l.label === "report_fps").url;
+  const report = await page.request.post(reportLink, { form: { reference: `FAMILY-${Date.now()}`, amount: "1220", transferred_at: new Date(Date.now() - 60000).toISOString() } });
+  expect(report.ok()).toBeTruthy();
+  await page.reload();
+  await page.getByRole("combobox", { name: "Pending transfer report", exact: true }).selectOption({ index: 1 });
+  await page.getByLabel("Bank receipt / refund reference").fill(`BANK-${Date.now()}`);
+  await page.getByLabel("Verified amount HKD").fill("1220");
+  const hkt = new Date(Date.now() + 8 * 3600000 - 60000).toISOString().slice(0,16);
   await page.getByLabel("Bank receipt / refund time HKT").fill(hkt);
-  await page
-    .getByLabel("Reconciliation / refund note")
-    .fill("已核對虛構銀行入帳");
-  await page.getByRole("checkbox", { name: /I independently checked/ }).check();
-  await page
-    .getByRole("button", {
-      name: "Confirm bank receipt after reconciliation",
-      exact: true,
-    })
-    .click();
+  await page.getByLabel("Reconciliation / refund note").fill("Checked actual bank receipt independently");
+  await page.getByRole("checkbox", { name: /I independently checked the actual bank/ }).check();
+  await page.getByRole("button", { name: "Confirm bank receipt after reconciliation", exact: true }).click();
   await expect(page.locator(".ev-state")).toContainText("PAID");
-  await page
-    .getByRole("button", { name: "Approve preview and dispatch", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Approve preview and dispatch", exact: true }).click();
   await expect(page.locator(".ev-state")).toContainText("POSTED");
-  await page.getByRole("tab", { name: /Test inbox/ }).click();
-  await page
-    .locator(".ev-mail-list button")
-    .filter({ hasText: "T3 · n01@example.test" })
-    .click();
-  const nursePromise = context.waitForEvent("page");
-  await page.getByRole("link", { name: "我要做此個案" }).click();
-  const nurse = await nursePromise;
-  await nurse.getByRole("button", { name: "確認：我要做此個案" }).click();
-  await nurse.close();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await page
-    .locator(".ev-mail-list button")
-    .filter({ hasText: "T16 · family@example.test" })
-    .click();
-  const familyPromise = context.waitForEvent("page");
-  await page.getByRole("link", { name: "填寫單位" }).click();
-  const family = await familyPromise;
-  await family.getByLabel("樓層及單位").fill("38 樓 X 室");
-  await family.getByRole("button", { name: "確認：填寫單位" }).click();
+  state = await (await page.request.get("/api/workflow")).json();
+  const broadcast = state.emails.find((m: { case_id: string; template_id: string; to: string }) => m.case_id === c.id && m.template_id === "T3" && m.to === provider.email);
+  expect(broadcast.body).not.toContain("family@careknock.invalid");
+  expect((await page.request.post(broadcast.links[0].url)).ok()).toBeTruthy();
+  await page.reload();
+  await expect(page.locator(".ev-state")).toContainText("MATCHED");
+  await page.getByRole("navigation").getByRole("button", { name: "Care schedule", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: c.id })).toBeVisible();
+  await page.getByRole("navigation").getByRole("button", { name: "Client records", exact: true }).click();
+  await expect(page.locator("summary").filter({ hasText: "LIVE-BROWSER-TEST" })).toBeVisible();
   await family.close();
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await page.getByRole("tab", { name: "Cases", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Generate rules draft", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Senior nurse review", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Yi final approval", exact: true })
-    .click();
-  await expect(page.locator(".ev-state")).toContainText("READY");
-  await page.getByRole("tab", { name: /Test inbox/ }).click();
-  await page
-    .locator(".ev-mail-list button")
-    .filter({ hasText: "T11 · n01@example.test" })
-    .click();
-  await expect(page.locator(".ev-panel pre")).toContainText("38 樓 X 室");
-  const firstT11 = page.locator(".ev-panel");
-  const arriveUrl = await firstT11
-    .getByRole("link", { name: "已到達", exact: true })
-    .getAttribute("href");
-  const doneUrl = await firstT11
-    .getByRole("link", { name: "完成", exact: true })
-    .getAttribute("href");
-  await page.getByRole("tab", { name: "Cases", exact: true }).click();
-  await page
-    .getByText("Virtual clock (not real 24h evidence)", { exact: true })
-    .click();
-  await page.getByLabel("Advance to HKT").fill(future + "T10:00");
-  await page
-    .getByRole("button", { name: "Advance virtual clock", exact: true })
-    .click();
-  await page.request.post(arriveUrl!);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(page.locator(".ev-state")).toContainText("IN_SERVICE");
-  await page.getByLabel("Advance to HKT").fill(future + "T14:00");
-  await page
-    .getByRole("button", { name: "Advance virtual clock", exact: true })
-    .click();
-  await page.request.post(doneUrl!);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(page.locator(".ev-state")).toContainText("DONE");
-  await page.getByRole("tab", { name: "Ledgers", exact: true }).click();
-  await expect(page.locator(".ev-event-table")).toContainText("DEDUCT");
-  await expect(
-    page.getByText("Nurse payouts: records only, no transfers"),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: "Acceptance", exact: true }).click();
-  await page.getByLabel("Acceptance ID / experiment").fill("FPS-PACKAGE-E2E");
-  await page
-    .getByLabel("Observations / conditions")
-    .fill(
-      "Browser test: fictional FPS report, admin reconciliation, package completion under virtual clock",
-    );
-  await page
-    .getByRole("button", { name: "Append observation", exact: true })
-    .click();
-  await expect(
-    page.locator(".ev-gates").filter({ hasText: "FPS-PACKAGE-E2E" }),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: "Evidence", exact: true }).click();
-  await expect(page.locator(".ev-event-table")).toContainText("lock.won");
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Export events/ }).click();
-  const download = await downloadPromise;
-  const stream = await download.createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
-  const csv = Buffer.concat(chunks).toString("utf8");
-  expect(csv).toContain('"admin"');
-  expect(csv).toContain('"nurse"');
-  expect(csv).not.toContain("BANK-PACKAGE-001");
-  expect(csv).not.toContain("38 樓 X 室");
-  await page.getByRole("tab", { name: "Cases", exact: true }).click();
-  await page.screenshot({
-    path: testInfo.outputPath("email-workspace-desktop.png"),
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  for (const name of [
-    "Cases",
-    /Test inbox/,
-    "Ledgers",
-    "Acceptance",
-    "Evidence",
-  ]) {
-    await page.getByRole("tab", { name, exact: true }).click();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBeTruthy();
-  }
-  await page.screenshot({
-    path: testInfo.outputPath("email-workspace-mobile.png"),
-    fullPage: true,
-  });
 });

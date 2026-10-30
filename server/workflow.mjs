@@ -1,4 +1,4 @@
-import { realNurse } from "./staff-workspace.mjs";
+import { eligibleNurse } from "./staff-workspace.mjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -318,8 +318,15 @@ class BaseWorkflow {
     const allowed = Object.keys(serviceLabels);
     if (input.services.some((x) => !allowed.includes(x.id)))
       throw new Error("未支援的護理項目，請交人手");
+    if (
+      input.intake_mode === "LIVE" &&
+      Date.parse(
+        `${input.date}T${input.shift === "DAY" ? input.start : "22:00"}:00+08:00`,
+      ) <= this.now()
+    )
+      throw new Error("服務時間必須在將來");
     const c = {
-      id: `C2026-${String(this.state.cases.length + 1).padStart(4, "0")}`,
+      id: `C${input.date.slice(0, 4)}-${String(this.state.cases.length + 1).padStart(4, "0")}`,
       test_ref: input.test_ref,
       surname: input.surname.trim(),
       email,
@@ -503,7 +510,7 @@ class BaseWorkflow {
     } else if (t.action === "modify") this.manual(c, "客人要求修改報價");
     else if (t.action === "take_case") {
       const n = this.state.nurses.find((n) => n.id === t.actor);
-      if (n?.status !== "VERIFIED") {
+      if (!n || !eligibleNurse(n, this.live)) {
         this.event("lock.lost", c, { nurse: t.actor, reason: "NOT_ELIGIBLE" });
         this.email(
           c,
@@ -612,7 +619,9 @@ class BaseWorkflow {
     )
       throw new Error("請先由管理員確認測試護士薪酬設定");
     this.transition(c, "POSTED");
-    for (const n of this.state.nurses.filter((n) => n.status === "VERIFIED" && (!this.live || realNurse(n))))
+    for (const n of this.state.nurses.filter((n) =>
+      eligibleNurse(n, this.live),
+    ))
       this.email(
         c,
         "T3",
@@ -688,7 +697,15 @@ class BaseWorkflow {
   }
   tick() {
     for (const t of this.state.timers) {
-      if (t.fired_at || t.cancelled_at || Date.parse(t.due_at) > this.now())
+      if (
+        (this.live &&
+          !this.state.cases.some(
+            (c) => c.id === t.case_id && c.intake_mode === "LIVE",
+          )) ||
+        t.fired_at ||
+        t.cancelled_at ||
+        Date.parse(t.due_at) > this.now()
+      )
         continue;
       const c = this.state.cases.find((c) => c.id === t.case_id);
       t.fired_at = this.stamp();
@@ -732,8 +749,10 @@ class BaseWorkflow {
       }
       this.event("timer.fired", c, { type: t.type });
     }
-    for (const c of this.state.cases.filter((c) =>
-      ["READY", "IN_SERVICE"].includes(c.status),
+    for (const c of this.state.cases.filter(
+      (c) =>
+        ["READY", "IN_SERVICE"].includes(c.status) &&
+        (!this.live || c.intake_mode === "LIVE"),
     ))
       for (const r of c.reminders || []) {
         if (!r.sent_at && Date.parse(r.due_at) <= this.now()) {

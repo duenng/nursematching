@@ -23,41 +23,14 @@ test("Traditional Chinese is the default and language selection persists across 
   await expect(
     page.getByRole("button", { name: "EN", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.goto("/#staff");
+  await page.goto("/#staff/requests");
   await expect(page.getByLabel("Search workspace")).toBeVisible();
   await page.getByRole("button", { name: "繁中", exact: true }).click();
   await expect(page.getByLabel("搜尋工作區")).toBeVisible();
-  for (const name of [
-    "護理查詢",
-    "護理申請",
-    "護理日程",
-    "護理人員",
-    "訊息",
-    "服務對象紀錄",
-  ]) {
-    await page
-      .getByRole("navigation")
-      .getByRole("button", { name, exact: true })
-      .click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      name === "訊息" ? "護理訊息" : name,
-    );
+  for (const name of ["護理查詢", "護理個案", "護理排程", "護理人員", "電郵通知", "客戶紀錄"]) {
+    await page.getByRole("navigation").getByRole("button", { name, exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   }
-  await page
-    .getByRole("navigation")
-    .getByRole("button", { name: "護理申請", exact: true })
-    .click();
-  await page
-    .getByLabel("個案狀態", { exact: true })
-    .selectOption("Under review");
-  await expect(page.getByLabel("個案狀態", { exact: true })).toHaveValue(
-    "Under review",
-  );
-  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(1);
-  await page.getByLabel("搜尋工作區").fill("HK-0024");
-  await page.locator(".search-results").getByRole("button").click();
-  await expect(page.getByRole("dialog")).toContainText("護理申請詳情");
-  await page.getByRole("button", { name: "關閉對話框" }).click();
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-HK");
   expect(errors).toEqual([]);

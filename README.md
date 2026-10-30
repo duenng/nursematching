@@ -1,6 +1,6 @@
 # CareKnock
 
-A responsive, interactive **prototype with a server-backed TRL 3 email validation workspace** for the Hong Kong home-nursing care navigation and coordination platform in the supplied development brief. Built with React, TypeScript and Vite. All profiles and initial records are fictional.
+A home-nursing coordination application for Hong Kong. The **staff workspace uses shared server-side SQLite records**, staff authentication, separate clinical and administrative permissions, bank-transfer reconciliation and an email delivery log. The public enquiry form creates records in the same workflow. The patient “My care” preview remains a separate demonstration.
 
 ## Run locally
 
@@ -17,7 +17,7 @@ The interface defaults to **Traditional Chinese (Hong Kong)**. Use **繁中 / EN
 
 The default page is the **patient and family website**. Open [My care](http://localhost:5173/#patient/care) to explore the fictional Mr. Chan journey, or submit a new enquiry to see your own demo request. Patients can review/correct their details, approve proposed visits, request a different time, and leave a question. A requested time stays pending until the staff demo prepares a revised proposal and the patient approves it.
 
-The [staff demo](http://localhost:5173/#staff) remains available from the link above the patient navigation. Switching views demonstrates roles; it is not authentication.
+The [staff workspace](http://localhost:5173/#staff) requires staff access. It no longer reads or writes the patient preview's browser records.
 
 The public service structure takes inspiration from the user-provided [CARE U elderly-care reference](https://www.careu.com.hk/我們的服務/長者護理/): service descriptions, the enquiry journey and FAQs. CareKnock uses its own text, illustrations and visual design. CARE U pricing, professional-scope claims and contact information are not used.
 
@@ -72,27 +72,38 @@ npm start
 # Open http://localhost:3000
 ```
 
-## Explore the prototype
+## Staff workspace
 
-1. **Overview** — live counts from browser data, care pipeline, recent requests, daily visits, activity, global search and CSV export.
-2. **Care enquiries** — start an English or Traditional Chinese enquiry; use the Cantonese example; inspect extracted fields and unknowns; add follow-up details; make corrections; save to a new or explicitly selected client.
-3. **Care requests** — filter cases, edit details, review the original message, record approval checks and prepare an anonymised simulated broadcast. Editing resets approvals. The seeded Mrs. Wong case is useful for testing review and publishing.
-4. **Care schedule** — week and list views, client/status filters, date navigation, proposed visits from explicit requirements, conflict checking, family approval, revisions and saved versions.
-5. **Care providers** — browse provider profiles, competencies and districts. In a published case, simulate voluntary applications; review eligibility; explicitly confirm assignment. The seeded Mr. Chan case has a pending application.
-6. **Messages** — inspect simulated provider broadcasts and reminder previews. A reminder does not mark a task completed. Completion needs an explicit provider-confirmation control.
-7. **Client records** — linked case records and CSV reporting. Existing clients are linked by explicit selection, never name similarity.
-8. **Settings** — operational status, JSON backup and confirmed reset of demo data.
+Open `/#staff`. All staff routes are behind the session check. Administrators see overview counts, enquiries, case management, service arrangements, the provider directory, email delivery, client records, ledgers and settings. Senior nurses receive only the clinical worklist and schedule review controls; the API excludes contact, finance and family action links from their worklist.
 
-All visit dates and display times use Hong Kong time. Initial records use the current week. Records persist in `localStorage` in the same browser; reset them in Settings.
+- **Enquiries:** blank form, recorded consent, server validation, manual routing and quotation. Public submissions at `/#enquire` appear in the same case list.
+- **Cases:** families accept quotations through their own email links. Staff independently verify bank receipts before dispatch. Care readiness requires assignment, address confirmation, senior-nurse review and independent administrator approval.
+- **Providers:** create real RN/EN records; activating a provider requires a registration number, verification note and explicit confirmation. Changes are audited. Active assignments prevent changing email, category or status until the case is handled.
+- **Schedule and clients:** searchable server records, service date/status filters, and patient references grouped within contact email. All displayed times use Hong Kong time.
+- **Messages:** distinguish locally saved notifications from SMTP acceptance, failures and restricted recipients. Retry definite failures after fixing the connection; interrupted deliveries remain marked unknown to avoid accidental duplicate sending. Staff cannot use this page to impersonate family or nurse confirmations.
+- **Ledgers:** package reservations/deductions and nurse payouts. After transferring a payout in the bank, staff record the exact amount, reference and time separately; the application does not move money.
+- **Settings:** configure nurse rates, administrative email and workflow policies. Pricing/policy changes lock during active cases. Connection status and recent audit events are visible. There is no demo reset or simulated payment control.
 
-## Scope and limits
+The workspace refreshes every 30 seconds while visible and when returning to the browser. Mutation results refresh related views. An API failure shows an error and never substitutes demonstration records. Staff records are not stored in browser localStorage.
 
-The original patient and coordination demos still use browser storage. The new **Email validation / 電郵流程驗證** page, available in the staff sidebar and Settings, uses server-side SQLite, confirmation links, a minute worker and append-only workflow events. These are separate experimental records: original demo cases do not automatically become server cases. All records must be fictional.
+## Configuration for real operations
 
-Run `npm run dev`, open `/#staff` and select **電郵流程驗證**. Open test settings, confirm experimental nurse rates, and create a fictional enquiry. The test inbox lets you follow customer/nurse links in new tabs. Refresh the workspace after each external confirmation. Without credentials, email is captured locally. Payment uses **manual bank transfer with independent reconciliation**: a customer report never marks a case paid; an administrator verifies the bank receipt before dispatch. Configure team Gmail SMTP in `.env` for external test email; no Stripe account is needed. Families can submit directly at `/#enquire`; individual staff Google login is available with separate administrator and senior-nurse permissions. See [email validation setup and evidence limits](docs/TRL3_EMAIL.md).
+`WORKSPACE_MODE=live` is the default. A new live database contains no seeded nurses or cases. Existing experimental records are retained in the database and excluded from the live worklist, finance views and worker. Use a **separate database** for test mode rather than mixing environments.
 
-No live AI is connected. Care Schedule drafts are generated deterministically from chosen items/times; Google login separates senior-nurse review from administrator approval; local/shared-key rehearsal remains explicitly labelled. The workspace also covers packages, completion/deduction, rematching, cancellation and manual bank-transfer refunds, with explicit experiment-policy switches. Automated tests do not replace Gmail receipt, true 24-hour experiments or formal TRL review.
+Public live deployments require `AUTH_MODE=google`, HTTPS, OAuth credentials and separate `STAFF_ADMIN_EMAILS` / `STAFF_SENIOR_NURSE_EMAILS`. Local loopback access is available for development. See [staff login setup](docs/STAFF_LOGIN.md).
 
-The UI organises confirmed tasks. It does not diagnose, prescribe, decide clinical frequency, determine RN/EN scope autonomously, or generate treatment instructions.
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` to enable external email. In live mode an empty `TEST_EMAIL_ALLOWLIST` permits real recipients; a populated list restricts delivery. Without SMTP, notifications are saved locally and clearly marked **not delivered**. Verify delivery with controlled accounts before accepting bookings.
 
-See [prototype capabilities](docs/PROTOTYPE.md) and the [service-navigation framework](docs/SERVICE_NAVIGATION.md) for the next integration stage and review rules.
+Live mode requires `PAYMENT_MODE=bank_transfer` and wall time. Set `BANK_NAME`, `BANK_ACCOUNT_NAME` and `BANK_ACCOUNT_NUMBER`; missing receiving-account details prevent quote acceptance for payment. Staff still check actual bank receipts and perform refunds/payroll transfers themselves.
+
+Use Settings to confirm nurse rates and the administrative follow-up email, then add and verify providers before dispatching cases. Enable arrival/completion confirmation if providers should record service progress by email. The service and holiday catalogue currently covers **2026–2027**; unresolved rules route to manual review. Clinical scope and suitability must be checked by qualified staff.
+
+Mount persistent `/app/data`, run one replica and back up the SQLite database with its WAL consistently (use SQLite backup tooling or stop the server before copying). JSON exports are operational records, not full database recovery backups. Protect backups and the volume because they contain personal data and documents.
+
+## Tests and experimental workflows
+
+`npm run build` checks TypeScript and builds the frontend. `npm run test:workflow` covers the workflow engine and HTTP permission boundaries. `npm test` starts an isolated live-mode backend with SMTP disabled and fictional test submissions; it never uses the deployment database. Set `PLAYWRIGHT_PORT` and `PLAYWRIGHT_API_PORT` if the defaults are already occupied.
+
+Legacy engine experiments require `WORKSPACE_MODE=test`, a separate `WORKFLOW_DB`, and an explicit test payment mode. Test mode restricts SMTP recipients to `TEST_EMAIL_ALLOWLIST`. There is no test-workspace navigation in the staff application. The historical [TRL 3 documentation](docs/TRL3_EMAIL.md) describes those experiments, not a production-readiness certification.
+
+The application organises services and records human decisions. It does not diagnose, prescribe, infer RN/EN clinical scope, or send actual bank transfers. Live SMTP delivery, Google OAuth and bank-account ownership must be verified in the deployed environment.

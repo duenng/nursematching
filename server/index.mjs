@@ -15,7 +15,7 @@ import {
   readSampleUpload,
   storeSample,
 } from "./doctor-documents.mjs";
-import { staffSnapshot, saveNurse, realNurse } from "./staff-workspace.mjs";
+import { staffSnapshot, saveNurse } from "./staff-workspace.mjs";
 import { publicIntake, createIntakeLimiter } from "./public-intake.mjs";
 import { StaffAuth, canAccess, clinicalWorkspace } from "./auth.mjs";
 import nodemailer from "nodemailer";
@@ -37,7 +37,9 @@ const corsOrigins = new Set(
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
-  ].map(normalizeOrigin).filter(Boolean),
+  ]
+    .map(normalizeOrigin)
+    .filter(Boolean),
 );
 const mode = process.env.PAYMENT_MODE || "bank_transfer";
 if (!["bank_transfer", "fps_test", "mock", "stripe_test"].includes(mode))
@@ -76,6 +78,8 @@ process.on("exit", () => {
     unlinkSync(lockPath);
   } catch {}
 });
+if (!["live", "test"].includes(process.env.WORKSPACE_MODE || "live"))
+  throw new Error("WORKSPACE_MODE must be live or test");
 const live = (process.env.WORKSPACE_MODE || "live") === "live";
 const workflow = new Workflow(dbPath, {
   seedNurses: !live,
@@ -97,7 +101,10 @@ if (
     "Real payment modes require time_scale=1 and no virtual clock offset; use a separate WORKFLOW_DB",
   );
 workflow.live = live;
-if (live && mode !== "bank_transfer") throw new Error("Live workspace requires PAYMENT_MODE=bank_transfer; use WORKSPACE_MODE=test for test payments");
+if (live && mode !== "bank_transfer")
+  throw new Error(
+    "Live workspace requires PAYMENT_MODE=bank_transfer; use WORKSPACE_MODE=test for test payments",
+  );
 documentStore(workflow.db);
 const auth = new StaffAuth(workflow.db, {
   baseUrl: workflow.baseUrl,
@@ -108,6 +115,12 @@ const auth = new StaffAuth(workflow.db, {
     workflow.save();
   },
 });
+if (
+  live &&
+  auth.mode !== "google" &&
+  !["localhost", "127.0.0.1"].includes(new URL(workflow.baseUrl).hostname)
+)
+  throw new Error("Public live workspaces require AUTH_MODE=google");
 const realNow = Date.now;
 workflow.now = () => realNow() + (workflow.state.clock_offset_ms || 0);
 const testClock =
@@ -149,8 +162,8 @@ function originAllowed(req) {
   const origin = requestOrigin(req);
   return origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin);
 }
-const html = (title, body) =>
-  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKnock · TRL 3</small><h1>${escape(title)}</h1>${body}<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p></main></html>`;
+const html = (title, body, { paymentNotice = true } = {}) =>
+  `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>body{font:18px/1.7 system-ui;background:#f5f2f8;color:#302044;padding:6vw 20px}main{max-width:620px;margin:auto;background:white;border-radius:24px;padding:32px}button,a{font:inherit}button{background:#694084;color:white;border:0;padding:14px 24px;border-radius:12px;cursor:pointer}input{font:inherit;padding:12px;max-width:90%;margin:12px 0}small{color:#686071}pre{white-space:pre-wrap}</style><main><small>CareKnock</small><h1>${escape(title)}</h1>${body}${paymentNotice ? `<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p>` : ""}</main></html>`;
 function reply(res, status, body, type = "application/json") {
   const origin = requestOrigin(res.req || {});
   res.writeHead(status, {
@@ -160,11 +173,13 @@ function reply(res, status, body, type = "application/json") {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy":
       "default-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
-    ...(origin && (origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin))
+    ...(origin &&
+    (origin === new URL(workflow.baseUrl).origin || corsOrigins.has(origin))
       ? {
           "Access-Control-Allow-Origin": origin,
           "Access-Control-Allow-Credentials": "true",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-CSRF-Token",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           Vary: "Origin",
         }
@@ -327,7 +342,13 @@ async function integrations() {
     for (const mail of workflow.state.emails.filter(
       (x) => x.status === "queued",
     )) {
-      if (live && !workflow.state.cases.some((c) => c.id === mail.case_id && c.intake_mode === "LIVE")) continue;
+      if (
+        live &&
+        !workflow.state.cases.some(
+          (c) => c.id === mail.case_id && c.intake_mode === "LIVE",
+        )
+      )
+        continue;
       if (!mailer) {
         mail.status = "captured";
         workflow.event(
@@ -353,7 +374,8 @@ async function integrations() {
             name: workflow.state.settings.sender_name,
             address:
               process.env.SMTP_FROM?.match(/<([^<>]+)>/)?.[1] ||
-              process.env.SMTP_FROM,
+              process.env.SMTP_FROM ||
+              process.env.SMTP_USER,
           },
           to: mail.to,
           subject: mail.subject,
@@ -394,7 +416,8 @@ const server = http.createServer(async (req, res) => {
       req.method === "OPTIONS" &&
       (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/"))
     ) {
-      if (!originAllowed(req)) return reply(res, 403, { error: "Origin not allowed" });
+      if (!originAllowed(req))
+        return reply(res, 403, { error: "Origin not allowed" });
       return reply(res, 204, "");
     }
     if (url.pathname === "/api/enquiries" && req.method === "POST") {
@@ -417,9 +440,9 @@ const server = http.createServer(async (req, res) => {
       return reply(res, 200, {
         ok: true,
         workspace: live ? "live" : "test",
-            email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
-            email_delivery_enabled: !!mailer,
-            email_restricted: !live || allowed.size > 0,
+        email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
+        email_delivery_enabled: !!mailer,
+        email_restricted: !live || allowed.size > 0,
         payment: mode,
         auth:
           auth.mode === "google"
@@ -465,6 +488,17 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/a") {
       const token = url.searchParams.get("t");
+      if (live) {
+        const actionCase = workflow.state.tokens.find(
+          (t) => t.token === token,
+        )?.case_id;
+        if (
+          !workflow.state.cases.some(
+            (c) => c.id === actionCase && c.intake_mode === "LIVE",
+          )
+        )
+          throw new Error("連結已失效");
+      }
       if (req.method === "GET") {
         const { t, c } = workflow.inspect(token);
         if (t.action === "upload_doctor")
@@ -494,10 +528,7 @@ const server = http.createServer(async (req, res) => {
         if (t?.action === "upload_doctor") {
           const c = workflow.state.cases.find((c) => c.id === t.case_id);
           workflow.valid(t, c);
-          if (
-            req.headers.origin &&
-            !originAllowed(req)
-          )
+          if (req.headers.origin && !originAllowed(req))
             return reply(res, 403, { error: "Origin not allowed" });
           storeSample(
             workflow,
@@ -606,8 +637,76 @@ const server = http.createServer(async (req, res) => {
         let result;
         if (url.pathname === "/api/cases" && req.method === "POST")
           result = workflow.create(live ? publicIntake(input) : input);
-        else if (url.pathname === "/api/nurses" && req.method === "POST") result = saveNurse(workflow, input);
-        else if (url.pathname === "/api/settings" && req.method === "POST") {
+        else if (url.pathname === "/api/nurses" && req.method === "POST")
+          result = saveNurse(workflow, input);
+        else if (url.pathname === "/api/email-retry" && req.method === "POST") {
+          const mail = workflow.state.emails.find((m) => m.id === input.id);
+          if (
+            !mail ||
+            !["failed", "blocked", "captured"].includes(mail.status) ||
+            (live &&
+              !workflow.state.cases.some(
+                (c) => c.id === mail.case_id && c.intake_mode === "LIVE",
+              ))
+          )
+            throw new Error("只可重試未寄出或已失敗的通知");
+          if (!mailer) throw new Error("請先設定 SMTP 寄信連線");
+          if (
+            (!live || allowed.size > 0) &&
+            !allowed.has(mail.to.toLowerCase())
+          )
+            throw new Error("收件地址不在允許名單，請先更新寄信設定");
+          mail.status = "queued";
+          delete mail.error;
+          workflow.event(
+            "email.retry_requested",
+            { id: mail.case_id },
+            { email_id: mail.id },
+          );
+          workflow.save();
+          result = { ok: true };
+        } else if (url.pathname === "/api/payout" && req.method === "POST") {
+          result = workflow.transaction(() => {
+            const payout = workflow.state.payouts.find(
+              (p) => p.id === input.id,
+            );
+            if (
+              !payout ||
+              (live && !workflow.state.cases.some((c) => c.id === payout.case_id && c.intake_mode === "LIVE")) ||
+              payout.status !== "PENDING" ||
+              !input.bank_reference?.trim() ||
+              !input.note?.trim() ||
+              input.verified !== true
+            )
+              throw new Error("請核實待付薪酬、銀行參考及付款說明");
+            const paidAt = Date.parse(input.paid_at);
+            if (
+              !Number.isFinite(paidAt) ||
+              paidAt > Date.now() ||
+              Number(input.amount) !== payout.total
+            )
+              throw new Error("付款金額或時間不符");
+            if (
+              workflow.state.payouts.some(
+                (p) => p.bank_reference === input.bank_reference.trim(),
+              )
+            )
+              throw new Error("銀行參考已使用");
+            Object.assign(payout, {
+              status: "PAID",
+              paid_at: new Date(paidAt).toISOString(),
+              bank_reference: input.bank_reference.trim(),
+              note: input.note.trim(),
+              paid_by: user.id,
+            });
+            workflow.event(
+              "payout.recorded",
+              { id: payout.case_id },
+              { payout_id: payout.id, amount: payout.total },
+            );
+            return payout;
+          });
+        } else if (url.pathname === "/api/settings" && req.method === "POST") {
           if (
             workflow.state.cases.some(
               (c) =>
@@ -619,11 +718,16 @@ const server = http.createServer(async (req, res) => {
                   "PAY_TIMEOUT",
                   "EXPIRED",
                   "DONE",
-                ].includes(c.status),
+                ].includes(c.status) &&
+                (!live || c.intake_mode === "LIVE"),
             )
           )
             throw new Error("有進行中個案，請保留設定以免改變計時／薪酬");
-          if (live && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.admin_email || "")) throw new Error("請提供有效管理員電郵");
+          if (
+            live &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.admin_email || "")
+          )
+            throw new Error("請提供有效管理員電郵");
           const scale = Number(input.time_scale);
           if (
             ![1, 60].includes(scale) ||
@@ -638,7 +742,7 @@ const server = http.createServer(async (req, res) => {
               Number(input[key]) <= 0
             )
               throw new Error("請確認正整數護士測試薪酬");
-          for (const n of workflow.state.nurses.filter((n) => !live || realNurse(n))) {
+          for (const n of live ? [] : workflow.state.nurses) {
             const email = input.nurses?.find((x) => x.id === n.id)?.email;
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || ""))
               throw new Error("護士電郵無效");
@@ -669,9 +773,11 @@ const server = http.createServer(async (req, res) => {
             workflow.state.settings.nurse_night_rate = Number(
               input.nurse_night_rate,
             );
-            if (!live) workflow.state.nurses.forEach(
-              (n) => (n.email = input.nurses.find((x) => x.id === n.id).email),
-            );
+            if (!live)
+              workflow.state.nurses.forEach(
+                (n) =>
+                  (n.email = input.nurses.find((x) => x.id === n.id).email),
+              );
             workflow.state.admin_email =
               input.admin_email || "admin@example.test";
             workflow.event("settings.confirmed", null, { actor: "admin" });
@@ -683,7 +789,8 @@ const server = http.createServer(async (req, res) => {
           req.method === "POST"
         ) {
           const c = workflow.state.cases.find((c) => c.id === input.id);
-          if (!c || (live && c.intake_mode !== "LIVE")) throw new Error("找不到個案");
+          if (!c || (live && c.intake_mode !== "LIVE"))
+            throw new Error("找不到個案");
           if (input.action === "mock_paid") {
             if (mode !== "mock")
               throw new Error(
@@ -873,15 +980,21 @@ const server = http.createServer(async (req, res) => {
     }
   } catch (error) {
     workflow.save();
+    const isAuth = url.pathname.startsWith("/auth/");
+    const isAction = url.pathname === "/a";
     reply(
       res,
       400,
-      url.pathname === "/a" || url.pathname.startsWith("/auth/")
-        ? html("連結已失效／操作未完成", `<p>${escape(error.message)}</p>`)
+      isAction || isAuth
+        ? isAuth
+          ? html(
+              "登入未完成",
+              '<p>登入連結已失效，請重新開始。</p><p><a href="/auth/google">返回職員登入</a></p>',
+              { paymentNotice: false },
+            )
+          : html("連結已失效／操作未完成", `<p>${escape(error.message)}</p>`)
         : { error: error.message },
-      url.pathname === "/a" || url.pathname.startsWith("/auth/")
-        ? "text/html"
-        : "application/json",
+      isAction || isAuth ? "text/html" : "application/json",
     );
   }
 });

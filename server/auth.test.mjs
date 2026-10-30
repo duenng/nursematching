@@ -63,6 +63,7 @@ function setup(t, email = "admin@example.test") {
     auth,
     db,
     provider,
+    now: () => now,
     events,
     advance: (ms) => (now += ms),
     change: (patch) => Object.assign(payload, patch),

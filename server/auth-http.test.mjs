@@ -127,10 +127,15 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
     base + "/auth/google/callback",
   );
   assert.equal(login.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(
-    (await fetch(base + "/auth/google/callback?state=wrong&code=nope")).status,
-    400,
+  const failedLogin = await fetch(
+    base + "/auth/google/callback?state=wrong&code=nope",
   );
+  assert.equal(failedLogin.status, 400);
+  const failedLoginHtml = await failedLogin.text();
+  assert.match(failedLoginHtml, /登入未完成/);
+  assert.match(failedLoginHtml, /返回職員登入/);
+  assert.doesNotMatch(failedLoginHtml, /客人人手轉帳/);
+  assert.doesNotMatch(failedLoginHtml, /Login expired/);
   await request("/api/settings", {}, "senior", 403);
   await request("/api/evidence", {}, "admin", 403, {
     "X-CSRF-Token": "invalid",

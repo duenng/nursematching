@@ -66,108 +66,18 @@ test("homepage enquiry uses the server form without a browser-only consent claim
   ).toBeVisible();
 });
 
-test("patient approval and change requests flow through staff revision and patient reapproval", async ({
-  page,
-}) => {
+test("patient preview changes cannot create or modify real staff records", async ({ page }) => {
   await page.goto("/#patient/care");
-  await page.getByRole("button", { name: "Review a proposed visit" }).click();
+  await page.getByRole("button", { name: "Review or correct my details" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Approve this visit" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("Please confirm");
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Approve this visit" }).click();
-  await expect(dialog.locator(".patient-dialog-status .badge")).toHaveText(
-    "Confirmed",
-  );
-  await expect(
-    dialog.getByRole("button", { name: "Record completion" }),
-  ).toHaveCount(0);
-  await dialog
-    .getByRole("button", { name: "Request a different time" })
-    .click();
-  await dialog.getByLabel("Preferred time (HKT)").fill("14:00");
-  await dialog
-    .getByLabel("Anything the team should know?")
-    .fill("I have an appointment in the morning.");
-  await dialog.getByRole("button", { name: "Send change request" }).click();
-  await expect(dialog.locator(".patient-dialog-date")).toContainText("09:00");
-  await expect(dialog.locator(".patient-pending-change")).toContainText(
-    "14:00",
-  );
-  await expect(dialog.locator(".patient-dialog-status .badge")).toHaveText(
-    "Confirmed",
-  );
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.goto("/#staff");
-  await page
-    .getByRole("navigation")
-    .getByRole("button", { name: "Care schedule", exact: true })
-    .click();
-  await page.getByRole("button", { name: "List view" }).click();
-  await page
-    .locator(".schedule-list-item")
-    .filter({ hasText: "Mr. Chan" })
-    .first()
-    .click();
-  await expect(dialog.locator(".patient-pending-change")).toContainText(
-    "Patient requested another time",
-  );
-  await dialog
-    .getByRole("button", { name: "Prepare revised proposal" })
-    .click();
-  await expect(dialog.getByLabel("Revised start time")).toHaveValue("14:00");
-  await dialog.getByRole("button", { name: "Save revision" }).click();
-  await expect(dialog.locator(".visit-modal-status .badge")).toHaveText(
-    "Proposed",
-  );
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Patient view", exact: true }).click();
-  await page
-    .getByRole("navigation", { name: "Patient navigation" })
-    .getByRole("button", { name: "My care" })
-    .click();
-  await page.locator(".patient-visit-row").first().click();
-  await expect(dialog.locator(".patient-dialog-date")).toContainText("14:00");
-  await expect(dialog.locator(".patient-dialog-status")).toContainText(
-    "Version 2",
-  );
-  await expect(dialog.locator(".patient-pending-change")).toHaveCount(0);
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Approve this visit" }).click();
-  await expect(dialog.locator(".patient-dialog-status .badge")).toHaveText(
-    "Confirmed",
-  );
-});
-
-test("patient corrections require fresh care-team review and questions reach the demo activity log", async ({
-  page,
-}) => {
-  await page.goto("/#patient/care");
-  await page
-    .getByRole("button", { name: "Review or correct my details" })
-    .click();
-  const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Preferred visit time").fill("Afternoon");
+  await dialog.getByLabel("Preferred visit time").fill("PREVIEW-ONLY-CHANGE");
   await dialog.getByRole("button", { name: "Save my corrections" }).click();
-  await expect(page.locator(".patient-request-status")).toContainText(
-    "Your request is being reviewed",
-  );
-  await page.getByRole("button", { name: "Review a proposed visit" }).click();
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Approve this visit" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("finish reviewing");
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Ask a question" }).click();
-  await dialog
-    .getByLabel("Your question")
-    .fill("Can my family member attend the visit?");
-  await dialog.getByRole("button", { name: "Save my question" }).click();
-  await expect(dialog).toContainText("no message has been sent");
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.goto("/#staff");
-  await expect(page.locator(".activity-list")).toContainText(
-    "Patient has a question",
-  );
+  await page.goto("/#staff/requests");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care requests");
+  await expect(page.locator("main")).not.toContainText("PREVIEW-ONLY-CHANGE");
+  await expect(page.locator("main")).not.toContainText("Mr. Chan");
+  const state = await (await page.request.get("/api/workflow")).json();
+  expect(JSON.stringify(state.cases)).not.toContain("PREVIEW-ONLY-CHANGE");
 });
 
 test("mobile patients can browse services, open My care and request care without overflow", async ({
