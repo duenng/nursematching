@@ -32,20 +32,30 @@ export function ConversationEnquiry() {
   const [provider, setProvider] = useState<"openai" | "openrouter" | null>(
     null,
   );
+  const [configStatus, setConfigStatus] = useState<
+    "loading" | "ready" | "disabled" | "error"
+  >("loading");
+  const [configAttempt, setConfigAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
+    setConfigStatus("loading");
     void fetch(apiUrl("/api/enquiries/assistant-config"), {
-      signal: controller.signal,
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("Configuration unavailable");
         const config = await response.json();
-        if (config.provider === "openai" || config.provider === "openrouter")
-          setProvider(config.provider);
+        if (controller.signal.aborted) return;
+        if (config.provider !== "openai" && config.provider !== "openrouter")
+          throw new Error("Invalid configuration");
+        setProvider(config.provider);
+        setConfigStatus(config.enabled === true ? "ready" : "disabled");
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setConfigStatus("error");
+      });
     return () => controller.abort();
-  }, []);
+  }, [configAttempt]);
   const providerName =
     provider === "openrouter"
       ? text("OpenRouter 及其模型供應商", "OpenRouter and its model provider")
@@ -57,16 +67,38 @@ export function ConversationEnquiry() {
   const canOrganise = !!description.trim() || messages.at(-1)?.role === "user";
 
   async function request(path: string, body: unknown) {
-    const response = await fetch(apiUrl(path), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(40000),
-      body: JSON.stringify(body),
-    });
-    const data = await response.json();
+    let response: Response;
+    try {
+      response = await fetch(apiUrl(path), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(40000),
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      throw new Error(
+        (error as Error).name === "TimeoutError"
+          ? text(
+              "連線逾時，暫時未能確認結果。你輸入的資料仍然保留，請稍後重試。",
+              "The request timed out, so we could not confirm the result. Your details are still here. Please try again later.",
+            )
+          : text(
+              "暫時未能連接服務，請檢查網絡後重試。你輸入的資料仍然保留；如 AI 未能使用，可按「核對並留下聯絡方式」直接提交文字查詢。",
+              "We could not connect to the service. Check your connection and retry. Your details are still here. If AI is unavailable, choose “Review and add contact details” to submit your description directly.",
+            ),
+      );
+    }
+    const data = await response.json().catch(() => null);
+    if (!data || typeof data !== "object")
+      throw new Error(
+        text(
+          "暫時未能讀取服務回覆。你輸入的資料仍然保留，請稍後重試。",
+          "We could not read the service response. Your details are still here. Please try again later.",
+        ),
+      );
     if (!response.ok)
       throw new Error(
-        data.error ||
+        (typeof data.error === "string" && data.error) ||
           text(
             "未能完成，請重試。",
             "Could not complete the request. Please retry.",
@@ -75,6 +107,7 @@ export function ConversationEnquiry() {
     return data;
   }
   async function organise() {
+    if (busy || configStatus !== "ready" || !aiConsent || !canOrganise) return;
     const next: Message[] = description.trim()
       ? [...messages, { role: "user", content: description.trim() }]
       : messages;
@@ -92,14 +125,7 @@ export function ConversationEnquiry() {
       setDraft(result);
       setMessages([...next, { role: "assistant", content: result.reply }]);
     } catch (e) {
-      setError(
-        (e as Error).name === "TimeoutError"
-          ? text(
-              "AI 回覆逾時，可重試或直接提交文字查詢。",
-              "AI timed out. Retry or submit your description directly.",
-            )
-          : (e as Error).message,
-      );
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -265,7 +291,7 @@ export function ConversationEnquiry() {
             <input
               type="checkbox"
               checked={aiConsent}
-              disabled={busy || !provider}
+              disabled={busy || configStatus !== "ready"}
               onChange={(e) => setAiConsent(e.target.checked)}
             />
             {text(
@@ -273,6 +299,28 @@ export function ConversationEnquiry() {
               `I agree to send my description to ${providerName} to organise this enquiry and suggest follow-up questions.`,
             )}
           </label>
+          {(configStatus === "disabled" || configStatus === "error") && (
+            <div role="status">
+              <p className="form-hint">
+                {configStatus === "disabled"
+                  ? text(
+                      "AI 暫未啟用。你可以直接核對並留下聯絡方式，由同事跟進。",
+                      "AI is currently unavailable. You can review your description and add contact details for staff follow-up.",
+                    )
+                  : text(
+                      "暫時未能連接 AI 服務。可以重試連線，或直接核對並留下聯絡方式。",
+                      "We could not connect to the AI service. Retry the connection or review your description and add contact details directly.",
+                    )}
+              </p>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setConfigAttempt((attempt) => attempt + 1)}
+              >
+                {text("重試 AI 連線", "Retry AI connection")}
+              </button>
+            </div>
+          )}
           {busy && (
             <p role="status">
               {text("正在整理你提供的資料…", "Organising your details…")}
@@ -282,7 +330,9 @@ export function ConversationEnquiry() {
             <button
               className="button primary"
               type="submit"
-              disabled={busy || !aiConsent || !canOrganise}
+              disabled={
+                busy || configStatus !== "ready" || !aiConsent || !canOrganise
+              }
             >
               <Sparkles size={17} />
               {text("請 AI 幫我整理", "Organise with AI")}
