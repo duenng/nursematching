@@ -9,7 +9,7 @@ export function dispatchBody(c, settings = {}) {
   return `📋 Case ${c.id}\n日期時間：${c.date} ${c.start}–${c.end}（${c.shift === "DAY" ? "日間" : "夜間"}）\n薪酬：${pay}\n地區／大廈：${c.district} ${c.building}\n照顧重點：${(c.services || []).map((s) => `${s.label} ${s.prn ? "（按需要）" : (s.times || []).join("、")}${s.replace_only ? "（更換現有喉管，唔使首次插入）" : ""}`).join("；")}\n先到先得，有興趣請撳以下掣：`;
 }
 export function quoteBody(c, settings) {
-  return `你好，${c.surname}先生／女士。多謝你查詢上門護理服務（Case ${c.id}）。\n服務：${c.date} ${c.start}–${c.end}\n服務內容：${(c.services || []).map((s) => s.label).join("、")}\n收費明細：基本費 HK$${c.quote.base}｜公眾假期及星期日附加費 HK$${c.quote.surcharge}\n總額：HK$${c.quote.total}\n備註：所需工具及物料需由你自備。\n付款：確認後會收到付款連結，請喺 ${settings.payment_window_hours} 小時內付清，否則預約會自動取消。\n取消／改期：服務開始前 24 小時或以上通知免費；少於 24 小時：由同事跟進。`;
+  return `你好，${c.surname}先生／女士。多謝你查詢上門護理服務（Case ${c.id}）。\n服務：${c.date} ${c.start}–${c.shift === "DAY" ? "" : "翌日 "}${c.end}\n服務內容：${(c.services || []).map((s) => s.label).join("、")}\n收費明細：基本費 HK$${c.quote.base}｜公眾假期及星期日附加費 HK$${c.quote.surcharge}\n總額：HK$${c.quote.total}${c.quote.pricing_method === "MANUAL_NIGHT_HOLIDAY" ? "\n以上為經人工覆核的夜更報價。" : ""}\n備註：所需工具及物料需由你自備。\n付款：確認後會收到付款連結，請喺 ${settings.payment_window_hours} 小時內付清，否則預約會自動取消。\n取消／改期：服務開始前 24 小時或以上通知免費；少於 24 小時：由同事跟進。`;
 }
 export function confirmationDetails(c, action, settings, now) {
   if (action === "take_case") return dispatchBody(c, settings);

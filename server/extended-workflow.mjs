@@ -1646,8 +1646,43 @@ ${instructions}
             throw new Error(
               "多次上門／日夜組合規則待確認，須分開建立完整服務安排",
             );
-          const calculated = this.quote(c);
-          if (calculated.manual) throw new Error(calculated.manual);
+          let calculated = this.quote(c);
+          if (i.manual_night_quote !== undefined) {
+            if (calculated.manual !== "夜更涉及星期日／公眾假期，待確認")
+              throw new Error(
+                "人工夜更報價只適用於涉及星期日／公眾假期的待確認夜更",
+              );
+            const manual = i.manual_night_quote;
+            if (
+              !manual ||
+              manual.confirmed !== true ||
+              !Number.isSafeInteger(manual.base) ||
+              manual.base < 0 ||
+              !Number.isSafeInteger(manual.surcharge) ||
+              manual.surcharge < 0 ||
+              !Number.isSafeInteger(manual.base + manual.surcharge) ||
+              manual.base + manual.surcharge <= 0 ||
+              i.reason.trim().length < 10
+            )
+              throw new Error(
+                "請填有效整數基本費及附加費、至少 10 字覆核原因，並確認人工夜更報價",
+              );
+            calculated = {
+              hours: this.state.settings.night_options[c.shift].hours,
+              base: manual.base,
+              surcharge: manual.surcharge,
+              total: manual.base + manual.surcharge,
+              pricing_method: "MANUAL_NIGHT_HOLIDAY",
+              reviewed_by: this.operatorId("admin"),
+              reviewed_at: this.stamp(),
+              review_reason: i.reason.trim(),
+            };
+            this.event("quote.manually_reviewed", c, {
+              actor: "admin",
+              reason: i.reason.trim(),
+              lines: calculated,
+            });
+          } else if (calculated.manual) throw new Error(calculated.manual);
           c.quote = calculated;
           this.event("quote.calculated", c, {
             quote_total: calculated.total,

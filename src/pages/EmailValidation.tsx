@@ -37,6 +37,7 @@ export type Case = {
   medical_history?: string;
   red_flag?: boolean;
   date: string;
+  shift?: string;
   start: string;
   end: string;
   district: string;
@@ -45,7 +46,13 @@ export type Case = {
   intake_channel?: string;
   enquiry_summary?: string;
   preferred_timing?: string;
-  quote?: { total: number };
+  quote?: {
+    total: number;
+    base?: number;
+    surcharge?: number;
+    pricing_method?: string;
+    review_reason?: string;
+  };
   assigned_nurse?: string;
   address_status: string;
   schedule_status: string;
@@ -465,9 +472,27 @@ export function AdminWorkspace({
   const [adminReason, setAdminReason] = useState("");
   const [redFlagResolution, setRedFlagResolution] = useState("");
   const [redFlagConfirmed, setRedFlagConfirmed] = useState(false);
+  const [manualNightQuote, setManualNightQuote] = useState(false);
+  const [manualNightBase, setManualNightBase] = useState("");
+  const [manualNightSurcharge, setManualNightSurcharge] = useState("");
+  const [manualNightConfirmed, setManualNightConfirmed] = useState(false);
+  const validManualNightQuote =
+    /^\d+$/.test(manualNightBase) &&
+    /^\d+$/.test(manualNightSurcharge) &&
+    Number.isSafeInteger(
+      Number(manualNightBase) + Number(manualNightSurcharge),
+    ) &&
+    Number(manualNightBase) + Number(manualNightSurcharge) > 0 &&
+    adminReason.trim().length >= 10 &&
+    manualNightConfirmed;
   useEffect(() => {
     setRedFlagResolution("");
     setRedFlagConfirmed(false);
+    setManualNightQuote(false);
+    setManualNightBase("");
+    setManualNightSurcharge("");
+    setManualNightConfirmed(false);
+    setAdminReason("");
   }, [c?.id]);
   const [fps, setFps] = useState({
     submission_id: "",
@@ -526,6 +551,17 @@ export function AdminWorkspace({
         tier: remoteTier,
         red_flag_resolved: redFlagConfirmed,
         red_flag_resolution: redFlagResolution,
+        ...(action === "issue_quote" && manualNightQuote
+          ? {
+              manual_night_quote: {
+                base: manualNightBase.trim() ? Number(manualNightBase) : null,
+                surcharge: manualNightSurcharge.trim()
+                  ? Number(manualNightSurcharge)
+                  : null,
+                confirmed: manualNightConfirmed,
+              },
+            }
+          : {}),
         ...(action === "correct_intake"
           ? { doctor_order: correctedOrder, existing_tubes: correctedTubes }
           : {}),
@@ -1953,6 +1989,16 @@ export function AdminWorkspace({
                       </section>
                     )}
                     {c.quote && <h3>HK${c.quote.total.toLocaleString()}</h3>}
+                    {c.quote?.pricing_method === "MANUAL_NIGHT_HOLIDAY" && (
+                      <p>
+                        {text("人工夜更報價", "Manually reviewed night quote")}{" "}
+                        · {text("基本費", "Base fee")} HK${c.quote.base} ·{" "}
+                        {text("附加費", "Surcharge")} HK${c.quote.surcharge}
+                        <br />
+                        {text("覆核原因", "Review reason")}:{" "}
+                        {c.quote.review_reason}
+                      </p>
+                    )}
                     <div className="ev-gates">
                       <span>
                         {c.order_type || "SINGLE"} · {c.package_id || "—"}
@@ -2260,6 +2306,106 @@ export function AdminWorkspace({
                           ))}
                         </select>
                       </label>
+                      {c.status === "MANUAL" &&
+                        ["NIGHT10", "NIGHT12"].includes(c.shift || "") &&
+                        c.intake_channel !== "conversation" && (
+                          <fieldset>
+                            <legend>
+                              {text(
+                                "星期日／公眾假期夜更人工報價",
+                                "Manual Sunday / holiday night quote",
+                              )}
+                            </legend>
+                            <p className="form-hint">
+                              {text(
+                                "暫未有統一加價規則。如發報價時提示夜更涉及星期日／公眾假期，請先核實逐單收費，再填寫金額。此功能只適用於該類夜更。",
+                                "There is no standard surcharge rule yet. If quoting is blocked because the night visit involves a Sunday or public holiday, verify this visit's charges before entering amounts. This option applies only to those night visits.",
+                              )}
+                            </p>
+                            <label className="ev-check">
+                              <input
+                                type="checkbox"
+                                checked={manualNightQuote}
+                                onChange={(e) => {
+                                  setManualNightQuote(e.target.checked);
+                                  setManualNightConfirmed(false);
+                                }}
+                              />
+                              {text(
+                                "使用人工確認的夜更收費",
+                                "Use manually reviewed night charges",
+                              )}
+                            </label>
+                            {manualNightQuote && (
+                              <>
+                                <div className="ev-form-grid">
+                                  <label>
+                                    {text(
+                                      "人工基本費 HKD（整數）",
+                                      "Manual base fee HKD (whole dollars)",
+                                    )}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={manualNightBase}
+                                      onChange={(e) => {
+                                        setManualNightBase(e.target.value);
+                                        setManualNightConfirmed(false);
+                                      }}
+                                    />
+                                  </label>
+                                  <label>
+                                    {text(
+                                      "人工附加費 HKD（無附加費請填 0）",
+                                      "Manual surcharge HKD (enter 0 for none)",
+                                    )}
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={manualNightSurcharge}
+                                      onChange={(e) => {
+                                        setManualNightSurcharge(e.target.value);
+                                        setManualNightConfirmed(false);
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                                <p>
+                                  {text("人工報價總額", "Manual quote total")}:
+                                  HK$
+                                  {/^\d+$/.test(manualNightBase) &&
+                                  /^\d+$/.test(manualNightSurcharge)
+                                    ? (
+                                        Number(manualNightBase) +
+                                        Number(manualNightSurcharge)
+                                      ).toLocaleString("en-HK")
+                                    : "—"}
+                                </p>
+                                <p className="form-hint">
+                                  {text(
+                                    "請在上方「覆核／操作原因」記錄至少 10 字的收費依據；原因只供內部紀錄。報價電郵會列出基本費、附加費及總額。",
+                                    "Record the pricing basis in the review / action reason above (at least 10 characters, for internal records). The quote email will show the base fee, surcharge and total.",
+                                  )}
+                                </p>
+                                <label className="ev-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={manualNightConfirmed}
+                                    onChange={(e) =>
+                                      setManualNightConfirmed(e.target.checked)
+                                    }
+                                  />
+                                  {text(
+                                    "我已核實此夜更的基本費、附加費及總額，確認按以上金額發報價。",
+                                    "I have verified this night's base fee, surcharge and total and confirm issuing the quote for these amounts.",
+                                  )}
+                                </label>
+                              </>
+                            )}
+                          </fieldset>
+                        )}
                       <div className="ev-actions">
                         {[
                           [
@@ -2328,7 +2474,8 @@ export function AdminWorkspace({
                               (a === "issue_quote" &&
                                 (c.intake_channel === "conversation" ||
                                   c.status !== "MANUAL" ||
-                                  c.remote_tier === "UNMATCHED"))
+                                  c.remote_tier === "UNMATCHED" ||
+                                  (manualNightQuote && !validManualNightQuote)))
                             }
                             className="button secondary"
                             key={a}

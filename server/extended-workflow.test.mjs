@@ -22,7 +22,8 @@ const base = (extra) => ({
 function setup(t) {
   let now = Date.parse("2026-10-29T12:00:00+08:00");
   const dir = mkdtempSync(join(tmpdir(), "nurse-full-"));
-  const w = new Workflow(join(dir, "test.sqlite"), { now: () => now });
+  const path = join(dir, "test.sqlite");
+  const w = new Workflow(path, { now: () => now });
   Object.assign(w.state.settings, {
     nurse_day_rate: 245,
     nurse_night_rate: 270,
@@ -36,6 +37,7 @@ function setup(t) {
   });
   return {
     w,
+    path,
     set: (x) => (now = typeof x === "string" ? Date.parse(x) : x),
     advance: (ms) => (now += ms),
   };
@@ -304,6 +306,127 @@ test("full intake validates all fields, all services, remote review and human sc
   assert.equal(remote.remote_tier, "A");
   assert.equal(remote.nurse_travel_allowance, 150);
   assert.equal(remote.quote.total, 1220);
+});
+
+test("holiday night pricing requires explicit reviewed amounts and preserves them through family acceptance", (t) => {
+  const { w, path } = setup(t);
+  const c = w.create(
+    base({
+      date: "2026-11-07",
+      shift: "NIGHT12",
+      start: "22:00",
+      end: "10:00",
+      services: [{ id: "vitals", times: ["23:00"] }],
+    }),
+  );
+  assert.equal(c.status, "MANUAL");
+  assert.match(c.manual_reason, /夜更涉及/);
+  const reason = "已核實本次跨星期日夜更收費及附加費";
+  const manual = { base: 3900, surcharge: 600, confirmed: true };
+  assert.throws(() => w.adminCase(c, "issue_quote", { reason }), /夜更涉及/);
+  for (const invalid of [
+    null,
+    {},
+    { ...manual, confirmed: false },
+    { ...manual, base: "3900" },
+    { ...manual, base: -1 },
+    { ...manual, base: 3900.5 },
+    { ...manual, surcharge: null },
+    { ...manual, surcharge: -1 },
+    { ...manual, base: 0, surcharge: 0 },
+    { ...manual, base: Number.MAX_SAFE_INTEGER, surcharge: 1 },
+  ]) {
+    assert.throws(
+      () =>
+        w.adminCase(c, "issue_quote", { reason, manual_night_quote: invalid }),
+      /整數基本費/,
+    );
+    assert.equal(c.status, "MANUAL");
+    assert.equal(c.quote, undefined);
+  }
+  assert.throws(
+    () =>
+      w.adminCase(c, "issue_quote", {
+        reason: "已核實",
+        manual_night_quote: manual,
+      }),
+    /10 字/,
+  );
+  w.asOperator({ id: "STAFF-QUOTE", role: "ADMIN", method: "google" }, () =>
+    w.adminCase(c, "issue_quote", { reason, manual_night_quote: manual }),
+  );
+  assert.equal(c.status, "QUOTED");
+  assert.equal(c.quote.total, 4500);
+  assert.equal(c.quote.hours, 12);
+  assert.equal(c.quote.reviewed_by, "STAFF-QUOTE");
+  assert.equal(c.quote.review_reason, reason);
+  assert.equal(c.quote.pricing_method, "MANUAL_NIGHT_HOLIDAY");
+  const mail = w.state.emails.find(
+    (m) => m.case_id === c.id && m.template_id === "T1",
+  );
+  assert.match(mail.body, /基本費 HK\$3900/);
+  assert.match(mail.body, /附加費 HK\$600/);
+  assert.match(mail.body, /總額：HK\$4500/);
+  assert.match(mail.body, /翌日 10:00/);
+  assert.match(mail.body, /經人工覆核/);
+  assert.ok(!mail.body.includes(reason));
+  assert.equal(
+    w.state.events.find((e) => e.event === "quote.manually_reviewed")
+      .actor_code,
+    "STAFF-QUOTE",
+  );
+  w.act(token(w, c, "accept_single"));
+  assert.equal(c.status, "PENDING_PAY");
+  assert.equal(c.payment_amount, 4500);
+  assert.equal(c.quote.total, 4500);
+  assert.throws(() =>
+    w.adminCase(c, "issue_quote", { reason, manual_night_quote: manual }),
+  );
+  const reopened = new Workflow(path, { seedNurses: false });
+  assert.deepEqual(
+    reopened.state.cases.find((item) => item.id === c.id).quote,
+    c.quote,
+  );
+  reopened.db.close();
+});
+
+test("manual night amounts cannot override normal pricing or bypass remote and clinical checks", (t) => {
+  const { w } = setup(t);
+  const payload = {
+    reason: "已核實本次夜更逐單收費依據",
+    manual_night_quote: { base: 3250, surcharge: 0, confirmed: true },
+  };
+  const normal = w.create(base({ other: "需核實" }));
+  assert.throws(() => w.adminCase(normal, "issue_quote", payload), /只適用/);
+  const remote = w.create(
+    base({
+      intake_version: "v3",
+      gender: "M",
+      age: 78,
+      weight_kg: 65,
+      height_cm: 165,
+      mobility: "需人輔助",
+      companion: "YES",
+      date: "2026-11-07",
+      shift: "NIGHT10",
+      services: [{ id: "vitals", times: ["23:00"] }],
+    }),
+  );
+  assert.throws(() => w.adminCase(remote, "issue_quote", payload), /覆核偏遠/);
+  w.adminCase(remote, "remote", { reason: "地址已核實", tier: "C" });
+  w.adminCase(remote, "issue_quote", payload);
+  assert.equal(remote.quote.total, 3250);
+  assert.equal(remote.quote.surcharge, 0);
+  assert.equal(remote.quote.hours, 10);
+  const risk = w.create(
+    base({
+      date: "2026-11-07",
+      shift: "NIGHT10",
+      remarks: "胸痛",
+      services: [{ id: "vitals", times: [] }],
+    }),
+  );
+  assert.throws(() => w.adminCase(risk, "issue_quote", payload), /臨床處置/);
 });
 test("third drop suspends nurse; administrator must separately blacklist", (t) => {
   const { w } = setup(t);

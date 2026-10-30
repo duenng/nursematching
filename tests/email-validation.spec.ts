@@ -1,5 +1,125 @@
 import { test, expect } from "@playwright/test";
 
+test("administrator can review a Sunday night quote and family sees the exact confirmed charges", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "zh-HK"),
+  );
+  const response = await page.request.post("/api/enquiries", {
+    headers: {
+      Origin: new URL(baseURL!).origin,
+    },
+    data: {
+      surname: "Night quote test",
+      patient_ref: "Night quote test",
+      email: "night-quote@example.test",
+      phone: "",
+      district: "東區",
+      building: "Test building",
+      date: "2026-11-07",
+      shift: "NIGHT12",
+      start: "22:00",
+      end: "10:00",
+      consent: true,
+      gender: "M",
+      age: 79,
+      weight_kg: 65,
+      height_cm: 165,
+      mobility: "需人輔助",
+      companion: "YES",
+      doctor_order: "NA",
+      existing_tube: "YES",
+      services: [{ id: "vitals", times: [], prn: true }],
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const created = await response.json();
+  await page.goto(`/#staff/requests/${created.id}`);
+  await page.getByText("人工覆核／取消退款／重新招募", { exact: true }).click();
+  await page
+    .getByLabel("覆核／操作原因", { exact: true })
+    .fill("已核實本次跨星期日夜更收費及服務地址");
+  await page.getByLabel("偏遠分類（只影響護士交通津貼）").selectOption("C");
+  await page
+    .getByRole("button", { name: "覆核地點及交通津貼", exact: true })
+    .click();
+  const issue = page.getByRole("button", {
+    name: "人工處理後發報價",
+    exact: true,
+  });
+  await issue.click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "夜更涉及星期日／公眾假期，待確認" })
+      .first(),
+  ).toBeVisible();
+  await page
+    .getByRole("checkbox", { name: "使用人工確認的夜更收費", exact: true })
+    .check();
+  await expect(issue).toBeDisabled();
+  await page.getByLabel("人工基本費 HKD（整數）", { exact: true }).fill("3900");
+  await page
+    .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
+    .fill("600");
+  await expect(
+    page.getByText("人工報價總額: HK$4,500", { exact: true }),
+  ).toBeVisible();
+  const confirm = page.getByRole("checkbox", {
+    name: /我已核實此夜更的基本費/,
+  });
+  await confirm.check();
+  await expect(issue).toBeEnabled();
+  await page
+    .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
+    .fill("700");
+  await expect(confirm).not.toBeChecked();
+  await expect(issue).toBeDisabled();
+  await page
+    .getByLabel("人工附加費 HKD（無附加費請填 0）", { exact: true })
+    .fill("600");
+  await confirm.check();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  const sent = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/case-action") &&
+      r.request().postDataJSON().action === "issue_quote",
+  );
+  await issue.click();
+  expect((await sent).ok()).toBeTruthy();
+  await expect(page.locator(".ev-state")).toContainText("QUOTED");
+  await expect(
+    page.getByText(
+      "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  const snapshot = await (await page.request.get("/api/workflow")).json();
+  const quote = snapshot.emails.find(
+    (mail: { case_id: string; template_id: string }) =>
+      mail.case_id === created.id && mail.template_id === "T1",
+  );
+  expect(quote.body).toContain("總額：HK$4500");
+  const family = await context.newPage();
+  await family.goto(
+    quote.links.find(
+      (link: { label: string }) => link.label === "accept_single",
+    ).url,
+  );
+  await expect(family.locator("main")).toContainText("基本費 HK$3900");
+  await expect(family.locator("main")).toContainText("附加費 HK$600");
+  await expect(family.locator("main")).toContainText("翌日 10:00");
+  await expect(family.locator("main")).toContainText("總額：HK$4500");
+});
+
 test("staff enquiry reaches server, quote confirmation, independent bank reconciliation and real nurse matching", async ({
   page,
   context,
