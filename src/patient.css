@@ -103,6 +103,20 @@
 .patient-nav > button:hover {
   color: var(--text);
 }
+.patient-nav .patient-staff-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 8px 0;
+}
+.patient-nav .patient-staff-login:hover {
+  color: var(--text);
+}
 .patient-nav-count {
   display: flex;
   align-items: center;
@@ -1501,6 +1515,9 @@
     gap: 20px;
   }
   .patient-nav > button {
+    font-size: 0.9375rem;
+  }
+  .patient-nav .patient-staff-login {
     font-size: 0.9375rem;
   }
   .patient-header-actions > .button {

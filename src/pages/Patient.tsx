@@ -11,6 +11,7 @@ import {
   Heart,
   HeartHandshake,
   House,
+  LockKeyhole,
   MapPin,
   Menu,
   MessageCircle,
@@ -25,6 +26,7 @@ import { PatientHomeIntro } from "./PatientHomeIntro";
 import { useApp } from "../store";
 import { Modals } from "../Modals";
 import { localDate, today } from "../lib/workflow";
+import { apiUrl } from "../lib/api";
 import type { CareCase, Visit } from "../types";
 import "../patient.css";
 
@@ -144,6 +146,14 @@ export function PatientPortal() {
                 <span className="patient-nav-count">{proposed}</span>
               )}
             </button>
+            <a
+              className="patient-staff-login"
+              href={apiUrl("/auth/google")}
+              aria-label={t("Staff sign in")}
+            >
+              <LockKeyhole size={15} />
+              {t("Staff sign in")}
+            </a>
           </nav>
           <div className="patient-header-actions">
             <button
