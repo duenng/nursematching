@@ -672,7 +672,10 @@ const server = http.createServer(async (req, res) => {
             );
             if (
               !payout ||
-              (live && !workflow.state.cases.some((c) => c.id === payout.case_id && c.intake_mode === "LIVE")) ||
+              (live &&
+                !workflow.state.cases.some(
+                  (c) => c.id === payout.case_id && c.intake_mode === "LIVE",
+                )) ||
               payout.status !== "PENDING" ||
               !input.bank_reference?.trim() ||
               !input.note?.trim() ||

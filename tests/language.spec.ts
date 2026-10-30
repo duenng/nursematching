@@ -27,8 +27,18 @@ test("Traditional Chinese is the default and language selection persists across 
   await expect(page.getByLabel("Search workspace")).toBeVisible();
   await page.getByRole("button", { name: "繁中", exact: true }).click();
   await expect(page.getByLabel("搜尋工作區")).toBeVisible();
-  for (const name of ["護理查詢", "護理個案", "護理排程", "護理人員", "電郵通知", "客戶紀錄"]) {
-    await page.getByRole("navigation").getByRole("button", { name, exact: true }).click();
+  for (const name of [
+    "護理查詢",
+    "護理個案",
+    "護理排程",
+    "護理人員",
+    "電郵通知",
+    "客戶紀錄",
+  ]) {
+    await page
+      .getByRole("navigation")
+      .getByRole("button", { name, exact: true })
+      .click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   }
   await page.reload();

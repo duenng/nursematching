@@ -1,72 +1,184 @@
 import { test, expect } from "@playwright/test";
 
-test("staff enquiry reaches server, quote confirmation, independent bank reconciliation and real nurse matching", async ({ page, context }) => {
-  await page.addInitScript(() => localStorage.setItem("kindred-language", "en"));
+test("staff enquiry reaches server, quote confirmation, independent bank reconciliation and real nurse matching", async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("kindred-language", "en"),
+  );
   const current = await (await page.request.get("/api/workflow")).json();
-  const configured = await page.request.post("/api/settings", { data: { time_scale: 1, nurse_day_rate: 245, nurse_night_rate: 270, admin_email: "admin@careknock.invalid", nurses: current.nurses, policies: { allow_arrival_completion: true } } });
+  const configured = await page.request.post("/api/settings", {
+    data: {
+      time_scale: 1,
+      nurse_day_rate: 245,
+      nurse_night_rate: 270,
+      admin_email: "admin@careknock.invalid",
+      nurses: current.nurses,
+      policies: { allow_arrival_completion: true },
+    },
+  });
   expect(configured.ok()).toBeTruthy();
-  const provider = await (await page.request.post("/api/nurses", { data: { name: "Workflow nurse", email: `workflow-${Date.now()}@careknock.invalid`, category: "RN", registration: "RN-TEST", verification_note: "Credentials verified for workflow test", credentials_verified: true, status: "VERIFIED" } })).json();
+  const provider = await (
+    await page.request.post("/api/nurses", {
+      data: {
+        name: "Workflow nurse",
+        email: `workflow-${Date.now()}@careknock.invalid`,
+        category: "RN",
+        registration: "RN-TEST",
+        verification_note: "Credentials verified for workflow test",
+        credentials_verified: true,
+        status: "VERIFIED",
+      },
+    })
+  ).json();
   await page.goto("/#staff/enquiries");
-  await page.getByLabel("Patient reference (package owner)").fill("LIVE-BROWSER-TEST");
-  await page.getByRole("combobox", { name: "Gender", exact: true }).selectOption("M");
+  await page
+    .getByLabel("Patient reference (package owner)")
+    .fill("LIVE-BROWSER-TEST");
+  await page
+    .getByRole("combobox", { name: "Gender", exact: true })
+    .selectOption("M");
   await page.getByLabel("Age", { exact: true }).fill("78");
   await page.getByLabel("Weight kg").fill("65");
   await page.getByLabel("Height cm").fill("165");
-  await page.getByRole("combobox", { name: "Mobility", exact: true }).selectOption({ index: 1 });
-  await page.getByRole("combobox", { name: "Companion during service", exact: true }).selectOption("YES");
+  await page
+    .getByRole("combobox", { name: "Mobility", exact: true })
+    .selectOption({ index: 1 });
+  await page
+    .getByRole("combobox", { name: "Companion during service", exact: true })
+    .selectOption("YES");
   await page.getByLabel("Surname", { exact: true }).fill("Li");
   await page.getByLabel("Email (required)").fill("family@careknock.invalid");
-  await page.getByRole("combobox", { name: "District", exact: true }).selectOption("屯門");
-  await page.getByLabel("Building (no unit at intake)").fill("Workflow Building");
+  await page
+    .getByRole("combobox", { name: "District", exact: true })
+    .selectOption("屯門");
+  await page
+    .getByLabel("Building (no unit at intake)")
+    .fill("Workflow Building");
   await page.getByRole("checkbox", { name: /生命表徵/ }).check();
-  await page.getByRole("checkbox", { name: /I agree that this information/ }).check();
-  await page.getByRole("button", { name: "Confirm details and submit", exact: true }).click();
-  const submitted = page.waitForResponse((r) => r.url().endsWith("/api/cases") && r.request().method() === "POST");
-  await page.getByRole("button", { name: "Confirm enquiry submission", exact: true }).click();
-  const response = await submitted; expect(response.ok()).toBeTruthy();
-  const c = await response.json(); expect(c.intake_mode).toBe("LIVE"); expect(c.fictional).toBe(false);
+  await page
+    .getByRole("checkbox", { name: /I agree that this information/ })
+    .check();
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  const submitted = page.waitForResponse(
+    (r) => r.url().endsWith("/api/cases") && r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "Confirm enquiry submission", exact: true })
+    .click();
+  const response = await submitted;
+  expect(response.ok()).toBeTruthy();
+  const c = await response.json();
+  expect(c.intake_mode).toBe("LIVE");
+  expect(c.fictional).toBe(false);
   await expect(page).toHaveURL(new RegExp(`#staff/requests/${c.id}$`));
   await expect(page.locator(".ev-state")).toContainText("MANUAL");
-  await page.getByText("Manual review, cancellation, refunds and reposting", { exact: true }).click();
-  await page.getByLabel("Review / action reason").fill("Confirmed service location and requirements");
-  await page.getByRole("button", { name: "Review location / allowance", exact: true }).click();
-  await page.getByRole("button", { name: "Issue quote after review", exact: true }).click();
+  await page
+    .getByText("Manual review, cancellation, refunds and reposting", {
+      exact: true,
+    })
+    .click();
+  await page
+    .getByLabel("Review / action reason")
+    .fill("Confirmed service location and requirements");
+  await page
+    .getByRole("button", { name: "Review location / allowance", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Issue quote after review", exact: true })
+    .click();
   await expect(page.locator(".ev-state")).toContainText("QUOTED");
   let state = await (await page.request.get("/api/workflow")).json();
-  const quote = state.emails.find((m: { case_id: string; template_id: string }) => m.case_id === c.id && m.template_id === "T1");
-  const link = quote.links.find((l: { label: string }) => l.label === "accept_single").url;
-  const family = await context.newPage(); await family.goto(link);
-  await expect(family.getByRole("button", { name: "確認：接受單次報價" })).toBeVisible();
-  expect((await (await page.request.get("/api/workflow")).json()).cases.find((x: { id: string }) => x.id === c.id).status).toBe("QUOTED");
+  const quote = state.emails.find(
+    (m: { case_id: string; template_id: string }) =>
+      m.case_id === c.id && m.template_id === "T1",
+  );
+  const link = quote.links.find(
+    (l: { label: string }) => l.label === "accept_single",
+  ).url;
+  const family = await context.newPage();
+  await family.goto(link);
+  await expect(
+    family.getByRole("button", { name: "確認：接受單次報價" }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get("/api/workflow")).json()).cases.find(
+      (x: { id: string }) => x.id === c.id,
+    ).status,
+  ).toBe("QUOTED");
   await family.getByRole("button", { name: "確認：接受單次報價" }).click();
   await page.reload();
-  await expect(page.getByRole("button", { name: "Approve preview and dispatch" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Approve preview and dispatch" }),
+  ).toBeDisabled();
   state = await (await page.request.get("/api/workflow")).json();
-  const payment = state.emails.find((m: { case_id: string; template_id: string }) => m.case_id === c.id && m.template_id === "T8");
-  const reportLink = payment.links.find((l: { label: string }) => l.label === "report_fps").url;
-  const report = await page.request.post(reportLink, { form: { reference: `FAMILY-${Date.now()}`, amount: "1220", transferred_at: new Date(Date.now() - 60000).toISOString() } });
+  const payment = state.emails.find(
+    (m: { case_id: string; template_id: string }) =>
+      m.case_id === c.id && m.template_id === "T8",
+  );
+  const reportLink = payment.links.find(
+    (l: { label: string }) => l.label === "report_fps",
+  ).url;
+  const report = await page.request.post(reportLink, {
+    form: {
+      reference: `FAMILY-${Date.now()}`,
+      amount: "1220",
+      transferred_at: new Date(Date.now() + 8 * 3600000)
+        .toISOString()
+        .slice(0, 16),
+    },
+  });
   expect(report.ok()).toBeTruthy();
   await page.reload();
-  await page.getByRole("combobox", { name: "Pending transfer report", exact: true }).selectOption({ index: 1 });
-  await page.getByLabel("Bank receipt / refund reference").fill(`BANK-${Date.now()}`);
+  await page
+    .getByRole("combobox", { name: "Pending transfer report", exact: true })
+    .selectOption({ index: 1 });
+  await page
+    .getByLabel("Bank receipt / refund reference")
+    .fill(`BANK-${Date.now()}`);
   await page.getByLabel("Verified amount HKD").fill("1220");
-  const hkt = new Date(Date.now() + 8 * 3600000 - 60000).toISOString().slice(0,16);
+  const hkt = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 16);
   await page.getByLabel("Bank receipt / refund time HKT").fill(hkt);
-  await page.getByLabel("Reconciliation / refund note").fill("Checked actual bank receipt independently");
-  await page.getByRole("checkbox", { name: /I independently checked the actual bank/ }).check();
-  await page.getByRole("button", { name: "Confirm bank receipt after reconciliation", exact: true }).click();
+  await page
+    .getByLabel("Reconciliation / refund note")
+    .fill("Checked actual bank receipt independently");
+  await page
+    .getByRole("checkbox", { name: /I independently checked the actual bank/ })
+    .check();
+  await page
+    .getByRole("button", {
+      name: "Confirm bank receipt after reconciliation",
+      exact: true,
+    })
+    .click();
   await expect(page.locator(".ev-state")).toContainText("PAID");
-  await page.getByRole("button", { name: "Approve preview and dispatch", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Approve preview and dispatch", exact: true })
+    .click();
   await expect(page.locator(".ev-state")).toContainText("POSTED");
   state = await (await page.request.get("/api/workflow")).json();
-  const broadcast = state.emails.find((m: { case_id: string; template_id: string; to: string }) => m.case_id === c.id && m.template_id === "T3" && m.to === provider.email);
+  const broadcast = state.emails.find(
+    (m: { case_id: string; template_id: string; to: string }) =>
+      m.case_id === c.id && m.template_id === "T3" && m.to === provider.email,
+  );
   expect(broadcast.body).not.toContain("family@careknock.invalid");
   expect((await page.request.post(broadcast.links[0].url)).ok()).toBeTruthy();
   await page.reload();
   await expect(page.locator(".ev-state")).toContainText("MATCHED");
-  await page.getByRole("navigation").getByRole("button", { name: "Care schedule", exact: true }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "Care schedule", exact: true })
+    .click();
   await expect(page.getByRole("row").filter({ hasText: c.id })).toBeVisible();
-  await page.getByRole("navigation").getByRole("button", { name: "Client records", exact: true }).click();
-  await expect(page.locator("summary").filter({ hasText: "LIVE-BROWSER-TEST" })).toBeVisible();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "Client records", exact: true })
+    .click();
+  await expect(
+    page.locator("summary").filter({ hasText: "LIVE-BROWSER-TEST" }),
+  ).toBeVisible();
   await family.close();
 });

@@ -66,14 +66,20 @@ test("homepage enquiry uses the server form without a browser-only consent claim
   ).toBeVisible();
 });
 
-test("patient preview changes cannot create or modify real staff records", async ({ page }) => {
+test("patient preview changes cannot create or modify real staff records", async ({
+  page,
+}) => {
   await page.goto("/#patient/care");
-  await page.getByRole("button", { name: "Review or correct my details" }).click();
+  await page
+    .getByRole("button", { name: "Review or correct my details" })
+    .click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Preferred visit time").fill("PREVIEW-ONLY-CHANGE");
   await dialog.getByRole("button", { name: "Save my corrections" }).click();
   await page.goto("/#staff/requests");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care requests");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Care requests",
+  );
   await expect(page.locator("main")).not.toContainText("PREVIEW-ONLY-CHANGE");
   await expect(page.locator("main")).not.toContainText("Mr. Chan");
   const state = await (await page.request.get("/api/workflow")).json();

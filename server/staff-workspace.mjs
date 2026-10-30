@@ -88,8 +88,18 @@ export function saveNurse(workflow, input) {
         input.category !== existing.category)
     )
       throw new Error("護理員有進行中服務，請先處理個案再更改電郵、資格或狀態");
-    if (existing && (email !== existing.email || input.status !== existing.status)) {
-      for (const token of workflow.state.tokens) if (token.actor === existing.id && !token.used_at && !token.void_at && token.action === "take_case") token.void_at = workflow.stamp();
+    if (
+      existing &&
+      (email !== existing.email || input.status !== existing.status)
+    ) {
+      for (const token of workflow.state.tokens)
+        if (
+          token.actor === existing.id &&
+          !token.used_at &&
+          !token.void_at &&
+          token.action === "take_case"
+        )
+          token.void_at = workflow.stamp();
     }
     const n = existing || { id: `N-${randomUUID()}`, drop_count: 0 };
     Object.assign(n, {

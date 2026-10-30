@@ -135,6 +135,9 @@ export type Workspace = {
     nurse_id: string;
     total: number;
     status: string;
+    bank_reference?: string;
+    paid_at?: string;
+    paid_by?: string;
   }[];
   evidence: {
     id: string;
@@ -358,7 +361,9 @@ export function AdminWorkspace({
           {
             exported_at: new Date().toISOString(),
             timezone: "Asia/Hong_Kong",
-            notice: "流程紀錄，並非 TRL 認證或驗收合格報告",
+            notice: operational
+              ? "職員工作區匯出紀錄"
+              : "流程紀錄，並非 TRL 認證或驗收合格報告",
             ...workspace,
           },
           null,
@@ -1406,7 +1411,9 @@ export function AdminWorkspace({
           disabled={!workspace}
         >
           <Download size={15} />
-          {text("匯出證據", "Export evidence")}
+          {operational
+            ? text("匯出紀錄", "Export records")
+            : text("匯出證據", "Export evidence")}
         </button>
       </div>
       {error && (
@@ -2285,6 +2292,18 @@ export function AdminWorkspace({
           {workspace?.payouts.map((p) => (
             <p key={p.id}>
               {p.case_id} · {p.nurse_id} · HK${p.total} · {p.status}
+              {p.bank_reference && (
+                <>
+                  <br />
+                  {p.bank_reference} · {p.paid_by} ·{" "}
+                  {p.paid_at
+                    ? new Date(p.paid_at).toLocaleString(
+                        zh ? "zh-HK" : "en-HK",
+                        { timeZone: "Asia/Hong_Kong" },
+                      )
+                    : ""}
+                </>
+              )}
             </p>
           ))}
         </section>

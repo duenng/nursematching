@@ -16,7 +16,7 @@ test("HTTP Google sessions enforce roles, CSRF, clinical privacy and individual 
   const base = `http://localhost:${port}`;
   const env = {
     ...process.env,
-      WORKSPACE_MODE: "test",
+    WORKSPACE_MODE: "test",
     PORT: String(port),
     API_PORT: "",
     BASE_URL: base,
