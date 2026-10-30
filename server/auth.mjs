@@ -137,8 +137,12 @@ export class StaffAuth {
       CREATE TABLE IF NOT EXISTS staff_identities (
       staff_id TEXT PRIMARY KEY, email TEXT NOT NULL, google_subject TEXT NOT NULL);`);
   }
-  cookie(name, value, seconds) {
-    const sameSite = this.crossSiteCookie ? "None" : "Lax";
+  cookie(name, value, seconds, sameSiteOverride) {
+    // OAuth state returns through a top-level GET from Google, so Lax is both
+    // sufficient and more reliable than a third-party None cookie. The staff
+    // session itself needs None when the Pages frontend calls this API.
+    const sameSite =
+      sameSiteOverride || (this.crossSiteCookie ? "None" : "Lax");
     return `${name}=${value}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${seconds}${this.secure || this.crossSiteCookie ? "; Secure" : ""}`;
   }
   role(email) {
@@ -204,7 +208,7 @@ export class StaffAuth {
         this.now() + 600000,
       );
     return {
-      cookie: this.cookie(this.stateCookie, binding, 600),
+      cookie: this.cookie(this.stateCookie, binding, 600, "Lax"),
       location: this.provider.generateAuthUrl({
         scope: ["openid", "email", "profile"],
         state,
@@ -279,9 +283,10 @@ export class StaffAuth {
       actor_code: id,
     });
     return {
+      location: `${this.frontendUrl}/#staff/email`,
       cookies: [
         this.cookie(this.sessionCookie, token, 8 * 3600),
-        this.cookie(this.stateCookie, "", 0),
+        this.cookie(this.stateCookie, "", 0, "Lax"),
       ],
     };
   }

@@ -1,3 +1,4 @@
+import { realNurse } from "./staff-workspace.mjs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -112,6 +113,7 @@ class BaseWorkflow {
       now = () => Date.now(),
       baseUrl = "http://localhost:5173",
       paymentMode = "mock",
+      seedNurses = true,
     } = {},
   ) {
     mkdirSync(dirname(path), { recursive: true });
@@ -132,7 +134,7 @@ class BaseWorkflow {
           timers: [],
           emails: [],
           events: [],
-          nurses: Array.from({ length: 5 }, (_, i) => ({
+          nurses: Array.from({ length: seedNurses ? 5 : 0 }, (_, i) => ({
             id: `N0${i + 1}`,
             status: i < 4 ? "VERIFIED" : "APPLIED",
             email: `n0${i + 1}@example.test`,
@@ -610,7 +612,7 @@ class BaseWorkflow {
     )
       throw new Error("請先由管理員確認測試護士薪酬設定");
     this.transition(c, "POSTED");
-    for (const n of this.state.nurses.filter((n) => n.status === "VERIFIED"))
+    for (const n of this.state.nurses.filter((n) => n.status === "VERIFIED" && (!this.live || realNurse(n))))
       this.email(
         c,
         "T3",

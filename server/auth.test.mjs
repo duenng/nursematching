@@ -89,6 +89,7 @@ async function login(auth) {
 test("Google code flow binds browser, PKCE, nonce; session is hashed, HttpOnly and wall-time limited", async (t) => {
   const { auth, db, advance, events } = setup(t);
   const { request, user, result } = await login(auth);
+  assert.equal(result.location, "/#staff/email");
   assert.equal(user.role, "ADMIN");
   assert.equal(user.id, staffId("admin@example.test"));
   assert.match(
@@ -105,6 +106,29 @@ test("Google code flow binds browser, PKCE, nonce; session is hashed, HttpOnly a
   assert.ok(!JSON.stringify(events).includes("admin@example.test"));
   advance(8 * 3600000);
   assert.equal(auth.current(request), null);
+});
+test("cross-site frontend keeps OAuth state cookie first-party compatible", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  const { provider, auth: providerAuth } = setup(t);
+  const auth = new StaffAuth(db, {
+    env: { ...env },
+    baseUrl: "https://api.example.test",
+    frontendUrl: "https://care.example.test",
+    now: providerAuth.now,
+    provider,
+  });
+  const login = await auth.begin();
+  assert.match(login.cookie, /SameSite=Lax/);
+  assert.match(login.cookie, /Secure/);
+  const state = new URL(login.location).searchParams.get("state");
+  const flowRequest = req(login.cookie.split(";")[0]);
+  const result = await auth.finish(
+    flowRequest,
+    new URL(`https://api.example.test/auth/google/callback?state=${state}&code=valid&returnTo=https://attacker.invalid`),
+  );
+  assert.equal(result.location, "https://care.example.test/#staff/email");
+  assert.match(result.cookies[0], /SameSite=None/);
 });
 test("OAuth wrong browser, wrong state, expiry and consumed callback fail closed", async (t) => {
   const { auth, advance } = setup(t);

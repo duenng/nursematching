@@ -1,3 +1,4 @@
+import { realNurse } from "./staff-workspace.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -891,6 +892,7 @@ ${instructions}
       return this.transaction(() => {
         if (c.remote_review_required && !c.remote_reviewed_by)
           throw new Error("請先覆核 B 級交通津貼");
+        if (this.live && !this.state.nurses.some((n) => realNurse(n) && n.status === "VERIFIED")) throw new Error("尚未有已核實資格的護理員，不能派單");
         super.dispatch(c);
         c.posted_at = this.stamp();
         c.repost_count = 0;
@@ -1230,7 +1232,7 @@ ${instructions}
         throw new Error("個案不在招募中");
       c.repost_count = (c.repost_count || 0) + 1;
       for (const n of this.state.nurses.filter(
-        (n) => n.status === "VERIFIED" && !c.dropped_nurses?.includes(n.id),
+        (n) => n.status === "VERIFIED" && (!this.live || realNurse(n)) && !c.dropped_nurses?.includes(n.id),
       ))
         this.email(
           c,

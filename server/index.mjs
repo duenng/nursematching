@@ -15,6 +15,7 @@ import {
   readSampleUpload,
   storeSample,
 } from "./doctor-documents.mjs";
+import { staffSnapshot, saveNurse, realNurse } from "./staff-workspace.mjs";
 import { publicIntake, createIntakeLimiter } from "./public-intake.mjs";
 import { StaffAuth, canAccess, clinicalWorkspace } from "./auth.mjs";
 import nodemailer from "nodemailer";
@@ -75,7 +76,9 @@ process.on("exit", () => {
     unlinkSync(lockPath);
   } catch {}
 });
+const live = (process.env.WORKSPACE_MODE || "live") === "live";
 const workflow = new Workflow(dbPath, {
+  seedNurses: !live,
   baseUrl:
     process.env.BASE_URL ||
     `http://localhost:${process.env.API_PORT ? "5173" : port}`,
@@ -93,6 +96,8 @@ if (
   throw new Error(
     "Real payment modes require time_scale=1 and no virtual clock offset; use a separate WORKFLOW_DB",
   );
+workflow.live = live;
+if (live && mode !== "bank_transfer") throw new Error("Live workspace requires PAYMENT_MODE=bank_transfer; use WORKSPACE_MODE=test for test payments");
 documentStore(workflow.db);
 const auth = new StaffAuth(workflow.db, {
   baseUrl: workflow.baseUrl,
@@ -322,6 +327,7 @@ async function integrations() {
     for (const mail of workflow.state.emails.filter(
       (x) => x.status === "queued",
     )) {
+      if (live && !workflow.state.cases.some((c) => c.id === mail.case_id && c.intake_mode === "LIVE")) continue;
       if (!mailer) {
         mail.status = "captured";
         workflow.event(
@@ -331,7 +337,9 @@ async function integrations() {
         );
         continue;
       }
-      if (!allowed.has(mail.to.toLowerCase())) {
+      const mailCase = workflow.state.cases.find((c) => c.id === mail.case_id);
+      if (live && mailCase?.intake_mode !== "LIVE") continue;
+      if ((!live || allowed.size > 0) && !allowed.has(mail.to.toLowerCase())) {
         mail.status = "blocked";
         mail.error = "Recipient is not in TEST_EMAIL_ALLOWLIST";
         continue;
@@ -408,7 +416,10 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/health")
       return reply(res, 200, {
         ok: true,
-        email: mailer ? "smtp_test" : "local_inbox",
+        workspace: live ? "live" : "test",
+            email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
+            email_delivery_enabled: !!mailer,
+            email_restricted: !live || allowed.size > 0,
         payment: mode,
         auth:
           auth.mode === "google"
@@ -438,7 +449,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/auth/google/callback" && req.method === "GET") {
       const login = await auth.finish(req, url);
       res.writeHead(303, {
-        Location: "/#staff/email",
+        Location: login.location,
         "Set-Cookie": login.cookies,
         "Cache-Control": "no-store",
         "Referrer-Policy": "no-referrer",
@@ -566,11 +577,14 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/api/workflow" && req.method === "GET")
         return reply(res, 200, {
           ...(user.role === "SENIOR_NURSE"
-            ? clinicalWorkspace(workflow.state)
-            : workflow.state),
+            ? clinicalWorkspace(staffSnapshot(workflow.state, live))
+            : staffSnapshot(workflow.state, live)),
           staff: { id: user.id, role: user.role, method: user.method },
           capabilities: {
-            email: mailer ? "smtp_test" : "local_inbox",
+            workspace: live ? "live" : "test",
+            email: mailer ? (live ? "smtp" : "smtp_test") : "local_inbox",
+            email_delivery_enabled: !!mailer,
+            email_restricted: !live || allowed.size > 0,
             payment: mode,
             live_ai: false,
             bank_transfer_configured: workflow.bankTransferConfigured(),
@@ -591,7 +605,8 @@ const server = http.createServer(async (req, res) => {
       return await workflow.asOperator(user, async () => {
         let result;
         if (url.pathname === "/api/cases" && req.method === "POST")
-          result = workflow.create(input);
+          result = workflow.create(live ? publicIntake(input) : input);
+        else if (url.pathname === "/api/nurses" && req.method === "POST") result = saveNurse(workflow, input);
         else if (url.pathname === "/api/settings" && req.method === "POST") {
           if (
             workflow.state.cases.some(
@@ -608,6 +623,7 @@ const server = http.createServer(async (req, res) => {
             )
           )
             throw new Error("有進行中個案，請保留設定以免改變計時／薪酬");
+          if (live && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.admin_email || "")) throw new Error("請提供有效管理員電郵");
           const scale = Number(input.time_scale);
           if (
             ![1, 60].includes(scale) ||
@@ -622,7 +638,7 @@ const server = http.createServer(async (req, res) => {
               Number(input[key]) <= 0
             )
               throw new Error("請確認正整數護士測試薪酬");
-          for (const n of workflow.state.nurses) {
+          for (const n of workflow.state.nurses.filter((n) => !live || realNurse(n))) {
             const email = input.nurses?.find((x) => x.id === n.id)?.email;
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || ""))
               throw new Error("護士電郵無效");
@@ -653,7 +669,7 @@ const server = http.createServer(async (req, res) => {
             workflow.state.settings.nurse_night_rate = Number(
               input.nurse_night_rate,
             );
-            workflow.state.nurses.forEach(
+            if (!live) workflow.state.nurses.forEach(
               (n) => (n.email = input.nurses.find((x) => x.id === n.id).email),
             );
             workflow.state.admin_email =
@@ -667,7 +683,7 @@ const server = http.createServer(async (req, res) => {
           req.method === "POST"
         ) {
           const c = workflow.state.cases.find((c) => c.id === input.id);
-          if (!c) throw new Error("找不到個案");
+          if (!c || (live && c.intake_mode !== "LIVE")) throw new Error("找不到個案");
           if (input.action === "mock_paid") {
             if (mode !== "mock")
               throw new Error(

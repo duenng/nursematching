@@ -14,6 +14,7 @@ test("HTTP confirmation safety, 10 concurrent claims, private address and persis
   const child = spawn(process.execPath, ["server/index.mjs"], {
     env: {
       ...process.env,
+      WORKSPACE_MODE: "test",
       PORT: String(port),
       API_PORT: "",
       BASE_URL: base,

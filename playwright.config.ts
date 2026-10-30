@@ -19,6 +19,7 @@ export default defineConfig({
     command: "npm run dev -- --port 5180",
     env: {
       API_PORT: "3002",
+      WORKSPACE_MODE: "test",
       BASE_URL: "http://localhost:5180",
       WORKFLOW_DB: `test-results/browser-${process.pid}.sqlite`,
       PAYMENT_MODE: "fps_test",
