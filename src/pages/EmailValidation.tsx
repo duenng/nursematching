@@ -1599,6 +1599,14 @@ export function AdminWorkspace({
                 }
               />
             </label>
+            {operational && !workspace?.admin_email && (
+              <p className="ev-error" role="status">
+                {text(
+                  "尚未設定管理員通知電郵。通知會保留在系統，但不會寄出；請填寫真實電郵並儲存設定。",
+                  "Admin notification email is not configured. Notifications are saved but will not be delivered. Enter a real email and save settings.",
+                )}
+              </p>
+            )}
             {Object.entries(config.policies).map(([k, v]) => (
               <label
                 className={typeof v === "boolean" ? "ev-check" : ""}

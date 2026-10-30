@@ -52,6 +52,32 @@ function matched(w, c) {
   w.dispatch(c);
   w.act(token(w, c, "take_case", "N01"));
 }
+test("initial manual review sends one receipt; later review still notifies the family", (t) => {
+  const { w } = setup(t);
+  const initial = w.create(input({ other: "待核實的需要" }));
+  assert.equal(initial.status, "MANUAL");
+  assert.deepEqual(
+    w.state.emails
+      .filter((m) => m.case_id === initial.id && m.to === initial.email)
+      .map((m) => m.template_id),
+    ["X01"],
+  );
+  assert.ok(
+    w.state.emails.some(
+      (m) => m.case_id === initial.id && m.template_id === "T14m",
+    ),
+  );
+  const quoted = w.create(input());
+  assert.equal(quoted.status, "QUOTED");
+  w.act(token(w, quoted, "modify"));
+  assert.equal(quoted.status, "MANUAL");
+  assert.equal(
+    w.state.emails.filter(
+      (m) => m.case_id === quoted.id && m.template_id === "X03",
+    ).length,
+    1,
+  );
+});
 test("C01–C12 applicable prices and both official holiday years", () => {
   assert.equal(HOLIDAYS.length, 34);
   assert.equal(new Set(HOLIDAYS).size, 34);

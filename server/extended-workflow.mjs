@@ -572,7 +572,7 @@ export const extendWorkflow = (Base) =>
         this.email(
           c,
           "T14",
-          this.state.admin_email || "admin@example.test",
+          this.adminEmail(),
           `派單預覽 – Case ${c.id}`,
           `${dispatchBody(c, this.state.settings)}\n\n請登入工作台核對內容及薪酬後按「確認預覽並派單」。本信不會自動派單。`,
           [{ label: "開職員工作台", url: `${this.baseUrl}/#staff` }],
@@ -704,7 +704,7 @@ export const extendWorkflow = (Base) =>
             this.email(
               c,
               "T14",
-              this.state.admin_email || "admin@example.test",
+              this.adminEmail(),
               `轉帳待對數 – Case ${c.id}`,
               `Case ${c.id} 客人已提交 轉帳資料。此為客人聲明；須由管理員核對銀行入帳後才可確認收款。`,
             );
@@ -1178,7 +1178,7 @@ ${instructions}
         this.email(
           c,
           "T14",
-          this.state.admin_email || "admin@example.test",
+          this.adminEmail(),
           "轉帳對數不符，交人手",
           `Case ${c.id} 轉帳資料與銀行入帳不符，需要人手聯絡客人。未確認前不得派單。`,
         );
@@ -1366,7 +1366,7 @@ ${instructions}
         this.email(
           c,
           "T14f",
-          this.state.admin_email || "admin@example.test",
+          this.adminEmail(),
           "護士三次放飛",
           `護士 ${n.id} 放飛累計 3 次，已暫停，請確認列入黑名單。`,
         );
@@ -1406,7 +1406,7 @@ ${instructions}
       this.email(
         c,
         "T14e",
-        this.state.admin_email || "admin@example.test",
+        this.adminEmail(),
         "護士放飛",
         `護士 ${n.id} 放飛，已重新發大群（第 ${n.drop_count} 次）。`,
       );
@@ -1761,7 +1761,7 @@ ${instructions}
           this.email(
             c,
             "T14",
-            this.state.admin_email || "admin@example.test",
+            this.adminEmail(),
             "轉帳期限到仍待對數",
             `Case ${c.id} 已提交轉帳聲明但尚未核對。請核對銀行入帳，未確認前不得派單。`,
           );
@@ -1834,7 +1834,7 @@ ${instructions}
           this.email(
             c,
             "T14b",
-            this.state.admin_email || "admin@example.test",
+            this.adminEmail(),
             "仍未有護士",
             `Case ${c.id} 仍未有護士接單。`,
           );
@@ -1858,7 +1858,7 @@ ${instructions}
           this.email(
             c,
             "T14c",
-            this.state.admin_email || "admin@example.test",
+            this.adminEmail(),
             "仍未提供單位",
             `Case ${c.id} 服務將近，客人仍未提供單位號碼。`,
           );
@@ -1870,7 +1870,7 @@ ${instructions}
           this.email(
             c,
             "T14",
-            this.state.admin_email || "admin@example.test",
+            this.adminEmail(),
             "服務前資料未齊",
             `Case ${c.id} 配對、地址或 Care Schedule 未齊。`,
           );
@@ -1897,7 +1897,7 @@ ${instructions}
             this.email(
               c,
               "T14",
-              this.state.admin_email || "admin@example.test",
+              this.adminEmail(),
               "提醒仍未確認",
               `Case ${c.id} 護理提醒於追問後仍未確認。`,
             );

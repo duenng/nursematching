@@ -30,6 +30,13 @@ test("live staff HTTP stores providers, guards payroll reconciliation and reject
     status: "captured",
     to: "family@careknock.invalid",
   });
+  w.state.emails.push({
+    id: "LEGACY-ADMIN",
+    case_id: "LIVE-PAYROLL",
+    template_id: "T14m",
+    status: "queued",
+    to: "admin@example.test",
+  });
   w.save();
   w.db.close();
   const child = spawn(process.execPath, ["server/index.mjs"], {
@@ -119,6 +126,11 @@ test("live staff HTTP stores providers, guards payroll reconciliation and reject
   await request("/api/payout", payment);
   await request("/api/payout", payment, 400);
   const state = await request("/api/workflow");
+  assert.equal(
+    state.emails.find((m) => m.id === "LEGACY-ADMIN").status,
+    "blocked",
+  );
+  await request("/api/settings", { admin_email: "admin@example.test" }, 400);
   assert.equal(state.payouts[0].paid_by, "SHARED-ADMIN-KEY");
   assert.equal(state.payouts[0].status, "PAID");
   assert.equal(

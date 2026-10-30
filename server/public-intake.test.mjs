@@ -86,6 +86,20 @@ test("live public enquiries require explicit consent and persist its version wit
   assert.equal(c.consent, true);
   assert.equal(c.consent_version, "care-enquiry-v1");
   assert.equal(c.consent_at, new Date(options.now()).toISOString());
+  assert.equal(c.status, "MANUAL");
+  const familyMail = w.state.emails.filter(
+    (m) => m.case_id === c.id && m.to === c.email,
+  );
+  assert.deepEqual(
+    familyMail.map((m) => m.template_id),
+    ["X01"],
+  );
+  assert.match(familyMail[0].body, /同事會透過電郵跟進/);
+  assert.ok(
+    w.state.emails.some(
+      (m) => m.case_id === c.id && ["T14m", "T14g"].includes(m.template_id),
+    ),
+  );
   for (const mail of w.state.emails) {
     assert.doesNotMatch(mail.subject, /【測試】/);
     assert.doesNotMatch(mail.body, /所有資料均為虛構/);

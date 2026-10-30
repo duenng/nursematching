@@ -29,6 +29,37 @@ const provider = {
   verification_note: "Registration and current credentials reviewed",
   credentials_verified: true,
 };
+test("live admin alerts never default to a demo recipient and preserve undelivered notifications", (t) => {
+  const { w } = fixture(t);
+  const c = {
+    id: "LIVE-ALERT",
+    intake_mode: "LIVE",
+    status: "SUBMITTED",
+    email: "family@careknock.invalid",
+    services: [],
+  };
+  w.state.cases.push(c);
+  for (const configured of [
+    undefined,
+    "admin@example.test",
+    "ADMIN@EXAMPLE.COM",
+    "invalid",
+  ]) {
+    w.state.admin_email = configured;
+    assert.equal(w.adminEmail(), "");
+    assert.equal(staffSnapshot(w.state, true).admin_email, "");
+    w.email(c, "T14m", w.adminEmail(), "Admin alert", "Needs review");
+    assert.equal(w.state.emails.at(-1).status, "blocked");
+    assert.equal(w.state.emails.at(-1).to, "");
+    assert.match(w.state.emails.at(-1).error, /未寄出/);
+    assert.equal(w.state.events.at(-1).event, "admin.alert");
+  }
+  w.state.admin_email = " Admin@careknock.invalid ";
+  assert.equal(w.adminEmail(), "admin@careknock.invalid");
+  w.email(c, "T14m", w.adminEmail(), "Admin alert", "Needs review");
+  assert.equal(w.state.emails.at(-1).status, "queued");
+  assert.equal(w.state.emails.at(-1).to, "admin@careknock.invalid");
+});
 test("live provider creation requires credential verification, rejects duplicate email and persists audit identity", (t) => {
   const { w, path } = fixture(t);
   assert.equal(w.state.nurses.length, 0);

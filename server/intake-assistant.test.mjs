@@ -143,6 +143,12 @@ test("minimal conversation enquiry persists raw facts, awaits staff, and cannot 
   assert.equal(workflow.state.cases.length, 0);
   const c = createConversationEnquiry(workflow, input);
   assert.equal(c.status, "MANUAL");
+  assert.deepEqual(
+    workflow.state.emails
+      .filter((m) => m.case_id === c.id && m.to === c.email)
+      .map((m) => m.template_id),
+    ["X01"],
+  );
   assert.equal(c.intake_mode, "LIVE");
   assert.equal(c.email, "family@example.test");
   assert.equal(c.ai_assisted, false);

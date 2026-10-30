@@ -75,7 +75,7 @@ export function canonical(id, c, body) {
         "、",
       )}，唔提供首次插入。由於你表示病人而家未有呢條喉，今次查詢未能處理。\n建議你先向醫院或診所安排首次插喉；之後如需要上門更換，歡迎重新填寫查詢表格。`,
     X01:
-      c.intake_channel === "conversation"
+      c.intake_channel === "conversation" || c.status === "MANUAL"
         ? `你好，我哋已收到你嘅上門護理查詢（Case ${c.id}）。同事會透過電郵跟進，與你核實病人狀況及所需服務。`
         : `你好，我哋已收到你嘅上門護理查詢（Case ${c.id}），會盡快以電郵發報價俾你。`,
     X02: `你好，Case ${c.id} 嘅報價已失效。如仍需要服務，歡迎重新查詢。`,

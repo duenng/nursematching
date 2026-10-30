@@ -1,4 +1,5 @@
 import { confirmationDetails } from "./workflow-content.mjs";
+import { validAdminEmail } from "./admin-email.mjs";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import {
@@ -353,6 +354,15 @@ async function integrations() {
       )
         continue;
       const mailCase = workflow.state.cases.find((c) => c.id === mail.case_id);
+      if (
+        live &&
+        mail.template_id?.startsWith("T14") &&
+        !validAdminEmail(mail.to)
+      ) {
+        mail.status = "blocked";
+        mail.error = "尚未設定有效管理員通知電郵，通知未寄出。";
+        continue;
+      }
       if (!mailer) {
         mail.status = "captured";
         workflow.event(
@@ -391,7 +401,7 @@ async function integrations() {
           to: mail.to,
           subject: mail.subject,
           html: emailHtml(mail),
-          replyTo: workflow.state.admin_email,
+          replyTo: workflow.adminEmail() || undefined,
           text:
             mail.body +
             "\n\n" +
@@ -454,7 +464,10 @@ const server = http.createServer(async (req, res) => {
         return reply(res, 403, { error: "Origin not allowed" });
       return reply(res, 204, "");
     }
-    if (url.pathname === "/api/enquiries/assistant-config" && req.method === "GET")
+    if (
+      url.pathname === "/api/enquiries/assistant-config" &&
+      req.method === "GET"
+    )
       return reply(res, 200, publicAssistantConfig());
     if (url.pathname === "/api/enquiries/assistant" && req.method === "POST") {
       if (
@@ -805,10 +818,7 @@ const server = http.createServer(async (req, res) => {
             )
           )
             throw new Error("有進行中個案，請保留設定以免改變計時／薪酬");
-          if (
-            live &&
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.admin_email || "")
-          )
+          if (live && !validAdminEmail(input.admin_email))
             throw new Error("請提供有效管理員電郵");
           const scale = Number(input.time_scale);
           if (
@@ -860,8 +870,11 @@ const server = http.createServer(async (req, res) => {
                 (n) =>
                   (n.email = input.nurses.find((x) => x.id === n.id).email),
               );
-            workflow.state.admin_email =
-              input.admin_email || "admin@example.test";
+            workflow.state.admin_email = String(
+              input.admin_email || (live ? "" : "admin@example.test"),
+            )
+              .trim()
+              .toLowerCase();
             workflow.event("settings.confirmed", null, { actor: "admin" });
             workflow.save();
           });

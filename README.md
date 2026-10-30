@@ -106,6 +106,8 @@ Live mode requires `PAYMENT_MODE=bank_transfer` and wall time. Set `BANK_NAME`, 
 
 Use Settings to confirm nurse rates and the administrative follow-up email, then add and verify providers before dispatching cases. Enable arrival/completion confirmation if providers should record service progress by email. The service and holiday catalogue currently covers **2026–2027**; unresolved rules route to manual review. Clinical scope and suitability must be checked by qualified staff.
 
+The administrative follow-up email is separate from `STAFF_ADMIN_EMAILS`, which controls login access. Live mode does not use demo addresses such as `admin@example.test`: until a real notification address is saved in Settings, administrator notifications remain recorded as blocked and are not delivered.
+
 Mount persistent `/app/data`, run one replica and back up the SQLite database with its WAL consistently (use SQLite backup tooling or stop the server before copying). JSON exports are operational records, not full database recovery backups. Protect backups and the volume because they contain personal data and documents.
 
 ## Tests and experimental workflows

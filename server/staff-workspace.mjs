@@ -1,5 +1,6 @@
 import { dispatchBody } from "./workflow-content.mjs";
 import { randomUUID } from "node:crypto";
+import { adminNotificationEmail } from "./admin-email.mjs";
 
 const emailValid = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 export const realNurse = (n) =>
@@ -20,6 +21,7 @@ export function staffSnapshot(state, live) {
   const ids = new Set(cases.map((c) => c.id));
   return {
     ...snapshot,
+    admin_email: adminNotificationEmail(state, true),
     evidence: [],
     cases,
     nurses: state.nurses.filter(realNurse),

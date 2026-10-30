@@ -1,4 +1,5 @@
 import { TEMPLATE_VERSION } from "./templates.mjs";
+import { adminNotificationEmail } from "./admin-email.mjs";
 import { dispatchBody, quoteBody } from "./workflow-content.mjs";
 import { HOLIDAY_CATALOG } from "./catalog/holidays.mjs";
 import { eligibleNurse } from "./staff-workspace.mjs";
@@ -176,6 +177,9 @@ class BaseWorkflow {
     c.status = to;
     this.event("case.transitioned", c, { from, to });
   }
+  adminEmail() {
+    return adminNotificationEmail(this.state, this.live);
+  }
   email(c, template_id, to, subject, body, links = []) {
     this.state.emails.push({
       id: randomUUID(),
@@ -191,10 +195,11 @@ class BaseWorkflow {
           : FOOTER),
       links,
       created_at: this.stamp(),
-      status: "queued",
+      status: !to ? "blocked" : "queued",
+      ...(!to ? { error: "尚未設定有效管理員通知電郵，通知未寄出。" } : {}),
       attempts: 0,
     });
-    this.event("email.queued", c, {
+    this.event(to ? "email.queued" : "email.blocked", c, {
       template_id,
       template_version: this.state.emails.at(-1).template_version,
     });
@@ -255,20 +260,24 @@ class BaseWorkflow {
         t.void_at = this.stamp();
   }
   manual(c, reason) {
+    const initialSubmission = c.status === "SUBMITTED";
     this.transition(c, "MANUAL");
     c.manual_reason = reason;
     this.event("manual.routed", c, { reason });
-    this.email(
-      c,
-      "X03",
-      c.email,
-      `同事核實中 – Case ${c.id}`,
-      `你好，Case ${c.id} 嘅資料需要同事核實，我哋會盡快跟進。`,
-    );
+    // The initial receipt already explains staff follow-up. Keep the separate
+    // family notification for cases routed to review later in their workflow.
+    if (!initialSubmission)
+      this.email(
+        c,
+        "X03",
+        c.email,
+        `同事核實中 – Case ${c.id}`,
+        `你好，Case ${c.id} 嘅資料需要同事核實，我哋會盡快跟進。`,
+      );
     this.email(
       c,
       "T14m",
-      this.state.admin_email || "admin@example.test",
+      this.adminEmail(),
       `⚠️ Case ${c.id}：交人手`,
       `交人手處理：${reason}。`,
     );
@@ -753,7 +762,7 @@ class BaseWorkflow {
         this.email(
           c,
           "T14b",
-          this.state.admin_email || "admin@example.test",
+          this.adminEmail(),
           `⚠️ Case ${c.id}：未有護士`,
           `Case ${c.id} 已過 24 小時仍未有護士接單。`,
         );
