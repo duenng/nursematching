@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { receiptStore, storeReceipt } from "./payment-receipts.mjs";
 import { Workflow } from "./workflow.mjs";
 const H = 3600000;
 const input = (extra) => ({
@@ -49,6 +50,18 @@ function pending(w, c) {
   assert.equal(c.status, "PENDING_PAY");
 }
 function report(w, c, amount = 1220) {
+  if (w.paymentMode !== "fps_test") {
+    receiptStore(w.db);
+    storeReceipt(
+      w,
+      token(w, c, "report_fps"),
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aH1cAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
+    return w.state.payment_submissions.at(-1);
+  }
   w.act(token(w, c, "report_fps"), {
     reference: "CUSTOMER-CLAIM",
     amount,
@@ -243,4 +256,40 @@ test("bank transfer requires configured instructions and independent bank verifi
   });
   assert.equal(latest.status, "CANCELLED");
   assert.equal(latest.refund_provider, "bank_transfer");
+});
+
+test("PayMe configuration blocks incomplete instructions and allows screenshot resubmission", (t) => {
+  const { w } = setup(t, { paymentMode: "payme" });
+  const c = w.create(input());
+  assert.throws(() => w.act(token(w, c, "accept_single")), /PayMe 資料未齊/);
+  assert.equal(c.status, "QUOTED");
+  w.paymeLink = "https://payme.hsbc/fixture";
+  assert.equal(w.paymentConfigured(), false);
+  w.paymeAccountName = "Fixture Company";
+  pending(w, c);
+  const sub = report(w, c);
+  w.rejectFPS(c, { submission_id: sub.id, reason: "Payment not found" });
+  const replacement = report(w, c);
+  reconcile(w, c, replacement);
+  assert.equal(c.status, "PAID");
+  assert.equal(sub.status, "REJECTED");
+});
+
+test("PayMe screenshots cannot be submitted after the deadline even with a pending report", (t) => {
+  const { w, advance } = setup(t, {
+    paymentMode: "payme",
+    paymeLink: "https://payme.hsbc/fixture",
+    paymeAccountName: "Fixture",
+  });
+  const c = w.create(input());
+  pending(w, c);
+  const sub = report(w, c),
+    received = w.stamp();
+  advance(25 * H);
+  w.tick();
+  assert.equal(c.status, "PENDING_PAY");
+  w.token(c, "family", "report_fps");
+  assert.throws(() => report(w, c), /失效|期限/);
+  reconcile(w, c, sub, { received_at: received });
+  assert.equal(c.status, "PAID");
 });

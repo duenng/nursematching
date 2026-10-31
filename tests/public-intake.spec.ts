@@ -10,10 +10,13 @@ test("additional visits use time menus and clearly label overnight endings in bo
   await page
     .getByRole("button", { name: "Use enquiry form", exact: true })
     .click();
+  await page.getByLabel("Service date", { exact: true }).fill("2026-11-10");
   await page
-    .getByText("Additional visits / day and night", { exact: true })
+    .getByRole("button", { name: "Add service date", exact: true })
     .click();
-  await page.getByRole("button", { name: "Add visit", exact: true }).click();
+  await expect(page.getByLabel("Visit date", { exact: true })).toHaveValue(
+    "2026-11-11",
+  );
   const start = page.getByRole("combobox", {
     name: "Visit start",
     exact: true,
@@ -30,6 +33,19 @@ test("additional visits use time menus and clearly label overnight endings in bo
     .getByRole("combobox", { name: "Visit shift", exact: true })
     .selectOption("NIGHT10");
   await expect(page.getByText("Next day 08:00", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Add service date", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Visit date", { exact: true }).nth(1),
+  ).toHaveValue("2026-11-12");
+  await expect(
+    page.getByRole("combobox", { name: "Visit shift", exact: true }).nth(1),
+  ).toHaveValue("NIGHT10");
+  await page
+    .getByRole("button", { name: "Remove date", exact: true })
+    .nth(1)
+    .click();
   await page.getByRole("button", { name: "繁中", exact: true }).click();
   await expect(page.getByText("翌日 08:00", { exact: true })).toBeVisible();
   await expect(
@@ -48,6 +64,7 @@ test("additional visits use time menus and clearly label overnight endings in bo
 
 test("family sees submission progress and errors inside review, then submits without staff login", async ({
   page,
+  request,
 }, testInfo) => {
   await page.addInitScript(() =>
     localStorage.setItem("kindred-language", "en"),
@@ -88,6 +105,13 @@ test("family sees submission progress and errors inside review, then submits wit
   ).toHaveCount(0);
   await page.getByLabel("Patient name", { exact: true }).fill("Li Tai Man");
   await page.getByLabel("Building (no unit at intake)").fill("Test Building");
+  await page
+    .getByRole("button", { name: "Confirm details and submit", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Gender: Complete or correct this field.",
+  );
+  await expect(page.getByRole("alert")).not.toContainText("Male");
   await page.getByRole("combobox", { name: /^Gender/ }).selectOption("M");
   await page.getByRole("spinbutton", { name: "Age" }).fill("78");
   await page.getByRole("spinbutton", { name: "Weight kg" }).fill("65");
@@ -99,6 +123,12 @@ test("family sees submission progress and errors inside review, then submits wit
   await page
     .getByLabel("Service date")
     .fill(new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10));
+  await page
+    .getByRole("button", { name: "Add service date", exact: true })
+    .click();
+  const secondDate = await page
+    .getByLabel("Visit date", { exact: true })
+    .inputValue();
   await page
     .getByRole("checkbox", {
       name: /I agree that this information may be stored/,
@@ -153,6 +183,45 @@ test("family sees submission progress and errors inside review, then submits wit
     .getByRole("button", { name: "Confirm details and submit", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  const minuteError = page.getByRole("alert");
+  await expect(minuteError).toContainText(
+    "Time 2 · Minute: Complete or correct this field.",
+  );
+  await expect(minuteError).not.toContainText("00010203");
+  await expect(minuteError).toBeFocused();
+  await page
+    .getByRole("button", { name: "Go to the field to correct" })
+    .click();
+  await expect(
+    preferred.getByRole("combobox", { name: /Time 2 · Minute/ }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "繁中", exact: true }).click();
+  await page
+    .getByRole("button", { name: "確認資料並提交", exact: true })
+    .click();
+  await expect(minuteError).toContainText("時間 2 · 分：請填妥或更正此欄位。");
+  await expect(minuteError).not.toContainText("00010203");
+  for (const width of [360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
+    expect(
+      await preferred.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBeTruthy();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await minuteError.screenshot({
+    path: testInfo.outputPath("minute-validation-mobile-zh.png"),
+  });
+  await preferred.screenshot({
+    path: testInfo.outputPath("preferred-times-mobile-zh.png"),
+  });
+  await page.getByRole("button", { name: "EN", exact: true }).click();
   await preferred
     .getByRole("combobox", { name: /Time 2 · Minute/ })
     .selectOption("45");
@@ -175,6 +244,10 @@ test("family sees submission progress and errors inside review, then submits wit
       start: "13:30",
       end: "18:00",
       services: [expect.objectContaining({ times: ["14:15"] })],
+      visits: [
+        expect.objectContaining({ start: "13:30", end: "18:00" }),
+        { date: secondDate, shift: "DAY", start: "10:00", end: "14:00" },
+      ],
     });
     if (attempts === 1) {
       await pending;
@@ -236,6 +309,19 @@ test("family sees submission progress and errors inside review, then submits wit
   expect(Object.keys(data).sort()).toEqual(["id", "status"]);
   expect(data.status).toBe("MANUAL");
   await expect(page.getByRole("status")).toContainText("Enquiry received");
+  await expect(page.getByRole("status")).toContainText("family@example.test");
+  const workspace = await (await request.get("/api/workflow")).json();
+  expect(
+    workspace.cases.find((c: { id: string }) => c.id === data.id).visits,
+  ).toEqual([
+    expect.objectContaining({ start: "13:30", end: "18:00" }),
+    expect.objectContaining({
+      date: secondDate,
+      shift: "DAY",
+      start: "10:00",
+      end: "14:00",
+    }),
+  ]);
   expect(staffReads).toBe(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(

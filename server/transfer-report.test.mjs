@@ -67,7 +67,7 @@ test("transfer correction form escapes submitted values, preserves choices and e
     c,
     'token"<',
     now,
-    "bank_transfer",
+    "fps_test",
     { ...valid, reference: '"><script>bad</script>' },
     { transferred_at: "時間有誤" },
   );
@@ -80,3 +80,18 @@ test("transfer correction form escapes submitted values, preserves choices and e
   assert.match(html, /並非上門服務日期/);
   assert.match(html, /尚未提交/);
 });
+
+for (const mode of ["payme", "bank_transfer"]) {
+  test(`${mode} payment form accepts one screenshot without typed transfer details`, () => {
+    const form = transferReportForm(c, 'token"<', now, mode);
+    assert.match(form, /multipart\/form-data/);
+    assert.match(form, /name="screenshot"/);
+    assert.doesNotMatch(
+      form,
+      /name="(?:reference|amount|transfer_date|transfer_hour|transfer_minute)"/,
+    );
+    assert.match(form, /token&quot;&lt;/);
+    assert.match(form, /5 MB/);
+    assert.match(form, /先可確認收款及派單/);
+  });
+}

@@ -149,8 +149,8 @@ export function ConversationEnquiry() {
         </h2>
         <p>
           {text(
-            "同事會透過電郵跟進，與你核實病人狀況及所需服務。",
-            "Staff will follow up by email to confirm the patient's situation and care needs.",
+            `同事會透過 ${contact.email} 跟進，與你核實病人狀況及所需服務。請同時查看垃圾郵件匣；如一直收唔到，請向同事提供以上查詢編號，毋須重複提交。`,
+            `Staff will follow up at ${contact.email} to confirm the patient's situation and care needs. Check your spam folder too. If no email arrives, give staff the enquiry reference above; you do not need to submit again.`,
           )}
         </p>
         <button

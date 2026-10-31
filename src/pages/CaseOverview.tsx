@@ -65,12 +65,12 @@ export function CaseOverview({
     PENDING_PAY:
       pendingReports > 0
         ? [
-            "家屬已提交轉帳資料。請先核對銀行實際入帳，再完成下方對數。",
-            "A transfer report is ready. Check the actual bank receipt, then reconcile below.",
+            "家屬已提交付款證明。請先核對銀行或 PayMe 實際入帳，再完成下方對數。",
+            "Payment proof is ready. Check the actual bank or PayMe receipt, then reconcile below.",
           ]
         : [
-            "等候家屬轉帳及提交資料；收到聲明後先核對銀行入帳。",
-            "Wait for the family to transfer and submit a report, then check the bank receipt.",
+            "等候家屬付款及上載截圖；收到後先核對實際入帳。",
+            "Wait for the family to pay and upload a screenshot, then check the actual receipt.",
           ],
     PAID: [
       "收款已確認。核對派單預覽後，便可招募護士。",
@@ -216,6 +216,15 @@ export function CaseOverview({
               : text("單次服務", "Single visit")}
           </strong>
           {c.package_id && <small>{c.package_id}</small>}
+        </div>
+        <div>
+          <span>{text("護士交通津貼", "Nurse travel allowance")}</span>
+          <strong>
+            {c.remote_tier === "UNMATCHED" || c.remote_review_required
+              ? text("待覆核", "Awaiting review")
+              : `HK$${(c.nurse_travel_allowance ?? 0).toLocaleString("en-HK")}`}
+          </strong>
+          <small>{text("由平台支付", "Paid by the platform")}</small>
         </div>
         <div>
           <span>{text("退款", "Refund")}</span>

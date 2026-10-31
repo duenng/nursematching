@@ -54,6 +54,18 @@ export function transferReportForm(
   values = {},
   errors = {},
 ) {
+  if (["bank_transfer", "payme"].includes(mode)) {
+    return `<p>Case ${escape(c.id)} · 應付 HK$${escape(c.payment_amount ?? c.quote.total)}</p>
+      <p>付款成功後，上載付款截圖即可。毋須填寫參考編號、金額或日期。截圖須清楚顯示付款成功、收款人、金額及交易時間。</p>
+      <p>同事須獨立核對${mode === "payme" ? "PayMe" : "銀行"}實際入帳，先可確認收款及派單。如已付款，請勿重複付款。</p>
+      ${errors.screenshot ? `<p role="alert">${escape(errors.screenshot)} 請重新選擇截圖。</p>` : ""}
+      <form method="POST" enctype="multipart/form-data" action="/a?t=${escape(token)}">
+        <label for="screenshot">付款截圖</label><br>
+        <input id="screenshot" name="screenshot" type="file" accept="image/png,image/jpeg" required aria-describedby="screenshot-help">
+        <p id="screenshot-help">上載一張 PNG 或 JPEG 圖片，最多 5 MB。截圖會連結至此個案，只供獲授權同事核實付款。</p>
+        <button type="submit">確認：提交付款截圖（待同事核實）</button>
+      </form>`;
+  }
   const legacy = String(values.transferred_at || "");
   const date = values.transfer_date ?? legacy.slice(0, 10);
   const hour = values.transfer_hour ?? legacy.slice(11, 13);

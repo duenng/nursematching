@@ -2,10 +2,11 @@
 export function dispatchBody(c, settings = {}) {
   const rate =
     c.shift === "DAY" ? settings.nurse_day_rate : settings.nurse_night_rate;
+  const allowance = c.nurse_travel_allowance || 0;
   const pay =
     Number.isFinite(rate) && Number.isFinite(c.quote?.hours)
-      ? `HK$${rate}／小時，共 HK$${rate * c.quote.hours}`
-      : "待管理員確認";
+      ? `HK$${rate}／小時，共 HK$${rate * c.quote.hours}${allowance ? `；另加交通津貼 HK$${allowance}，合共 HK$${rate * c.quote.hours + allowance}` : ""}`
+      : `待管理員確認${allowance ? `；另加交通津貼 HK$${allowance}` : ""}`;
   return `📋 Case ${c.id}\n日期時間：${c.date} ${c.start}–${c.end}（${c.shift === "DAY" ? "日間" : "夜間"}）\n薪酬：${pay}\n地區／大廈：${c.district} ${c.building}\n照顧重點：${(c.services || []).map((s) => `${s.label} ${s.prn ? "（按需要）" : (s.times || []).join("、")}${s.replace_only ? "（更換現有喉管，唔使首次插入）" : ""}`).join("；")}\n先到先得，有興趣請撳以下掣：`;
 }
 export function quoteBody(c, settings) {

@@ -1,3 +1,8 @@
+import {
+  receiptStore,
+  readReceiptUpload,
+  storeReceipt,
+} from "./payment-receipts.mjs";
 import { confirmationDetails } from "./workflow-content.mjs";
 import { transferReportForm, TransferReportError } from "./transfer-report.mjs";
 import { validAdminEmail } from "./admin-email.mjs";
@@ -26,7 +31,7 @@ import { StaffAuth, canAccess, clinicalWorkspace } from "./auth.mjs";
 import nodemailer from "nodemailer";
 import { Workflow } from "./workflow.mjs";
 import { ACTION_LABELS, emailHtml } from "./templates.mjs";
-import { EXPERIMENT_POLICIES } from "./extended-workflow.mjs";
+import { saveServiceSettings } from "./service-settings.mjs";
 
 const port = Number(process.env.API_PORT || process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
@@ -47,7 +52,9 @@ const corsOrigins = new Set(
     .filter(Boolean),
 );
 const mode = process.env.PAYMENT_MODE || "bank_transfer";
-if (!["bank_transfer", "fps_test", "mock", "stripe_test"].includes(mode))
+if (
+  !["bank_transfer", "payme", "fps_test", "mock", "stripe_test"].includes(mode)
+)
   throw new Error("Unsupported PAYMENT_MODE");
 if (mode === "stripe_test" && !process.env.STRIPE_SECRET_KEY)
   throw new Error("Stripe test key missing");
@@ -94,23 +101,26 @@ const workflow = new Workflow(dbPath, {
   paymentMode: mode,
   fpsRecipient: process.env.FPS_TEST_RECIPIENT || "",
   fpsAccountName: process.env.FPS_TEST_ACCOUNT_NAME || "",
+  paymeLink: process.env.PAYME_LINK || "",
+  paymeAccountName: process.env.PAYME_ACCOUNT_NAME || "",
   bankName: process.env.BANK_NAME || "",
   bankAccountName: process.env.BANK_ACCOUNT_NAME || "",
   bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "",
 });
 if (
-  ["bank_transfer", "stripe_test"].includes(mode) &&
+  ["bank_transfer", "payme", "stripe_test"].includes(mode) &&
   (workflow.state.settings.time_scale !== 1 || workflow.state.clock_offset_ms)
 )
   throw new Error(
     "Real payment modes require time_scale=1 and no virtual clock offset; use a separate WORKFLOW_DB",
   );
 workflow.live = live;
-if (live && mode !== "bank_transfer")
+if (live && !["bank_transfer", "payme"].includes(mode))
   throw new Error(
-    "Live workspace requires PAYMENT_MODE=bank_transfer; use WORKSPACE_MODE=test for test payments",
+    "Live workspace requires PAYMENT_MODE=bank_transfer or payme; use WORKSPACE_MODE=test for test payments",
   );
 documentStore(workflow.db);
+receiptStore(workflow.db);
 const auth = new StaffAuth(workflow.db, {
   baseUrl: workflow.baseUrl,
   frontendUrl,
@@ -131,7 +141,7 @@ workflow.now = () => realNow() + (workflow.state.clock_offset_ms || 0);
 const testClock =
   process.env.ENABLE_TEST_CLOCK === "true" &&
   !process.env.SMTP_HOST &&
-  !["stripe_test", "bank_transfer"].includes(mode);
+  !["stripe_test", "bank_transfer", "payme"].includes(mode);
 const allowed = new Set(
   (process.env.TEST_EMAIL_ALLOWLIST || "")
     .split(",")
@@ -172,7 +182,7 @@ function originAllowed(req) {
 const html = (title, body, { paymentNotice = true } = {}) =>
   `<!doctype html><html lang="zh-HK"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escape(title)} · CareKnock</title><style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"PingFang HK","Microsoft JhengHei",sans-serif;color:#342046;background:#f6f3fa}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f3fa;padding:6vw 3vw;color:#342046}main{max-width:1368px;margin:0 auto;background:#fff;border-radius:44px;padding:78px 66px 82px;box-shadow:0 2px 18px #3b24500a}main>small{display:block;color:#6f6777;font-size:30px;line-height:1.3;margin-bottom:74px}h1{margin:0 0 58px;color:#2e1545;font-size:clamp(44px,5vw,78px);line-height:1.2;letter-spacing:-2px}main>p{font-size:clamp(21px,2.2vw,34px);line-height:1.65;margin:0 0 38px}button,a{font:inherit}button{background:#750f6d;color:#fff;border:0;padding:14px 24px;border-radius:10px;cursor:pointer}input,select,textarea{box-sizing:border-box;font:inherit;padding:12px;max-width:100%;margin:12px 0;border:1px solid #e4d9ea;border-radius:9px}input:not([type="checkbox"]),textarea{width:100%}button{max-width:100%;white-space:normal}label{display:inline-block}select{display:block}small{color:#6f6777}pre{white-space:pre-wrap;background:#f7f4fb;border-radius:16px;padding:20px;font-size:18px;line-height:1.8}@media(max-width:700px){body{padding:16px 8px}main{border-radius:28px;padding:36px 28px 42px}main>small{font-size:24px;margin-bottom:58px}h1{font-size:42px;letter-spacing:-1px;margin-bottom:42px}main>p{font-size:22px}pre{font-size:16px}}
-</style><main><small>CareKnock</small><h1>${escape(title)}</h1>${body}${paymentNotice ? `<p><small>${mode === "bank_transfer" ? "客人人手轉帳，同事核對銀行入帳。提交轉帳資料不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p>` : ""}</main></html>`;
+</style><main><small>CareKnock</small><h1>${escape(title)}</h1>${body}${paymentNotice ? `<p><small>${["bank_transfer", "payme"].includes(mode) ? "付款截圖須由同事核對實際入帳。提交截圖不代表已確認收款。" : mode === "fps_test" ? "FPS 人手對數測試；請勿真實轉帳。提交參考編號不代表已收款。" : mode === "mock" ? "付款使用本機模擬，未連接支付服務。" : "Stripe test mode；不會收取真實款項。"}</small></p>` : ""}</main></html>`;
 function reply(res, status, body, type = "application/json") {
   const origin = requestOrigin(res.req || {});
   res.writeHead(status, {
@@ -605,7 +615,7 @@ const server = http.createServer(async (req, res) => {
             res,
             200,
             html(
-              "提交轉帳資料",
+              mode === "fps_test" ? "提交轉帳資料" : "上載付款截圖",
               transferReportForm(c, token, workflow.now(), mode),
             ),
             "text/html",
@@ -649,6 +659,51 @@ const server = http.createServer(async (req, res) => {
               "已收到文件",
               "<p>文件已保存，仍待資深護士核對；上載不代表已通過。</p>",
             ),
+            "text/html",
+          );
+        }
+        if (
+          t?.action === "report_fps" &&
+          ["bank_transfer", "payme"].includes(mode)
+        ) {
+          const { c } = workflow.inspect(token);
+          // no-referrer pages can submit with an opaque Origin in Chromium.
+          // Fetch Metadata still confirms the form came from this origin.
+          const sameOriginForm =
+            req.headers.origin === "null" &&
+            req.headers["sec-fetch-site"] === "same-origin";
+          if (req.headers.origin && !originAllowed(req) && !sameOriginForm)
+            return reply(res, 403, { error: "Origin not allowed" });
+          let result;
+          try {
+            result = storeReceipt(
+              workflow,
+              token,
+              await readReceiptUpload(req),
+            );
+          } catch (error) {
+            return reply(
+              res,
+              400,
+              html(
+                "請重新上載付款截圖",
+                transferReportForm(
+                  c,
+                  token,
+                  workflow.now(),
+                  mode,
+                  {},
+                  { screenshot: error.message },
+                ),
+              ),
+              "text/html",
+            );
+          }
+          void integrations().catch((error) => console.error(error.message));
+          return reply(
+            res,
+            200,
+            html("付款已提交，待核實", `<p>${escape(result)}</p>`),
             "text/html",
           );
         }
@@ -712,6 +767,43 @@ const server = http.createServer(async (req, res) => {
       if (req.method !== "GET" && !auth.verifyMutation(req, user))
         return reply(res, 403, { error: "Origin or CSRF token not allowed" });
       if (
+        url.pathname.startsWith("/api/payment-receipt/") &&
+        req.method === "GET"
+      ) {
+        if (user.role !== "ADMIN")
+          return reply(res, 403, { error: "Administrator access required" });
+        const id = url.pathname.slice("/api/payment-receipt/".length);
+        const receipt = workflow.db
+          .prepare("SELECT * FROM payment_receipts WHERE id=?")
+          .get(id);
+        if (
+          !receipt ||
+          !workflow.state.cases.some(
+            (c) =>
+              c.id === receipt.case_id && (!live || c.intake_mode === "LIVE"),
+          )
+        )
+          return reply(res, 404, { error: "找不到付款截圖" });
+        workflow.asOperator(user, () => {
+          workflow.event(
+            "payment.receipt_viewed",
+            { id: receipt.case_id },
+            { receipt_id: id },
+          );
+          workflow.save();
+        });
+        res.writeHead(200, {
+          "Content-Type": receipt.media_type,
+          "Content-Length": receipt.content.length,
+          "Content-Disposition": `attachment; filename="payment-${receipt.id}.${receipt.media_type === "image/png" ? "png" : "jpg"}"`,
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "sandbox; default-src 'none'",
+          "Referrer-Policy": "no-referrer",
+        });
+        return res.end(Buffer.from(receipt.content));
+      }
+      if (
         url.pathname.startsWith("/api/doctor-document/") &&
         req.method === "GET"
       ) {
@@ -752,7 +844,7 @@ const server = http.createServer(async (req, res) => {
             email_restricted: emailRestricted,
             payment: mode,
             live_ai: publicAssistantConfig().enabled,
-            bank_transfer_configured: workflow.bankTransferConfigured(),
+            bank_transfer_configured: workflow.paymentConfigured(),
             fps_configured: !!(
               process.env.FPS_TEST_RECIPIENT &&
               process.env.FPS_TEST_ACCOUNT_NAME
@@ -784,9 +876,16 @@ const server = http.createServer(async (req, res) => {
               ))
           )
             throw new Error("只可重試未寄出或已失敗的通知");
+          // Old blocked admin alerts retain an empty recipient until explicitly retried.
+          const recipient = mail.template_id?.startsWith("T14")
+            ? workflow.adminEmail()
+            : mail.to;
+          if (mail.template_id?.startsWith("T14") && !recipient)
+            throw new Error("請先設定有效管理員通知電郵");
           if (!mailer) throw new Error("請先設定 SMTP 寄信連線");
-          if (emailRestricted && !allowed.has(mail.to.toLowerCase()))
+          if (emailRestricted && !allowed.has(recipient.toLowerCase()))
             throw new Error("收件地址不在允許名單，請先更新寄信設定");
+          mail.to = recipient;
           mail.status = "queued";
           delete mail.error;
           workflow.event(
@@ -841,83 +940,7 @@ const server = http.createServer(async (req, res) => {
             return payout;
           });
         } else if (url.pathname === "/api/settings" && req.method === "POST") {
-          if (
-            workflow.state.cases.some(
-              (c) =>
-                ![
-                  "MANUAL",
-                  "NO_DR_ORDER",
-                  "NO_FIRST_INSERT",
-                  "CANCELLED",
-                  "PAY_TIMEOUT",
-                  "EXPIRED",
-                  "DONE",
-                ].includes(c.status) &&
-                (!live || c.intake_mode === "LIVE"),
-            )
-          )
-            throw new Error("有進行中個案，請保留設定以免改變計時／薪酬");
-          if (live && !validAdminEmail(input.admin_email))
-            throw new Error("請提供有效管理員電郵");
-          const scale = Number(input.time_scale);
-          if (
-            ![1, 60].includes(scale) ||
-            (["bank_transfer", "stripe_test"].includes(mode) && scale !== 1)
-          )
-            throw new Error(
-              "人手轉帳及 Stripe 必須使用真實時間；本機模擬可選 1 或 60",
-            );
-          for (const key of ["nurse_day_rate", "nurse_night_rate"])
-            if (
-              !Number.isInteger(Number(input[key])) ||
-              Number(input[key]) <= 0
-            )
-              throw new Error("請確認正整數護士測試薪酬");
-          for (const n of live ? [] : workflow.state.nurses) {
-            const email = input.nurses?.find((x) => x.id === n.id)?.email;
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || ""))
-              throw new Error("護士電郵無效");
-          }
-          workflow.transaction(() => {
-            for (const [name, defaultValue] of Object.entries(
-              EXPERIMENT_POLICIES,
-            )) {
-              if (input.policies && name in input.policies) {
-                const value = input.policies[name];
-                if (
-                  typeof defaultValue === "boolean" &&
-                  typeof value !== "boolean"
-                )
-                  throw new Error("Policy value invalid");
-                if (
-                  name === "package_offer_rule" &&
-                  !["MANUAL", "WEEKDAY_DAY_LE30"].includes(value)
-                )
-                  throw new Error("套餐設定無效");
-                workflow.state.settings[name] = value;
-              }
-            }
-            workflow.state.settings.time_scale = scale;
-            workflow.state.settings.nurse_day_rate = Number(
-              input.nurse_day_rate,
-            );
-            workflow.state.settings.nurse_night_rate = Number(
-              input.nurse_night_rate,
-            );
-            if (!live)
-              workflow.state.nurses.forEach(
-                (n) =>
-                  (n.email = input.nurses.find((x) => x.id === n.id).email),
-              );
-            workflow.state.admin_email = String(
-              input.admin_email || (live ? "" : "admin@example.test"),
-            )
-              .trim()
-              .toLowerCase();
-            workflow.event("settings.confirmed", null, { actor: "admin" });
-            workflow.save();
-          });
-          result = { ok: true };
+          result = saveServiceSettings(workflow, input);
         } else if (
           url.pathname === "/api/case-action" &&
           req.method === "POST"

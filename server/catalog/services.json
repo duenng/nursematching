@@ -39,7 +39,7 @@
     "id": "catheter-care",
     "code": "A_CATHETER_CARE",
     "category": "A",
-    "label": "現有尿喉日常護理（清潔、倒尿袋，唔包括更換尿喉）",
+    "label": "現有尿喉日常護理（清潔、倒尿袋）",
     "doctor_order_required": false,
     "replace_only": false,
     "pending": false
@@ -157,15 +157,6 @@
     "code": "C_MOBILITY",
     "category": "C",
     "label": "行動協助（扶抱、轉位、行路）",
-    "doctor_order_required": false,
-    "replace_only": false,
-    "pending": false
-  },
-  {
-    "id": "companionship",
-    "code": "C_COMPANION",
-    "category": "C",
-    "label": "陪伴",
     "doctor_order_required": false,
     "replace_only": false,
     "pending": false

@@ -10,7 +10,7 @@ import { Workflow } from "./workflow.mjs";
 import { saveNurse } from "./staff-workspace.mjs";
 
 // All SMTP traffic stays on loopback. No external mail or deployment records are used.
-async function fixture(t, mode, allowlist) {
+async function fixture(t, mode, allowlist, missingSettings = false) {
   const deliveries = [];
   const sockets = new Set();
   const smtp = createServer((socket) => {
@@ -87,9 +87,11 @@ async function fixture(t, mode, allowlist) {
     schedule_status: "PENDING_REVIEW",
   };
   w.state.cases.push(c);
-  w.state.admin_email = "admin@careknock.invalid";
-  w.state.settings.nurse_day_rate = 245;
-  w.state.settings.nurse_night_rate = 270;
+  if (!missingSettings) {
+    w.state.admin_email = "admin@careknock.invalid";
+    w.state.settings.nurse_day_rate = 245;
+    w.state.settings.nurse_night_rate = 270;
+  }
   w.email(c, "T9", c.email, "Payment received", "Test receipt");
   w.email(
     c,
@@ -269,3 +271,53 @@ for (const allowlist of ["admin@careknock.invalid", ""]) {
     assert.equal(deliveries.length, allowlist ? 1 : 0);
   });
 }
+
+test("a paid case recovers missing settings, retries its admin preview and dispatches", async (t) => {
+  const { request, settled, deliveries, c, nurse } = await fixture(
+    t,
+    "live",
+    "",
+    true,
+  );
+  let state = await settled();
+  const preview = state.emails.find((m) => m.template_id === "T14");
+  assert.equal(preview.status, "blocked");
+  assert.equal(preview.to, "");
+  assert.equal(state.settings_locked, true);
+  await request("/api/email-retry", { id: preview.id }, 400);
+  await request("/api/case-action", { id: c.id, action: "dispatch" }, 400);
+  await request("/api/settings", {
+    admin_email: " Admin@careknock.invalid ",
+    nurse_day_rate: "",
+    nurse_night_rate: "",
+  });
+  state = await settled();
+  assert.equal(state.admin_email, "admin@careknock.invalid");
+  assert.equal(state.emails.find((m) => m.id === preview.id).status, "blocked");
+  await request("/api/email-retry", { id: preview.id });
+  state = await settled();
+  assert.equal(state.emails.find((m) => m.id === preview.id).status, "sent");
+  assert.equal(
+    state.emails.find((m) => m.id === preview.id).to,
+    "admin@careknock.invalid",
+  );
+  assert.equal(
+    deliveries.filter((m) => m.recipient === "admin@careknock.invalid").length,
+    1,
+  );
+  await request("/api/settings", {
+    nurse_day_rate: 245,
+    nurse_night_rate: 270,
+  });
+  await request("/api/settings", { nurse_day_rate: 999 }, 400);
+  await request("/api/settings", { policies: { repost: true } }, 400);
+  await request("/api/case-action", { id: c.id, action: "dispatch" });
+  state = await settled();
+  assert.equal(state.cases[0].status, "POSTED");
+  assert.equal(state.cases[0].nurse_pay_total, 980);
+  const invitation = state.emails.find(
+    (m) => m.template_id === "T3" && m.links.length,
+  );
+  assert.equal(invitation.to, nurse.email);
+  assert.equal(invitation.status, "sent");
+});

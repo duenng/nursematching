@@ -92,6 +92,13 @@ export const extendWorkflow = (Base) =>
       super(...args);
       this.fpsRecipient = args[1]?.fpsRecipient || "";
       this.fpsAccountName = args[1]?.fpsAccountName || "";
+      this.paymeLink = args[1]?.paymeLink?.trim() || "";
+      this.paymeAccountName = args[1]?.paymeAccountName?.trim() || "";
+      if (
+        this.paymeLink &&
+        !/^https:\/\/(?:payme\.hsbc|qr\.payme\.hsbc)\//i.test(this.paymeLink)
+      )
+        throw new Error("PAYME_LINK must be an HTTPS PayMe payment link");
       this.bankName = args[1]?.bankName?.trim() || "";
       this.bankAccountName = args[1]?.bankAccountName?.trim() || "";
       this.bankAccountNumber = args[1]?.bankAccountNumber?.trim() || "";
@@ -656,12 +663,12 @@ export const extendWorkflow = (Base) =>
               notice_hours: (this.startAt(c) - this.now()) / hour,
             });
           if (
-            this.paymentMode === "bank_transfer" &&
+            ["bank_transfer", "payme"].includes(this.paymentMode) &&
             ["accept_single", "accept_package"].includes(t.action) &&
-            !this.bankTransferConfigured()
+            !this.paymentConfigured()
           )
             throw new Error(
-              "收款銀行資料未設定，請聯絡同事；暫時未能接受付款預約",
+              "收款銀行資料未設定或 PayMe 資料未齊，請聯絡同事；暫時未能接受付款預約",
             );
           if (t.action === "upload_doctor")
             throw new Error("請使用文件上載表格");
@@ -670,31 +677,10 @@ export const extendWorkflow = (Base) =>
               throw new Error("提交轉帳資料期限已過，請聯絡管理員核對");
             if (!this.isManualTransfer())
               throw new Error("此個案不是 人手轉帳對數模式");
+            if (this.paymentMode !== "fps_test")
+              throw new Error("請使用付款截圖上載表格");
             const report = validateTransferReport(input, c, this.now());
-            const submission = {
-              id: randomUUID(),
-              case_id: c.id,
-              ...report,
-              submitted_at: this.stamp(),
-              status: "PENDING_REVIEW",
-              test_only: this.paymentMode === "fps_test",
-            };
-            this.state.payment_submissions.push(submission);
-            c.payment_review_status = "PENDING_REVIEW";
-            this.event("payment.fps_reported", c, {
-              actor: "family",
-              submission_id: submission.id,
-              amount: report.amount,
-            });
-            this.email(
-              c,
-              "T14",
-              this.adminEmail(),
-              `轉帳待對數 – Case ${c.id}`,
-              `Case ${c.id} 客人已提交 轉帳資料。此為客人聲明；須由管理員核對銀行入帳後才可確認收款。`,
-            );
-            t.used_at = this.stamp();
-            return "已收到轉帳資料，等候管理員對數。尚未確認收款，未派單。";
+            return this.recordPaymentReport(c, t, report);
           }
           if (
             ["accept_package", "accept_existing_package"].includes(t.action)
@@ -925,8 +911,43 @@ export const extendWorkflow = (Base) =>
           );
       }
     }
+    recordPaymentReport(c, t, report) {
+      const submission = {
+        id: randomUUID(),
+        case_id: c.id,
+        ...report,
+        submitted_at: this.stamp(),
+        status: "PENDING_REVIEW",
+        test_only: this.paymentMode === "fps_test",
+      };
+      this.state.payment_submissions.push(submission);
+      c.payment_review_status = "PENDING_REVIEW";
+      this.event("payment.fps_reported", c, {
+        actor: "family",
+        submission_id: submission.id,
+        ...(report.screenshot
+          ? { receipt_id: report.screenshot.id }
+          : { amount: report.amount }),
+      });
+      this.email(
+        c,
+        "T14",
+        this.adminEmail(),
+        `付款待核實 – Case ${c.id}`,
+        `Case ${c.id} 客人已提交${report.screenshot ? "付款截圖" : "轉帳資料"}。須由同事獨立核對實際入帳後才可確認收款及派單。`,
+      );
+      t.used_at = this.stamp();
+      return report.screenshot
+        ? "已收到付款截圖，等候同事核實。尚未確認收款，未派單。"
+        : "已收到轉帳資料，等候管理員對數。尚未確認收款，未派單。";
+    }
+    paymentConfigured() {
+      return this.paymentMode === "payme"
+        ? !!(this.paymeLink && this.paymeAccountName)
+        : this.bankTransferConfigured();
+    }
     isManualTransfer() {
-      return ["bank_transfer", "fps_test"].includes(this.paymentMode);
+      return ["bank_transfer", "payme", "fps_test"].includes(this.paymentMode);
     }
     bankTransferConfigured() {
       return !!(
@@ -937,10 +958,12 @@ export const extendWorkflow = (Base) =>
     }
     beginPayment(c) {
       if (
-        this.paymentMode === "bank_transfer" &&
-        !this.bankTransferConfigured()
+        ["bank_transfer", "payme"].includes(this.paymentMode) &&
+        !this.paymentConfigured()
       )
-        throw new Error("收款銀行資料未設定，請聯絡同事；暫時未能接受付款預約");
+        throw new Error(
+          "收款銀行資料未設定或 PayMe 資料未齊，請聯絡同事；暫時未能接受付款預約",
+        );
       this.transition(c, "PENDING_PAY");
       c.payment_deadline = new Date(
         this.now() +
@@ -956,14 +979,16 @@ export const extendWorkflow = (Base) =>
     paymentEmail(c) {
       if (this.isManualTransfer()) {
         if (
-          this.paymentMode === "bank_transfer" &&
-          !this.bankTransferConfigured()
+          ["bank_transfer", "payme"].includes(this.paymentMode) &&
+          !this.paymentConfigured()
         )
-          throw new Error("收款銀行資料未設定，不能發出付款指示");
+          throw new Error("收款資料未設定，不能發出付款指示");
         const instructions =
-          this.paymentMode === "bank_transfer"
-            ? `銀行：${this.bankName}\n收款戶名：${this.bankAccountName}\n銀行戶口號碼：${this.bankAccountNumber}\n請人手轉帳，並提交轉帳參考編號、金額及時間。`
-            : `FPS 測試收款識別：${this.fpsRecipient || "未設定；請先聯絡管理員"}\n測試戶名：${this.fpsAccountName || "未設定"}\n【TRL 3 模擬測試，請勿實際轉帳】使用虛構轉帳參考編號。`;
+          this.paymentMode === "payme"
+            ? `PayMe 收款戶名：${this.paymeAccountName}\n付款連結：${this.paymeLink}\n請確認收款戶名及金額，付款成功後上載截圖，毋須填寫參考編號、金額或日期。`
+            : this.paymentMode === "bank_transfer"
+              ? `銀行：${this.bankName}\n收款戶名：${this.bankAccountName}\n銀行戶口號碼：${this.bankAccountNumber}\n請人手轉帳，付款成功後上載截圖，毋須填寫參考編號、金額或日期。`
+              : `FPS 測試收款識別：${this.fpsRecipient || "未設定；請先聯絡管理員"}\n測試戶名：${this.fpsAccountName || "未設定"}\n【TRL 3 模擬測試，請勿實際轉帳】使用虛構轉帳參考編號。`;
         const amount = c.payment_amount ?? c.quote.total;
         this.email(
           c,
@@ -971,11 +996,14 @@ export const extendWorkflow = (Base) =>
           c.email,
           `人手轉帳及對數 – Case ${c.id}`,
           `你好，Case ${c.id} 報價已確認${c.order_type === "PACKAGE_NEW" ? "，你揀咗 30 小時套餐" : ""}。
-應付 HK$${amount}。請於 ${new Date(c.payment_deadline).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })} HKT 前提交轉帳資料。
+應付 HK$${amount}。請於 ${new Date(c.payment_deadline).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })} HKT 前${this.paymentMode === "fps_test" ? "提交轉帳資料" : "上載付款截圖"}。
 ${instructions}
 提交後會由同事人手核對入帳；只有確認收款後才會安排派單。
 逾時未有提交，預約會自動取消。期限前已提交而仍待對數會交人工核對，不會當已付款。`,
           [
+            ...(this.paymentMode === "payme"
+              ? [{ label: "PayMe", url: this.paymeLink }]
+              : []),
             this.token(c, "family", "report_fps"),
             this.token(c, "family", "cancel"),
           ],
@@ -1281,7 +1309,11 @@ ${instructions}
         c.fps_refund_recorded_by = this.operatorId("admin");
         this.finishRefund(
           c,
-          this.paymentMode === "bank_transfer" ? "bank_transfer" : "fps_manual",
+          this.paymentMode === "payme"
+            ? "payme_manual"
+            : this.paymentMode === "bank_transfer"
+              ? "bank_transfer"
+              : "fps_manual",
           ref,
         );
         this.event("refund.fps_recorded", c, { actor: "admin", amount });
@@ -1524,14 +1556,19 @@ ${instructions}
         if (action === "remote") {
           if (!["MANUAL", "QUOTED", "PAID"].includes(c.status))
             throw new Error("只能在派單前覆核交通津貼");
-          if (!["A", "B", "C"].includes(i.tier) || !i.reason?.trim())
-            throw new Error("請選擇地區分類並填覆核原因");
+          if (!["A", "B", "C"].includes(i.tier))
+            throw new Error("請選擇有效地區分類");
           c.remote_tier = i.tier;
           c.nurse_travel_allowance =
             i.tier === "C" ? 0 : this.state.settings.nurse_travel_allowance;
           c.remote_reviewed_by = this.operatorId("admin");
+          c.remote_reviewed_at = this.stamp();
           c.remote_review_required = false;
-          this.event("remote.reviewed", c, { actor: "admin", tier: i.tier });
+          this.event("remote.reviewed", c, {
+            actor: "admin",
+            tier: i.tier,
+            nurse_travel_allowance: c.nurse_travel_allowance,
+          });
           return;
         }
         if (action === "correct_intake") {
@@ -1595,8 +1632,8 @@ ${instructions}
             throw new Error(
               "已付款／套餐個案不可重新發付款報價；請先處理人工服務或退款",
             );
-          if (c.status !== "MANUAL" || !i.reason?.trim())
-            throw new Error("請填寫人工處理原因");
+          if (c.status !== "MANUAL")
+            throw new Error("只可為待人工處理個案發報價");
           if (c.red_flag || hasRedFlag(c)) {
             c.red_flag = true;
             if (
@@ -1647,7 +1684,7 @@ ${instructions}
               manual.surcharge < 0 ||
               !Number.isSafeInteger(manual.base + manual.surcharge) ||
               manual.base + manual.surcharge <= 0 ||
-              i.reason.trim().length < 10
+              (i.reason?.trim().length || 0) < 10
             )
               throw new Error(
                 "請填有效整數基本費及附加費、至少 10 字覆核原因，並確認人工夜更報價",

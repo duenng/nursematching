@@ -8,12 +8,27 @@ export const realNurse = (n) =>
 export const eligibleNurse = (n, live) =>
   n.status === "VERIFIED" &&
   (!live || (realNurse(n) && !!n.registration && !!n.verified_by));
+export const settingsLocked = (state, live) =>
+  state.cases.some(
+    (c) =>
+      ![
+        "MANUAL",
+        "NO_DR_ORDER",
+        "NO_FIRST_INSERT",
+        "CANCELLED",
+        "PAY_TIMEOUT",
+        "EXPIRED",
+        "DONE",
+      ].includes(c.status) &&
+      (!live || c.intake_mode === "LIVE"),
+  );
 export function staffSnapshot(state, live) {
   const { tokens, ...snapshot } = state;
   const project = (c) => ({
     ...c,
     dispatch_preview_body: dispatchBody(c, state.settings),
   });
+  snapshot.settings_locked = settingsLocked(state, live);
   if (!live) return { ...snapshot, cases: state.cases.map(project) };
   const cases = state.cases
     .filter((c) => c.intake_mode === "LIVE")

@@ -8,6 +8,14 @@ test("administrator can review a Sunday night quote and family sees the exact co
   await page.addInitScript(() =>
     localStorage.setItem("kindred-language", "zh-HK"),
   );
+  const configured = await page.request.post("/api/settings", {
+    data: {
+      nurse_day_rate: 245,
+      nurse_night_rate: 270,
+      policies: { allow_arrival_completion: true },
+    },
+  });
+  expect(configured.ok(), await configured.text()).toBeTruthy();
   const response = await page.request.post("/api/enquiries", {
     headers: {
       Origin: new URL(baseURL!).origin,
@@ -47,16 +55,10 @@ test("administrator can review a Sunday night quote and family sees the exact co
   await expect(issue).toBeDisabled();
   await expect(issue).toHaveAttribute("aria-describedby", "quote-requirements");
   await expect(requirements).toContainText("地點覆核尚未儲存");
-  await expect(requirements).toContainText("請填寫上方「覆核／操作原因」");
-  await page
-    .getByLabel("覆核／操作原因", { exact: true })
-    .fill("已核實本次跨星期日夜更收費及服務地址");
+  await expect(
+    page.getByLabel("覆核／操作原因", { exact: true }),
+  ).not.toBeVisible();
   await page.getByLabel("偏遠分類（只影響護士交通津貼）").selectOption("C");
-  await expect(issue).toBeDisabled();
-  await expect(requirements).toContainText("地點覆核尚未儲存");
-  await page
-    .getByRole("button", { name: "覆核地點及交通津貼", exact: true })
-    .click();
   await expect(requirements).toHaveCount(0);
   await issue.click();
   await expect(
@@ -81,12 +83,12 @@ test("administrator can review a Sunday night quote and family sees the exact co
   const confirm = page.getByRole("checkbox", {
     name: /我已核實此夜更的基本費/,
   });
-  await page.getByLabel("覆核／操作原因", { exact: true }).fill("核實");
+  await page.getByLabel("收費依據（至少 10 字）", { exact: true }).fill("核實");
   await confirm.check();
   await expect(issue).toBeDisabled();
   await expect(requirements).toContainText("至少 10 字收費依據");
   await page
-    .getByLabel("覆核／操作原因", { exact: true })
+    .getByLabel("收費依據（至少 10 字）", { exact: true })
     .fill("已核實本次跨星期日夜更收費及服務地址");
   await expect(issue).toBeEnabled();
   await expect(requirements).toHaveCount(0);
@@ -194,6 +196,7 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByLabel("Building (no unit at intake)")
     .fill("Workflow Building");
+  await page.getByLabel("Service date", { exact: true }).fill("2026-11-10");
   await page.getByRole("checkbox", { name: /生命表徵/ }).check();
   await page
     .getByRole("checkbox", { name: /I agree that this information/ })
@@ -219,12 +222,10 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
       exact: true,
     })
     .click();
-  await page
-    .getByLabel("Review / action reason")
-    .fill("Confirmed service location and requirements");
-  await page
-    .getByRole("button", { name: "Review location / allowance", exact: true })
-    .click();
+  await page.getByLabel("Remote tier (nurse allowance only)").selectOption("C");
+  await expect(page.getByTestId("saved-travel-allowance")).toContainText(
+    "HK$0",
+  );
   await page
     .getByRole("button", { name: "Issue quote after review", exact: true })
     .click();
@@ -263,33 +264,32 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
     (l: { label: string }) => l.label === "report_fps",
   ).url;
   const rejected = await page.request.post(reportLink, {
-    form: {
-      reference: `FAMILY-${Date.now()}`,
-      amount: "1220",
-      transferred_at: "2026-01-01T12:00",
+    multipart: {
+      screenshot: {
+        name: "bad.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("invalid image"),
+      },
     },
   });
   expect(rejected.status()).toBe(400);
-  expect(await rejected.text()).toContain("請更正轉帳資料");
-  expect(await rejected.text()).toContain("不可早於個案建立時間");
+  expect(await rejected.text()).toContain("請重新上載付款截圖");
   await family.goto(reportLink);
-  const transferReference = `FAMILY-${Date.now()}`;
-  const transferHkt = new Date(Date.now() + 8 * 3600000).toISOString();
-  await family
-    .getByLabel("轉帳參考編號", { exact: true })
-    .fill(transferReference);
-  await expect(family.getByLabel("實際轉帳金額 HKD（整數）")).toHaveValue(
-    "1220",
+  await expect(family.getByLabel("轉帳參考編號", { exact: true })).toHaveCount(
+    0,
   );
-  await family
-    .getByLabel("轉帳日期", { exact: true })
-    .fill(transferHkt.slice(0, 10));
-  await family
-    .getByRole("combobox", { name: "時", exact: true })
-    .selectOption(transferHkt.slice(11, 13));
-  await family
-    .getByRole("combobox", { name: "分", exact: true })
-    .selectOption(transferHkt.slice(14, 16));
+  await expect(
+    family.locator('input[name="amount"], input[type="date"]'),
+  ).toHaveCount(0);
+  const screenshot = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aH1cAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await family.getByLabel("付款截圖", { exact: true }).setInputFiles({
+    name: "payment.png",
+    mimeType: "image/png",
+    buffer: screenshot,
+  });
   await family.setViewportSize({ width: 390, height: 844 });
   expect(
     await family.evaluate(
@@ -298,12 +298,12 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   ).toBeTruthy();
   await family
     .getByRole("button", {
-      name: "確認：提交轉帳資料（待管理員對數）",
+      name: "確認：提交付款截圖（待同事核實）",
       exact: true,
     })
     .click();
   await expect(family.locator("main")).toContainText(
-    "已收到轉帳資料，等候管理員對數",
+    "已收到付款截圖，等候同事核實",
   );
   const reportedState = await (await page.request.get("/api/workflow")).json();
   expect(
@@ -313,6 +313,13 @@ test("staff enquiry reaches server, quote confirmation, independent bank reconci
   await page
     .getByRole("combobox", { name: "Pending transfer report", exact: true })
     .selectOption({ index: 1 });
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: /Download payment screenshot/ })
+    .click();
+  expect((await downloadPromise).suggestedFilename()).toMatch(
+    /^payment-.*\.png$/,
+  );
   await page
     .getByLabel("Bank receipt / refund reference")
     .fill(`BANK-${Date.now()}`);

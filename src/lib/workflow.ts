@@ -58,7 +58,7 @@ export const SERVICE_ITEMS: ServiceItemDefinition[] = [
     id: "catheter-care",
     category: "A",
     label: "Existing urinary catheter daily care",
-    zh: "現有尿喉日常護理（不包括更換）",
+    zh: "現有尿喉日常護理（清潔、倒尿袋）",
   },
   {
     id: "tube-feeding",
@@ -149,7 +149,6 @@ export const SERVICE_ITEMS: ServiceItemDefinition[] = [
     label: "Mobility assistance",
     zh: "行動協助（扶抱、轉位、行路）",
   },
-  { id: "companionship", category: "C", label: "Companionship", zh: "陪伴" },
   {
     id: "appointment",
     category: "C",

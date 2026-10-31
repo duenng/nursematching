@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Workflow } from "./workflow.mjs";
+import { dispatchBody, confirmationDetails } from "./workflow-content.mjs";
 const H = 3600000;
 const base = (extra) => ({
   surname: "陳",
@@ -292,7 +293,7 @@ test("full intake validates all fields, all services, remote review and human sc
   });
   assert.equal(c.schedule_status, "PENDING_REVIEW");
   assert.equal(c.schedule_edits.length, 1);
-  assert.equal(w.state.service_catalog.length, 20);
+  assert.equal(w.state.service_catalog.length, 19);
   const peg = w.create(
     base({
       services: [{ id: "peg-change", times: [] }],
@@ -344,6 +345,10 @@ test("holiday night pricing requires explicit reviewed amounts and preserves the
     assert.equal(c.status, "MANUAL");
     assert.equal(c.quote, undefined);
   }
+  assert.throws(
+    () => w.adminCase(c, "issue_quote", { manual_night_quote: manual }),
+    /10 字/,
+  );
   assert.throws(
     () =>
       w.adminCase(c, "issue_quote", {
@@ -496,6 +501,61 @@ test("F11 in-service reminders escalate once and confirmation stops escalation",
     w.state.events.find((e) => e.event === "reminder.confirmed").actor_code,
     "N01",
   );
+});
+
+test("remote review needs no reason and applies A/B allowance through dispatch and payout", (t) => {
+  const { w, path, set } = setup(t);
+  const c = w.create(base({ other: "需核實服務資料" }));
+  assert.equal(c.status, "MANUAL");
+  for (const tier of [undefined, "", "D", "UNMATCHED"]) {
+    assert.throws(() => w.adminCase(c, "remote", { tier }), /有效地區分類/);
+    assert.equal(c.nurse_travel_allowance, 0);
+  }
+  for (const [tier, amount] of [
+    ["A", 150],
+    ["C", 0],
+    ["B", 150],
+  ]) {
+    w.asOperator({ id: "STAFF-REMOTE", role: "ADMIN", method: "google" }, () =>
+      w.adminCase(c, "remote", { tier }),
+    );
+    assert.equal(c.remote_tier, tier);
+    assert.equal(c.nurse_travel_allowance, amount);
+    assert.equal(c.remote_reviewed_by, "STAFF-REMOTE");
+    assert.ok(c.remote_reviewed_at);
+    const audit = w.state.events
+      .filter((e) => e.event === "remote.reviewed")
+      .at(-1);
+    assert.equal(audit.actor_code, "STAFF-REMOTE");
+    assert.equal(audit.tier, tier);
+    assert.equal(audit.nurse_travel_allowance, amount);
+  }
+  w.adminCase(c, "issue_quote");
+  assert.equal(c.quote.total, 1220);
+  const reopened = new Workflow(path, { seedNurses: false });
+  const saved = reopened.state.cases.find((item) => item.id === c.id);
+  assert.equal(saved.remote_tier, "B");
+  assert.equal(saved.nurse_travel_allowance, 150);
+  reopened.db.close();
+  paid(w, c);
+  ready(w, c);
+  assert.equal(c.nurse_pay_total, 1130);
+  for (const body of [
+    dispatchBody(c, w.state.settings),
+    confirmationDetails(c, "take_case", w.state.settings, w.now()),
+    w.state.emails.find((m) => m.case_id === c.id && m.template_id === "T3")
+      .body,
+  ]) {
+    assert.match(body, /交通津貼 HK\$150/);
+    assert.match(body, /合共 HK\$1130/);
+  }
+  assert.throws(() => w.adminCase(c, "remote", { tier: "C" }), /派單前/);
+  assert.equal(c.nurse_travel_allowance, 150);
+  finish(w, c, set);
+  const payout = w.state.payouts.find((p) => p.case_id === c.id);
+  assert.equal(payout.base_pay, 980);
+  assert.equal(payout.travel_allowance, 150);
+  assert.equal(payout.total, 1130);
 });
 
 test("remote B requires explicit admin allowance review and uses T14g", (t) => {

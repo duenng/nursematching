@@ -190,8 +190,9 @@ class BaseWorkflow {
       subject: c.intake_mode === "LIVE" ? subject : `【測試】${subject}`,
       body:
         body +
-        (c.intake_mode === "LIVE" || this.paymentMode === "bank_transfer"
-          ? "\n\n通知透過電郵發出。轉帳資料須由同事核對銀行入帳；如有疑問請聯絡同事，請勿重複轉帳。"
+        (c.intake_mode === "LIVE" ||
+        ["bank_transfer", "payme"].includes(this.paymentMode)
+          ? "\n\n通知透過電郵發出。付款須由同事核對銀行或 PayMe 實際入帳；如有疑問請聯絡同事，請勿重複付款。"
           : FOOTER),
       links,
       created_at: this.stamp(),
@@ -511,7 +512,9 @@ class BaseWorkflow {
       this.timer(c, "PAY_EXPIRE", this.state.settings.payment_window_hours);
       this.event("quote.accepted_single", c);
       if (this.paymentMode === "mock") this.paymentEmail(c);
-      else if (["fps_test", "bank_transfer"].includes(this.paymentMode))
+      else if (
+        ["fps_test", "bank_transfer", "payme"].includes(this.paymentMode)
+      )
         this.paymentEmail(c);
       else c.checkout_pending = true;
     } else if (t.action === "decline" || t.action === "cancel") {
@@ -636,7 +639,7 @@ class BaseWorkflow {
       this.state.settings.nurse_day_rate === null ||
       this.state.settings.nurse_night_rate === null
     )
-      throw new Error("請先由管理員確認測試護士薪酬設定");
+      throw new Error("請先到設定確認日間及夜間護士薪酬，再返回個案派單");
     this.transition(c, "POSTED");
     for (const n of this.state.nurses.filter((n) =>
       eligibleNurse(n, this.live),
@@ -747,8 +750,8 @@ class BaseWorkflow {
           "T10",
           c.email,
           "付款提醒",
-          ["bank_transfer", "fps_test"].includes(this.paymentMode)
-            ? `提提你 Case ${c.id} 尚未確認收款。請於 ${c.payment_deadline} 前轉帳及提交資料；如已轉帳或提交，請勿重複轉帳，等候同事核對銀行入帳。如未提交資料，請聯絡同事跟進。`
+          ["bank_transfer", "payme", "fps_test"].includes(this.paymentMode)
+            ? `提提你 Case ${c.id} 尚未確認收款。請於 ${c.payment_deadline} 前付款及提交付款證明；如已付款或提交，請勿重複付款，等候同事核對實際入帳。如未提交付款證明，請聯絡同事跟進。`
             : `提提你 Case ${c.id} 仲未付款，請喺 ${c.payment_deadline} 前完成，否則預約會自動取消。`,
         );
       else if (t.type === "NO_TAKER" && c.status === "POSTED") {

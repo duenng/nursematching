@@ -1,7 +1,7 @@
 // Keep this renderer browser-safe: the inbox previews the same HTML sent by SMTP.
 export const ACTION_LABELS = {
   upload_doctor: "上載醫生指示文件",
-  report_fps: "提交轉帳資料",
+  report_fps: "提交付款證明",
   accept_single: "接受單次報價",
   accept_package: "30 小時套餐",
   accept_existing_package: "使用現有套餐",

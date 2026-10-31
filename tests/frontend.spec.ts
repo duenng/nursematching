@@ -93,10 +93,14 @@ test("staff requests show connection failures without falling back to demonstrat
   await expect(page.locator("table")).toHaveCount(0);
 });
 
-test("manual case saves location review before quoting and displays action results beside controls", async ({
+test("manual case saves the selected allowance and issues a quote without a review reason", async ({
   page,
 }) => {
   const origin = String(test.info().project.use.baseURL);
+  const configured = await page.request.post("/api/settings", {
+    data: { nurse_day_rate: 245, nurse_night_rate: 270 },
+  });
+  expect(configured.ok(), await configured.text()).toBeTruthy();
   const response = await page.request.post(`${origin}/api/enquiries`, {
     headers: { Origin: origin },
     data: {
@@ -132,23 +136,38 @@ test("manual case saves location review before quoting and displays action resul
   });
   await expect(issue).toBeDisabled();
   await expect(controls).toContainText("Location review is not saved:");
-  await controls
-    .getByRole("button", { name: "Review location / allowance", exact: true })
-    .click();
-  await expect(controls.getByRole("alert")).toContainText(
-    "請選擇地區分類並填覆核原因",
+  await expect(controls.getByLabel("Review / action reason")).not.toBeVisible();
+  const tier = controls.getByLabel("Remote tier (nurse allowance only)");
+  const allowance = controls.getByTestId("saved-travel-allowance");
+  await expect(tier).toHaveValue("");
+  await expect(allowance).toContainText("Awaiting review");
+  await page.route("**/api/case-action", (route) =>
+    route.fulfill({ status: 503, json: { error: "Could not save allowance" } }),
   );
-  await expect(controls.getByRole("alert")).toBeInViewport();
-  await controls
-    .getByLabel("Review / action reason")
-    .fill("Address and services verified with the family");
-  await controls.getByRole("combobox").selectOption("C");
-  await controls
-    .getByRole("button", { name: "Review location / allowance", exact: true })
-    .click();
+  await tier.selectOption("A");
+  await expect(controls.getByRole("alert")).toContainText(
+    "Could not save allowance",
+  );
+  await expect(allowance).toContainText("Awaiting review");
+  await expect(tier).toHaveValue("");
+  await expect(issue).toBeDisabled();
+  await page.unroute("**/api/case-action");
+  await tier.selectOption("A");
   await expect(
     controls.locator('[role="status"][tabindex="-1"]'),
   ).toContainText("Location and allowance review saved.");
+  await expect(allowance).toContainText("HK$150");
+  await expect(
+    controls.locator('[role="status"][tabindex="-1"]'),
+  ).toBeInViewport();
+  await page.reload();
+  await controls.locator("summary").first().click();
+  await expect(tier).toHaveValue("A");
+  await expect(allowance).toContainText("HK$150");
+  await tier.selectOption("C");
+  await expect(allowance).toContainText("HK$0");
+  await tier.selectOption("B");
+  await expect(allowance).toContainText("HK$150");
   await expect(issue).toBeEnabled();
   await issue.click();
   await expect(
@@ -158,9 +177,12 @@ test("manual case saves location review before quoting and displays action resul
   const workspace = await (
     await page.request.get(`${origin}/api/workflow`)
   ).json();
-  expect(
-    workspace.cases.find((c: { id: string }) => c.id === id).quote.total,
-  ).toBe(1220);
+  const saved = workspace.cases.find((c: { id: string }) => c.id === id);
+  expect(saved.quote.total).toBe(1220);
+  expect(saved.nurse_travel_allowance).toBe(150);
+  expect(saved.remote_tier).toBe("B");
+  expect(saved.dispatch_preview_body).toContain("交通津貼 HK$150");
+  expect(saved.dispatch_preview_body).toContain("合共 HK$1130");
   expect(
     workspace.emails.filter(
       (m: { case_id: string; template_id: string }) =>

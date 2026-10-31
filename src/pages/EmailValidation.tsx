@@ -69,6 +69,8 @@ export type Case = {
   refund_status?: string;
   refund_amount?: number;
   remote_tier?: string;
+  nurse_travel_allowance?: number;
+  remote_review_required?: boolean;
   nurse_pay_total?: number;
   payment_amount?: number;
   amount_paid?: number;
@@ -113,6 +115,7 @@ type Event = {
   detail_json?: string;
 };
 export type Workspace = {
+  settings_locked?: boolean;
   settings: {
     time_scale: number;
     nurse_day_rate: number | null;
@@ -136,10 +139,12 @@ export type Workspace = {
   payment_submissions: {
     id: string;
     case_id: string;
-    reference: string;
-    amount: number;
+    reference?: string;
+    amount?: number;
     status: string;
-    transferred_at: string;
+    transferred_at?: string;
+    submitted_at?: string;
+    screenshot?: { id: string; media_type: string; size: number };
   }[];
   payment_reconciliations: {
     id: string;
@@ -202,7 +207,7 @@ export type Workspace = {
 const services = catalog;
 const labels: Record<string, string> = {
   upload_doctor: "上載醫生指示文件",
-  report_fps: "提交轉帳資料",
+  report_fps: "提交付款證明",
   accept_single: "接受單次報價",
   accept_package: "30 小時套餐",
   accept_existing_package: "使用現有套餐",
@@ -509,19 +514,11 @@ export function AdminWorkspace({
           ),
         ]
       : []),
-    ...(c?.remote_tier === "UNMATCHED"
+    ...(c?.remote_tier === "UNMATCHED" || c?.remote_review_required
       ? [
           text(
-            "地點覆核尚未儲存：核實地址、選擇偏遠分類，再按「覆核地點及交通津貼」。只更改選單不會儲存。",
-            "Location review is not saved: verify the address, select the remote tier, then click Review location / allowance. Changing the selection alone does not save it.",
-          ),
-        ]
-      : []),
-    ...(!adminReason.trim()
-      ? [
-          text(
-            "請填寫上方「覆核／操作原因」。",
-            "Enter the review / action reason above.",
+            "地點覆核尚未儲存：核實地址後選擇偏遠分類，系統會即時儲存及套用護士交通津貼。",
+            "Location review is not saved: verify the address and select a remote tier to save and apply the nurse travel allowance.",
           ),
         ]
       : []),
@@ -536,8 +533,8 @@ export function AdminWorkspace({
     ...(manualNightQuote && adminReason.trim().length < 10
       ? [
           text(
-            "人工夜更報價須在「覆核／操作原因」填寫至少 10 字收費依據。",
-            "For a manual night quote, enter at least 10 characters explaining the pricing in the review / action reason.",
+            "人工夜更報價須填寫至少 10 字收費依據。",
+            "For a manual night quote, enter at least 10 characters explaining the pricing.",
           ),
         ]
       : []),
@@ -617,10 +614,10 @@ export function AdminWorkspace({
     note: "",
     verified: false,
   });
-  const [remoteTier, setRemoteTier] = useState("C");
+  const [remoteTier, setRemoteTier] = useState("");
   useEffect(() => {
     setRemoteTier(
-      ["A", "B", "C"].includes(c?.remote_tier || "") ? c!.remote_tier! : "C",
+      ["A", "B", "C"].includes(c?.remote_tier || "") ? c!.remote_tier! : "",
     );
   }, [c?.id, c?.remote_tier]);
   const [scheduleEdit, setScheduleEdit] = useState("");
@@ -636,13 +633,20 @@ export function AdminWorkspace({
     note: "",
     artifact: "",
   });
-  async function action(action: string) {
+  const remoteFeedback = {
+    pending: text("正在儲存交通津貼…", "Saving travel allowance…"),
+    success: text(
+      "已儲存地點覆核及交通津貼分類。核實其餘服務資料後，可按「人工處理後發報價」。",
+      "Location and allowance review saved. After verifying the remaining service details, issue the quote below.",
+    ),
+  };
+  async function action(action: string, tier = remoteTier) {
     if (c)
       await request("/api/case-action", {
         id: c.id,
         action,
         reason: adminReason,
-        tier: remoteTier,
+        tier,
         red_flag_resolved: redFlagConfirmed,
         red_flag_resolution: redFlagResolution,
         ...(action === "issue_quote" && manualNightQuote
@@ -876,8 +880,14 @@ export function AdminWorkspace({
             HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
           >("input:invalid, select:invalid, textarea:invalid");
           if (invalid) {
+            const labelContent = invalid.labels?.[0]?.cloneNode(true) as
+              HTMLLabelElement | undefined;
+            labelContent
+              ?.querySelectorAll("input, select, textarea, button")
+              .forEach((control) => control.remove());
             const label =
-              invalid.labels?.[0]?.textContent?.trim() ||
+              invalid.getAttribute("aria-label")?.trim() ||
+              labelContent?.textContent?.trim() ||
               text("必填欄位", "Required field");
             const hint =
               invalid.type === "email"
@@ -894,7 +904,7 @@ export function AdminWorkspace({
                         "Complete or correct this field.",
                       );
             setInvalidField(invalid);
-            setError(`${label}：${hint}`);
+            setError(`${label}${text("：", ": ")}${hint}`);
             // Also focus on repeated attempts with the same validation message.
             intakeError.current?.focus();
             intakeError.current?.scrollIntoView({ block: "center" });
@@ -1161,14 +1171,14 @@ export function AdminWorkspace({
             "All times are in Hong Kong time using the 24-hour clock. Day visits run within 07:00–22:00 in 30-minute steps; the end must be later than the start.",
           )}
         </p>
-        <details>
-          <summary>
-            {text("多次上門／日夜組合", "Additional visits / day and night")}
-          </summary>
-          <p>
+        <fieldset>
+          <legend>
+            {text("多個服務日期／時段", "Multiple service dates / visits")}
+          </legend>
+          <p className="form-hint">
             {text(
-              "可記錄多段需求，由同事跟進；組合收費規則未確認，不會自動報價。",
-              "Record each requested visit for staff follow-up. Combined pricing requires manual review.",
+              "需要多日服務？按「加入服務日期」逐日加入，亦可為每次上門選擇不同時間。最多 30 次，多日及日夜組合由同事核實收費後跟進。",
+              "Need care on several days? Add each service date and adjust its times if needed. Up to 30 visits; staff will confirm pricing for multiple visits or day/night combinations.",
             )}
           </p>
           {additionalVisits.map((v, index) => (
@@ -1272,7 +1282,7 @@ export function AdminWorkspace({
                   )
                 }
               >
-                {text("移除", "Remove")}
+                {text("移除此日期", "Remove date")}
               </button>
             </div>
           ))}
@@ -1280,16 +1290,34 @@ export function AdminWorkspace({
             type="button"
             className="button secondary"
             disabled={additionalVisits.length >= 29}
-            onClick={() =>
+            onClick={() => {
+              const previous = additionalVisits.at(-1) || {
+                date: form.date,
+                shift: form.shift,
+                start: form.shift === "DAY" ? form.start : "22:00",
+                end:
+                  form.shift === "DAY"
+                    ? form.end
+                    : form.shift === "NIGHT10"
+                      ? "08:00"
+                      : "10:00",
+              };
+              const next = new Date(`${previous.date}T12:00:00Z`);
+              next.setUTCDate(next.getUTCDate() + 1);
               setAdditionalVisits([
                 ...additionalVisits,
-                { date: form.date, shift: "DAY", start: "10:00", end: "14:00" },
-              ])
-            }
+                {
+                  ...previous,
+                  date: Number.isFinite(next.getTime())
+                    ? next.toISOString().slice(0, 10)
+                    : "",
+                },
+              ]);
+            }}
           >
-            {text("加入上門時段", "Add visit")}
+            {text("加入服務日期", "Add service date")}
           </button>
-        </details>
+        </fieldset>
         <fieldset>
           <legend>
             {text(
@@ -1473,10 +1501,7 @@ export function AdminWorkspace({
           ))}
         </fieldset>
         <label>
-          {text(
-            "補充（紅旗或臨床判斷請求會交人手）",
-            "Remarks (clinical requests route to manual review)",
-          )}
+          {text("補充", "Remarks")}
           <textarea
             value={form.remarks}
             onChange={(e) => setForm({ ...form, remarks: e.target.value })}
@@ -1621,8 +1646,8 @@ export function AdminWorkspace({
               </h2>
               <p>
                 {text(
-                  "請留意電郵；需要核實嘅資料由同事跟進。收到報價後，請開啟電郵內連結並在確認頁操作。",
-                  "Check your email. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page.",
+                  `請留意 ${form.email} 嘅電郵，包括垃圾郵件匣。需要核實嘅資料由同事跟進；收到報價後，請開啟電郵內連結並在確認頁操作。如一直收唔到，請向同事提供以上查詢編號，毋須重複提交。`,
+                  `Check ${form.email}, including the spam folder. Staff will follow up any details requiring review. Open the quote email link and use the confirmation page. If no email arrives, give staff the enquiry reference above; you do not need to submit again.`,
                 )}
               </p>
               {receipt.quote && (
@@ -1690,22 +1715,27 @@ export function AdminWorkspace({
                 : text("本機測試收件箱", "Local test inbox")}
           </span>
           <span>
-            {workspace?.capabilities.payment === "bank_transfer"
+            {workspace?.capabilities.payment === "payme"
               ? text(
-                  "銀行轉帳 · 同事人手核對入帳",
-                  "Bank transfer · manual bank verification",
+                  "PayMe · 同事人手核實付款",
+                  "PayMe · manual payment verification",
                 )
-              : workspace?.capabilities.payment === "fps_test"
+              : workspace?.capabilities.payment === "bank_transfer"
                 ? text(
-                    "FPS 轉帳 · 管理員人手對數（測試）",
-                    "FPS · administrator reconciliation (test)",
+                    "銀行轉帳 · 同事人手核對入帳",
+                    "Bank transfer · manual bank verification",
                   )
-                : workspace?.capabilities.payment === "stripe_test"
-                  ? "Stripe test mode"
-                  : text(
-                      "本機模擬付款 · 未連接 Stripe",
-                      "Local mock payment · Stripe not connected",
-                    )}
+                : workspace?.capabilities.payment === "fps_test"
+                  ? text(
+                      "FPS 轉帳 · 管理員人手對數（測試）",
+                      "FPS · administrator reconciliation (test)",
+                    )
+                  : workspace?.capabilities.payment === "stripe_test"
+                    ? "Stripe test mode"
+                    : text(
+                        "本機模擬付款 · 未連接 Stripe",
+                        "Local mock payment · Stripe not connected",
+                      )}
           </span>
           <span>
             {text("規則產生草稿 · 未連接 AI", "Rules draft · no live AI")}
@@ -1727,10 +1757,10 @@ export function AdminWorkspace({
           <p>
             {text(
               operational
-                ? "請確認護士薪酬及跟進電郵。有進行中個案時，計價及流程設定會鎖定。護士資料請到護理人員頁管理。"
+                ? "管理員電郵可隨時儲存，護士薪酬亦可首次設定。有進行中個案時，已設定薪酬、計時及流程設定會鎖定。護士資料請到護理人員頁管理。"
                 : "全部測試收件人必須由團隊控制。護士薪酬未確認，請先輸入本次實驗值；有進行中個案時設定會鎖定。",
               operational
-                ? "Confirm nurse rates and the follow-up email. Pricing and workflow settings lock while cases are active. Manage nurses on the provider page."
+                ? "Save the admin email at any time and set missing nurse rates. Existing rates, timing and workflow policies lock while cases are active. Manage nurses on the provider page."
                 : "Use team-controlled test recipients. Confirm experimental nurse rates before dispatch. Settings lock while cases are active.",
             )}
           </p>
@@ -1786,6 +1816,7 @@ export function AdminWorkspace({
               {text("計時倍率", "Time scale")}
               <select
                 value={config.time_scale}
+                disabled={busy || workspace?.settings_locked}
                 onChange={(e) =>
                   setConfig({ ...config, time_scale: Number(e.target.value) })
                 }
@@ -1795,7 +1826,9 @@ export function AdminWorkspace({
                   value={60}
                   disabled={
                     operational ||
-                    workspace?.capabilities.payment === "bank_transfer" ||
+                    ["bank_transfer", "payme"].includes(
+                      workspace?.capabilities.payment || "",
+                    ) ||
                     workspace?.capabilities.payment === "stripe_test"
                   }
                 >
@@ -1815,6 +1848,11 @@ export function AdminWorkspace({
                 type="number"
                 min="1"
                 value={config.nurse_day_rate}
+                disabled={
+                  busy ||
+                  (workspace?.settings_locked &&
+                    workspace.settings.nurse_day_rate != null)
+                }
                 onChange={(e) =>
                   setConfig({ ...config, nurse_day_rate: e.target.value })
                 }
@@ -1828,6 +1866,11 @@ export function AdminWorkspace({
                 type="number"
                 min="1"
                 value={config.nurse_night_rate}
+                disabled={
+                  busy ||
+                  (workspace?.settings_locked &&
+                    workspace.settings.nurse_night_rate != null)
+                }
                 onChange={(e) =>
                   setConfig({ ...config, nurse_night_rate: e.target.value })
                 }
@@ -1838,6 +1881,7 @@ export function AdminWorkspace({
               <input
                 type="email"
                 value={config.admin_email}
+                disabled={busy}
                 onChange={(e) =>
                   setConfig({ ...config, admin_email: e.target.value })
                 }
@@ -1861,6 +1905,7 @@ export function AdminWorkspace({
                     <input
                       type="checkbox"
                       checked={v}
+                      disabled={busy || workspace?.settings_locked}
                       onChange={(e) =>
                         setConfig({
                           ...config,
@@ -1896,6 +1941,7 @@ export function AdminWorkspace({
                         )}
                     <select
                       value={String(v)}
+                      disabled={busy || workspace?.settings_locked}
                       onChange={(e) =>
                         setConfig({
                           ...config,
@@ -1921,6 +1967,7 @@ export function AdminWorkspace({
                   <input
                     type="email"
                     value={n.email}
+                    disabled={busy || workspace?.settings_locked}
                     onChange={(e) =>
                       setConfig({
                         ...config,
@@ -1936,12 +1983,36 @@ export function AdminWorkspace({
           <button
             className="button primary"
             disabled={busy || !workspace}
-            onClick={() => run(() => request("/api/settings", config))}
+            onClick={() =>
+              run(
+                async () => {
+                  await request("/api/settings", config);
+                  await refresh(true);
+                },
+                {
+                  pending: text("正在儲存設定…", "Saving settings…"),
+                  success: text(
+                    "設定已儲存。之前未寄出的管理員通知，可返回個案按「重新寄送」。",
+                    "Settings saved. Return to the case and retry any previously blocked admin notification.",
+                  ),
+                },
+              )
+            }
           >
             {operational
               ? text("儲存服務設定", "Save service settings")
               : text("確認並儲存測試設定", "Confirm test settings")}
           </button>
+          {actionFeedback && (
+            <div
+              ref={actionFeedbackRef}
+              tabIndex={-1}
+              role={error ? "alert" : "status"}
+              className={error ? "ev-error" : "staff-notice"}
+            >
+              {error || actionFeedback}
+            </div>
+          )}
         </details>
       )}
       <div className="ev-toolbar">
@@ -2088,7 +2159,7 @@ export function AdminWorkspace({
                         {c.quote.review_reason}
                       </p>
                     )}
-                    {["bank_transfer", "fps_test"].includes(
+                    {["bank_transfer", "payme", "fps_test"].includes(
                       workspace?.capabilities.payment || "",
                     ) && (
                       <section
@@ -2121,28 +2192,80 @@ export function AdminWorkspace({
                                 text("未有收款紀錄", "No payment recorded")}
                           </span>
                         </div>
+                        {workspace?.payment_submissions
+                          .filter((s) => s.case_id === c.id && s.screenshot)
+                          .map((s) => (
+                            <button
+                              key={s.id}
+                              className="button secondary"
+                              disabled={busy}
+                              onClick={() =>
+                                run(async () => {
+                                  const response = await fetch(
+                                    apiUrl(
+                                      `/api/payment-receipt/${s.screenshot!.id}`,
+                                    ),
+                                    {
+                                      credentials: "include",
+                                      headers: key
+                                        ? { Authorization: `Bearer ${key}` }
+                                        : {},
+                                    },
+                                  );
+                                  if (!response.ok)
+                                    throw new Error(
+                                      text(
+                                        "未能下載付款截圖",
+                                        "Could not download payment screenshot",
+                                      ),
+                                    );
+                                  const url = URL.createObjectURL(
+                                    await response.blob(),
+                                  );
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = `payment-${s.screenshot!.id}.${s.screenshot!.media_type === "image/png" ? "png" : "jpg"}`;
+                                  a.click();
+                                  setTimeout(
+                                    () => URL.revokeObjectURL(url),
+                                    1000,
+                                  );
+                                })
+                              }
+                            >
+                              {text(
+                                "下載付款截圖",
+                                "Download payment screenshot",
+                              )}
+                              {s.submitted_at
+                                ? ` · ${new Date(s.submitted_at).toLocaleString(zh ? "zh-HK" : "en-HK", { timeZone: "Asia/Hong_Kong" })}`
+                                : ""}
+                            </button>
+                          ))}
                         {canReconcile || refundEntry ? (
                           <>
                             <p className="ev-finance-help">
-                              {workspace?.capabilities.payment ===
-                              "bank_transfer"
+                              {["bank_transfer", "payme"].includes(
+                                workspace?.capabilities.payment || "",
+                              )
                                 ? text(
-                                    "客人提交資料後，請登入銀行核對實際入帳；確認收款前不會派單。系統不會自動查銀行或轉帳。",
-                                    "Check the actual receipt in your bank after the customer submits a report. Dispatch waits for confirmation; the system does not access your bank or transfer funds.",
+                                    "客人上載截圖後，請登入銀行或 PayMe 核對實際入帳；確認收款前不會派單。系統不會自動查帳或轉帳。",
+                                    "Check the actual receipt in your bank or PayMe after the customer uploads a screenshot. Dispatch waits for confirmation; the system does not access your account or transfer funds.",
                                   )
                                 : text(
                                     "客人提交資料只代表聲明，未確認入帳前不會派單。此為 TRL 3 測試，請用虛構交易。",
                                     "A customer report is a claim; dispatch waits for independent bank verification. Use fictional transactions for TRL 3.",
                                   )}
                             </p>
-                            {workspace?.capabilities.payment ===
-                              "bank_transfer" &&
-                              !workspace.capabilities
+                            {["bank_transfer", "payme"].includes(
+                              workspace?.capabilities.payment || "",
+                            ) &&
+                              !workspace?.capabilities
                                 .bank_transfer_configured && (
                                 <p className="ev-error">
                                   {text(
-                                    "收款銀行資料未設定，暫時不能接受付款預約。請聯絡系統管理員完成設定。",
-                                    "Bank details are not configured. Ask your system administrator to complete setup before accepting payment bookings.",
+                                    "收款資料未設定，暫時不能接受付款預約。請聯絡系統管理員完成設定。",
+                                    "Payment details are not configured. Ask your system administrator to complete setup before accepting payment bookings.",
                                   )}
                                 </p>
                               )}
@@ -2183,14 +2306,16 @@ export function AdminWorkspace({
                                     </option>
                                     {pendingReports.map((s) => (
                                       <option key={s.id} value={s.id}>
-                                        {s.reference} · HK${s.amount}
+                                        {s.screenshot
+                                          ? `${text("付款截圖", "Payment screenshot")} · ${s.submitted_at ? new Date(s.submitted_at).toLocaleString(zh ? "zh-HK" : "en-HK", { timeZone: "Asia/Hong_Kong" }) : s.id}`
+                                          : `${s.reference} · HK$${s.amount}`}
                                       </option>
                                     ))}
                                   </select>
                                   <small className="form-hint">
                                     {text(
-                                      "請按銀行紀錄核實，家屬聲明不代表已入帳。",
-                                      "Verify against bank records; a family report does not confirm receipt.",
+                                      "請按銀行或 PayMe 紀錄核實，付款截圖不代表已入帳。",
+                                      "Verify against bank or PayMe records; a screenshot does not confirm receipt.",
                                     )}
                                   </small>
                                 </label>
@@ -2298,11 +2423,12 @@ export function AdminWorkspace({
                                   setFps({ ...fps, verified: e.target.checked })
                                 }
                               />
-                              {workspace?.capabilities.payment ===
-                              "bank_transfer"
+                              {["bank_transfer", "payme"].includes(
+                                workspace?.capabilities.payment || "",
+                              )
                                 ? text(
-                                    "我已登入銀行獨立核對實際入帳／退款，金額及參考正確。",
-                                    "I independently checked the actual bank receipt or refund, amount and reference.",
+                                    "我已登入銀行或 PayMe 獨立核對實際入帳／退款，金額及參考正確。",
+                                    "I independently checked the actual bank or PayMe receipt or refund, amount and reference.",
                                   )
                                 : text(
                                     "我已獨立核對銀行紀錄，金額及參考正確（測試用虛構銀行紀錄）。",
@@ -2434,17 +2560,33 @@ export function AdminWorkspace({
                             "Manual review, cancellation, refunds and reposting",
                           )}
                         </summary>
-                        <label>
-                          {text("覆核／操作原因", "Review / action reason")}
-                          <textarea
-                            aria-label={text(
-                              "覆核／操作原因",
-                              "Review / action reason",
-                            )}
-                            value={adminReason}
-                            onChange={(e) => setAdminReason(e.target.value)}
-                          />
-                        </label>
+                        {!manualNightQuote && (
+                          <details>
+                            <summary>
+                              {text(
+                                "更正／取消／退款等操作原因",
+                                "Reason for corrections, cancellation or refunds",
+                              )}
+                            </summary>
+                            <p className="form-hint">
+                              {text(
+                                "地點覆核及一般發報價毋須填寫原因。",
+                                "No reason is needed for location review or a standard quote.",
+                              )}
+                            </p>
+                            <label>
+                              {text("覆核／操作原因", "Review / action reason")}
+                              <textarea
+                                aria-label={text(
+                                  "覆核／操作原因",
+                                  "Review / action reason",
+                                )}
+                                value={adminReason}
+                                onChange={(e) => setAdminReason(e.target.value)}
+                              />
+                            </label>
+                          </details>
+                        )}
                         {c.status === "MANUAL" && !c.package_id && (
                           <details>
                             <summary>
@@ -2542,13 +2684,43 @@ export function AdminWorkspace({
                           )}
                           <select
                             value={remoteTier}
-                            onChange={(e) => setRemoteTier(e.target.value)}
+                            disabled={
+                              busy ||
+                              !["MANUAL", "QUOTED", "PAID"].includes(c.status)
+                            }
+                            onChange={(e) => {
+                              const tier = e.target.value;
+                              void run(
+                                () => action("remote", tier),
+                                remoteFeedback,
+                              );
+                            }}
                           >
+                            <option value="" disabled>
+                              {text("請選擇偏遠分類", "Select a remote tier")}
+                            </option>
                             {["A", "B", "C"].map((v) => (
                               <option key={v}>{v}</option>
                             ))}
                           </select>
                         </label>
+                        <p className="form-hint">
+                          {text(
+                            "核實地址後選擇分類，即時儲存交通津貼。A／B 級有津貼；C 級沒有津貼。津貼由平台支付。",
+                            "Verify the address, then select a tier to save the allowance immediately. A/B receive an allowance; C receives none. The platform pays the allowance.",
+                          )}
+                        </p>
+                        <p role="status" data-testid="saved-travel-allowance">
+                          {text(
+                            "護士交通津貼（已儲存）",
+                            "Nurse travel allowance (saved)",
+                          )}
+                          :{" "}
+                          {c.remote_tier === "UNMATCHED" ||
+                          c.remote_review_required
+                            ? text("待覆核", "Awaiting review")
+                            : `HK$${(c.nurse_travel_allowance ?? 0).toLocaleString("en-HK")}`}
+                        </p>
                         {c.status === "MANUAL" &&
                           ["NIGHT10", "NIGHT12"].includes(c.shift || "") &&
                           c.intake_channel !== "conversation" && (
@@ -2628,10 +2800,27 @@ export function AdminWorkspace({
                                         ).toLocaleString("en-HK")
                                       : "—"}
                                   </p>
+                                  <label>
+                                    {text(
+                                      "收費依據（至少 10 字）",
+                                      "Pricing basis (at least 10 characters)",
+                                    )}
+                                    <textarea
+                                      aria-label={text(
+                                        "收費依據（至少 10 字）",
+                                        "Pricing basis (at least 10 characters)",
+                                      )}
+                                      value={adminReason}
+                                      onChange={(e) =>
+                                        setAdminReason(e.target.value)
+                                      }
+                                      minLength={10}
+                                    />
+                                  </label>
                                   <p className="form-hint">
                                     {text(
-                                      "請在上方「覆核／操作原因」記錄至少 10 字的收費依據；原因只供內部紀錄。報價電郵會列出基本費、附加費及總額。",
-                                      "Record the pricing basis in the review / action reason above (at least 10 characters, for internal records). The quote email will show the base fee, surcharge and total.",
+                                      "收費依據只供內部紀錄。報價電郵會列出基本費、附加費及總額。",
+                                      "The pricing basis is for internal records. The quote email will show the base fee, surcharge and total.",
                                     )}
                                   </p>
                                   <label className="ev-check">
@@ -2784,6 +2973,7 @@ export function AdminWorkspace({
                                 type="button"
                                 disabled={
                                   busy ||
+                                  (a === "remote" && !remoteTier) ||
                                   (a === "issue_quote" &&
                                     quoteBlockers.length > 0)
                                 }
@@ -2803,10 +2993,7 @@ export function AdminWorkspace({
                                     ),
                                     success:
                                       a === "remote"
-                                        ? text(
-                                            "已儲存地點覆核及交通津貼分類。核實其餘服務資料後，可按「人工處理後發報價」。",
-                                            "Location and allowance review saved. After verifying the remaining service details, issue the quote below.",
-                                          )
+                                        ? remoteFeedback.success
                                         : a === "issue_quote"
                                           ? text(
                                               "已建立報價並排入電郵傳送佇列。請到「電郵通知」查看寄送結果。",
